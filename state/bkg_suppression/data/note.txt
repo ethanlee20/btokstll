@@ -1,0 +1,7 @@
+This is the data and script used to train the boosted decision tree and autogluon model for signal-background classification.
+
+The model is trained on Mbc sideband region background events (5.20 < Mbc < 5.26 GeV^2) and signal region signal events.
+
+The model is tested on reconstructed signal region generic mc (B0 anti-B0 and B+ B-), so the ratio of signal to background in 
+this dataset is an approximation of what the real experiment might see.
+
