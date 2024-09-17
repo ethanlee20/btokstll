@@ -23,7 +23,7 @@ def aggregate_raw(columns, trials, raw_data_dir):
     filepaths = []
     for path in list(raw_data_dir.glob("*.pkl")):
         trial_num = get_raw_file_info(path)["trial"]
-        if trial_num in range(trials):
+        if trial_num in range(*trials):
             filepaths.append(path)
 
     raw_data = [pd.read_pickle(path)[columns] for path in filepaths]
@@ -42,12 +42,12 @@ class Aggregated_Raw_Dataset():
         save_dir = Path(save_dir)
         
         train_trial_range = (1, 31)
-        test_trial_range = (31, 41)
+        eval_trial_range = (31, 41)
         
         if split == "train": 
             trials = train_trial_range
-        elif split == "test": 
-            trials = test_trial_range
+        elif split == "eval": 
+            trials = eval_trial_range
         else: 
             raise ValueError
         

@@ -1,5 +1,5 @@
 
-from Pathlib import Path
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -25,12 +25,16 @@ def _calculate_linearity(model, eval_dataset, device):
         index=labels
     )
     series_result_by_label = series_result.groupby(level=0)
-    stdevs = series_result_by_label.std()
     avgs = series_result_by_label.mean()
+    stdevs = series_result_by_label.std()
 
-    assert labels == stdevs.index == avgs.index
+    np.testing.assert_array_equal(avgs.index, stdevs.index)
 
-    return labels, avgs.values.to_list(), stdevs.values.to_list() 
+    labels = avgs.index
+    avgs = avgs.values.tolist()
+    stdevs = stdevs.values.tolist()
+
+    return labels, avgs, stdevs 
 
 
 def _plot_ref_line(start, stop, ax, buffer=0.05, zorder=0):

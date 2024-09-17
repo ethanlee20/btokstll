@@ -6,9 +6,9 @@ Steering file for reconstructing B -> K* ell+ ell-.
 Submit to the Grid like this:
 
 gbasf2 \
-    -p 2024-06-04_sig_e \
+    -p mu_sideb_generic_mix \
     -s light-2401-ocicat \
-    -i /belle/MC/release-06-00-08/DB00002100/MC15ri_b/prod00025630/s00/e1003/4S/r00000/1120240010/mdst \
+    -i /belle/MC/release-06-00-08/DB00002100/MC15ri_b/prod00024821/s00/e1003/4S/r00000/mixed/mdst \
     /home/belle2/elee20/ml-hep-proj/experiments/2024-06-04_eff_res/scripts/recon_steer.py
 
 
@@ -24,10 +24,6 @@ Dataset paths:
 """
 
 
-import sys
-import pathlib as pl
-import argparse
-
 import basf2 as b2
 import modularAnalysis as ma
 from variables import collections as vc
@@ -36,11 +32,11 @@ from variables import variables as vm
 import vertex as vx
 
 
-ell = sys.argv[1]  # 'mu' or 'e'
-input_filepaths = [sys.argv[2]]  # overwritten on the Grid
-output_filepath = sys.argv[3]
-
-sideband = False
+# Use command line arguments here when in automated pipeline (sys.argv)
+ell = "mu"  # 'mu' or 'e'"
+input_filepaths = ""  # overwritten on the Grid
+output_filepath = f"{ell}_recon.root"
+sideband = True
 
 
 main = b2.Path()
@@ -274,7 +270,7 @@ treefit()
 
 rest_of_event()
 
-#printMCParticles()
+printMCParticles()
 
 B0_vars = create_variable_lists()
 
