@@ -8,16 +8,14 @@ Submit to the Grid like this:
 gbasf2 \
     -p mu_sideb_generic_mix \
     -s light-2401-ocicat \
-    -i /belle/MC/release-06-00-08/DB00002100/MC15ri_b/prod00024821/s00/e1003/4S/r00000/mixed/mdst \
-    /home/belle2/elee20/btokstll/logic/scripts/helpers/data/basf2/recon_steer.py
+    --input_dslist /home/belle2/elee20/btokstll/logic/scripts/library/data/basf2/grid_file_paths/generic_mix.txt \
+    /home/belle2/elee20/btokstll/logic/scripts/library/data/basf2/recon_steer.py
 
 
 Dataset paths:
-
     mixed bkg first file: -i /belle/MC/release-06-00-08/DB00002100/MC15ri_b/prod00024821/s00/e1003/4S/r00000/mixed/mdst \
-    mixed bkg mini list: --input_dslist /home/belle2/elee20/ml-hep-proj/scripts/reconstruct/lpns_results_gen_mixed_mini.txt \
-    mixed bkg all list: --input_dslist /home/belle2/elee20/ml-hep-proj/scripts/reconstruct/lpns_results_gen_mixed.txt \
-    charged bkg all list: --input_dslist /home/belle2/elee20/ml-hep-proj/scripts/reconstruct/lpns_results_gen_charged.txt \
+    mixed bkg all list: --input_dslist /home/belle2/elee20/btokstll/logic/scripts/library/data/basf2/grid_file_paths/generic_mix.txt \
+    charged bkg all list: --input_dslist /home/belle2/elee20/btokstll/logic/scripts/library/data/basf2/grid_file_paths/generic_charge.txt \
     signal mu: /belle/MC/release-06-00-08/DB00002100/MC15ri_b/prod00025631/s00/e1003/4S/r00000/1120240011/mdst
     signal e: /belle/MC/release-06-00-08/DB00002100/MC15ri_b/prod00025630/s00/e1003/4S/r00000/1120240010/mdst
     signal e first: -i /belle/MC/release-06-00-08/DB00002100/MC15ri_b/prod00025630/s00/e1003/4S/r00000/1120240010/mdst/sub00/mdst_000001_prod00025630_task10020000001.root \
