@@ -1,5 +1,5 @@
 
-from helpers.decay_variables import calculate_variables
+from library.decay_variables import calculate_variables
 
 
 ell = "mu"
