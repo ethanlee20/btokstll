@@ -9,7 +9,7 @@ gbasf2 \
     -p mu_sideb_generic_mix \
     -s light-2401-ocicat \
     -i /belle/MC/release-06-00-08/DB00002100/MC15ri_b/prod00024821/s00/e1003/4S/r00000/mixed/mdst \
-    /home/belle2/elee20/ml-hep-proj/experiments/2024-06-04_eff_res/scripts/recon_steer.py
+    /home/belle2/elee20/btokstll/logic/scripts/helpers/data/basf2/recon_steer.py
 
 
 Dataset paths:
