@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
 
-def _train_batch(x, y, model, loss_fn, optimizer):
+def _train_batch(x, y, model, loss_fn, optimizer, device):
     """
     Train a model on a single batch given by x, y.
     
@@ -15,12 +15,19 @@ def _train_batch(x, y, model, loss_fn, optimizer):
     -------
     loss : float
     """
+
     model.train()
+    
+    x = x.to(device)
+    y= y.to(device)
+    
     yhat = model(x)
+
     train_loss = loss_fn(yhat, y)
     train_loss.backward()
     optimizer.step()
     optimizer.zero_grad()
+    
     return train_loss
 
 
@@ -29,15 +36,20 @@ def _train_epoch(dataloader, model, loss_fn, optimizer, device):
     batch_losses = torch.zeros(num_batches).to(device)
 
     for batch_index, (x, y) in enumerate(dataloader):
-        batch_loss = _train_batch(x, y, model, loss_fn, optimizer)
+        batch_loss = _train_batch(x, y, model, loss_fn, optimizer, device)
         batch_losses[batch_index] = batch_loss
     
     epoch_train_loss = torch.mean(batch_losses).item()
     return epoch_train_loss
 
 
-def _evaluate_batch(x, y, model, loss_fn):
+def _evaluate_batch(x, y, model, loss_fn, device):
+    
     model.eval()
+
+    x = x.to(device)
+    y = y.to(device)
+
     with torch.no_grad():
         yhat = model(x)
         eval_loss = loss_fn(yhat, y)
@@ -49,7 +61,7 @@ def _evaluate_epoch(dataloader, model, loss_fn, device):
     batch_losses = torch.zeros(num_batches).to(device)
     
     for batch_index, (x, y) in enumerate(dataloader):
-        batch_loss = _evaluate_batch(x, y, model, loss_fn)
+        batch_loss = _evaluate_batch(x, y, model, loss_fn, device)
         batch_losses[batch_index] = batch_loss
     
     epoch_eval_loss = torch.mean(batch_losses).item()

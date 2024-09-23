@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import Dataset
 
 from .aggregated_raw import Aggregated_Raw_Dataset
-from .bootstrap_sets import bootstrap_sets
+from .bootstrapped_sets import bootstrap_sets
 
 
 def make_image_file_name(level, split):

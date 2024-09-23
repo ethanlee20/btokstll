@@ -17,14 +17,20 @@ def _calculate_linearity(model, eval_dataset, device):
     labels = []
     predictions = []
     for x, y in eval_dataloader:
+        
+        x = x.to(device)
+        y = y.to(device)
+
         yhat = model(x)
         predictions.append(yhat.item())
         labels.append(y.item())
+    
     series_result = pd.Series(
         predictions,
         index=labels
     )
     series_result_by_label = series_result.groupby(level=0)
+    
     avgs = series_result_by_label.mean()
     stdevs = series_result_by_label.std()
 
