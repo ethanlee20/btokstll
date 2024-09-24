@@ -10,13 +10,13 @@ from library.modeling.util import select_device
 
 
 run_name = "deep_sets_gen"
-level = "gen"
+level = "det"
 model = Deep_Sets()
 
 learning_rate = 1e-3
 epochs = 500
-train_batch_size = 64
-eval_batch_size = 64
+train_batch_size = 32
+eval_batch_size = 32
 
 device = select_device()
 
@@ -27,6 +27,8 @@ train_dataset = Bootstrapped_Sets_Dataset()
 train_dataset.load(level, "train", "../../state/new_physics/data/processed")
 eval_dataset = Bootstrapped_Sets_Dataset()
 eval_dataset.load(level, "eval", "../../state/new_physics/data/processed")
+
+breakpoint()
 
 models_dir = "../../state/new_physics/models"
 plots_dir = "../../state/new_physics/plots"

@@ -5,8 +5,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from .aggregated_raw import Aggregated_Raw_Dataset
-from .bootstrapped_sets import bootstrap_sets
+from .aggregated_signal import Aggregated_Raw_Dataset
+from .bootstrapped_sets import bootstrap_labeled_sets
 
 
 def make_image_file_name(level, split):
@@ -83,7 +83,7 @@ class Histogram_Image_Dataset(Dataset):
         agg_dset.load(split, agg_data_dir)
 
         label_column = "dc9"
-        sampled_sets, labels = bootstrap_sets(agg_dset.data.loc[level], label_column, n, m)
+        sampled_sets, labels = bootstrap_labeled_sets(agg_dset.data.loc[level], label_column, n, m)
 
         hist_images = [make_histogram_image(df, num_bins) for df in sampled_sets]
         hist_images = np.concatenate(

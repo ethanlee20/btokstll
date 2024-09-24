@@ -3,7 +3,7 @@ from torch.optim import Adam
 from torch.nn import MSELoss, L1Loss
 
 from library.modeling.models.single_event_nn import Single_Event_NN
-from library.data.datasets.aggregated_raw import Aggregated_Raw_Dataset
+from logic.scripts.library.data.datasets.aggregated_signal import Aggregated_Raw_Dataset
 from library.modeling.train import train_and_eval
 from library.modeling.lin_test import plot_linearity
 from library.modeling.util import select_device

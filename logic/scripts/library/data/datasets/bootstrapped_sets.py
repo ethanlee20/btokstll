@@ -6,7 +6,8 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from .aggregated_raw import Aggregated_Raw_Dataset
+from .aggregated_signal import Aggregated_Signal_Dataset
+
 
 def make_feature_file_name(level, split):
     name = f"boot_sets_feat_{level}_{split}.pkl"
@@ -18,7 +19,7 @@ def make_label_file_name(level, split):
     return name
 
 
-def bootstrap_sets(df, label, n, m):
+def bootstrap_labeled_sets(df, label, n, m):
     """
     Bootstrap sets from the distribution of each label in a
     source dataframe.
@@ -67,47 +68,48 @@ class Bootstrapped_Sets_Dataset(Dataset):
     def __init__(self):
         pass
 
-    def generate(self, level, split, label, n_signal, n_bkg, m, allow_mis:bool, agg_data_dir, save_dir):
+    def generate(
+            self, level, split, features, label, 
+            n_signal, n_bkg, m, q2_veto, 
+            agg_sig_data_dir, bkg_charge_file_path, bkg_mix_file_path, save_dir
+        ):
         save_dir = Path(save_dir)
         feature_file_name = make_feature_file_name(level, split)
         label_file_name = make_label_file_name(level, split)
         feature_file_path = save_dir.joinpath(feature_file_name)
         label_file_path = save_dir.joinpath(label_file_name)
 
-        agg_dset = Aggregated_Raw_Dataset()
-        agg_dset.load(level, split, label, agg_data_dir)
+        sig_dset = Aggregated_Signal_Dataset()
+        sig_dset.load(level, split, label, agg_sig_data_dir)
+        
+        df_sig = sig_dset.df
+        df_bkg_charge = pd.read_pickle(bkg_charge_file_path).loc["det"][features]
+        df_bkg_mix = pd.read_pickle(bkg_mix_file_path).loc["det"][features]
+        
+        df_sig = df_sig.dropna(how="any")
+        df_bkg_charge = df_bkg_charge.dropna(how="any")
+        df_bkg_mix = df_bkg_mix.dropna(how="any")
 
-        df_agg = agg_dset.df
+        if q2_veto:
+            df_sig = df_sig[df_sig["q_squared"]<8]
+            df_bkg_charge = df_bkg_charge[df_bkg_charge["q_squared"]<8]
+            df_bkg_mix = df_bkg_mix[df_bkg_mix["q_squared"]<8]
 
-        signal_source_id = 0
-        misrecon_source_id = 1
-        charge_bkg_source_id = 2
-        mix_bkg_source_id = 3
+        df_signal_sets, labels = bootstrap_labeled_sets(
+            df_sig, 
+            label, n_signal, m
+        )
 
-        signal = (df_agg["source_id"] == signal_source_id)
-        misrecon = (df_agg["source_id"] == misrecon_source_id)
-        charge_bkg = (df_agg["source_id"] == charge_bkg_source_id)
-        mix_bkg = (df_agg["source_id"] == mix_bkg_source_id)
-
-        if allow_mis:
-            signal_sets, labels = bootstrap_sets(
-                df_agg[signal|misrecon], 
-                label, n_signal, m
-            )
-        elif not allow_mis:
-            signal_sets, labels = bootstrap_sets(
-                df_agg[signal],
-                label, n_signal, m
-            )
-
+        n_sets = m * len(labels)
+        
         # Seeing a similar number of mixed bkg events to charged bkg events (after scaling for initial data size)
-        charge_bkg_sets = [df_agg[charge_bkg].sample(n=int(n_bkg/2), replace=True) for i in range(m)]
-        charge_bkg_sets = pd.concat(charge_bkg_sets, keys=range(m), names=["set", "event"])
-        mix_bkg_sets = [df_agg[mix_bkg].sample(n=int(n_bkg/2), replace=True) for i in range(m)]
-        mix_bkg_sets = pd.concat(mix_bkg_sets, keys=range(m), names=["set", "event"])
+        bkg_charge_sets = [df_bkg_charge.sample(n=int(n_bkg/2), replace=True) for i in range(n_sets)]
+        bkg_mix_sets = [df_bkg_mix.sample(n=int(n_bkg/2), replace=True) for i in range(n_sets)]
+        
+        df_bkg_charge_sets = pd.concat(bkg_charge_sets, keys=range(n_sets), names=["set", "event"])
+        df_bkg_mix_sets = pd.concat(bkg_mix_sets, keys=range(n_sets), names=["set", "event"])
 
-        df_sets  = pd.concat([signal_sets, charge_bkg_sets, mix_bkg_sets])
-
+        df_sets  = pd.concat([df_signal_sets, df_bkg_charge_sets, df_bkg_mix_sets])
         df_sets.to_pickle(feature_file_path)
         np.save(label_file_path, labels)
         
