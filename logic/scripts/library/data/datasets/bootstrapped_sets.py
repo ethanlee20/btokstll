@@ -67,7 +67,7 @@ class Bootstrapped_Sets_Dataset(Dataset):
     def __init__(self):
         pass
 
-    def generate(self, level, split, label, n, m, agg_data_dir, save_dir):
+    def generate(self, level, split, label, n_signal, n_bkg, m, allow_mis:bool, agg_data_dir, save_dir):
         save_dir = Path(save_dir)
         feature_file_name = make_feature_file_name(level, split)
         label_file_name = make_label_file_name(level, split)
@@ -77,9 +77,38 @@ class Bootstrapped_Sets_Dataset(Dataset):
         agg_dset = Aggregated_Raw_Dataset()
         agg_dset.load(level, split, label, agg_data_dir)
 
-        sampled_sets, labels = bootstrap_sets(agg_dset.df, label, n, m)
+        df_agg = agg_dset.df
 
-        sampled_sets.to_pickle(feature_file_path)
+        signal_source_id = 0
+        misrecon_source_id = 1
+        charge_bkg_source_id = 2
+        mix_bkg_source_id = 3
+
+        signal = (df_agg["source_id"] == signal_source_id)
+        misrecon = (df_agg["source_id"] == misrecon_source_id)
+        charge_bkg = (df_agg["source_id"] == charge_bkg_source_id)
+        mix_bkg = (df_agg["source_id"] == mix_bkg_source_id)
+
+        if allow_mis:
+            signal_sets, labels = bootstrap_sets(
+                df_agg[signal|misrecon], 
+                label, n_signal, m
+            )
+        elif not allow_mis:
+            signal_sets, labels = bootstrap_sets(
+                df_agg[signal],
+                label, n_signal, m
+            )
+
+        # Seeing a similar number of mixed bkg events to charged bkg events (after scaling for initial data size)
+        charge_bkg_sets = [df_agg[charge_bkg].sample(n=int(n_bkg/2), replace=True) for i in range(m)]
+        charge_bkg_sets = pd.concat(charge_bkg_sets, keys=range(m), names=["set", "event"])
+        mix_bkg_sets = [df_agg[mix_bkg].sample(n=int(n_bkg/2), replace=True) for i in range(m)]
+        mix_bkg_sets = pd.concat(mix_bkg_sets, keys=range(m), names=["set", "event"])
+
+        df_sets  = pd.concat([signal_sets, charge_bkg_sets, mix_bkg_sets])
+
+        df_sets.to_pickle(feature_file_path)
         np.save(label_file_path, labels)
         
     def load(self, level, split, save_dir):

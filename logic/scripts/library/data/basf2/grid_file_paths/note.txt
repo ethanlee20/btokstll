@@ -3,3 +3,12 @@ Number of events:
     generic_charge : 2964628566 
     generic_mix : 1813905232
     
+-> generic_mix / generic_charge = ~ 0.612
+
+At about 50% reconstruction progress:
+    generic_charge -> 38629 reconstructed sideband events
+    generic_mix -> 23409 reconstructed sideband events
+
+After scaling number of reconstructed charged events by
+the above ratio:
+    generic_charge -> 23641 reconstructed sideband events

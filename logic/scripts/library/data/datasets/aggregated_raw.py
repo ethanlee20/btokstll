@@ -19,20 +19,31 @@ def get_raw_file_info(path):
     return info
 
 
-def aggregate_raw(level, trials:tuple, columns, raw_data_dir):
-    raw_data_dir = Path(raw_data_dir)
+def aggregate_raw(level, trials:tuple, columns, signal_dir, mix_bkg_file_path, charge_bkg_file_path):
+    signal_dir = Path(signal_dir)
+    mix_bkg_file_path = Path(mix_bkg_file_path)
+    charge_bkg_file_path = Path(charge_bkg_file_path)
 
-    filepaths = []
-    for path in list(raw_data_dir.glob("*.pkl")):
+    signal_file_paths = []
+    for path in list(signal_dir.glob("*.pkl")):
         trial_num = get_raw_file_info(path)["trial"]
         if trial_num in range(*trials):
-            filepaths.append(path)
+            signal_file_paths.append(path)
+    signal_data = [pd.read_pickle(path).loc[level][columns] for path in signal_file_paths]
+    dc9_values = [get_raw_file_info(path)["dc9"] for path in signal_file_paths]
+    labeled_data = [df.assign(dc9=dc9) for df, dc9 in zip(signal_data, dc9_values)]
+    df_signal = pd.concat(labeled_data)
 
-    raw_data = [pd.read_pickle(path).loc[level][columns] for path in filepaths]
-    dc9_values = [get_raw_file_info(path)["dc9"] for path in filepaths]
-    raw_labeled_data = [df.assign(dc9=dc9) for df, dc9 in zip(raw_data, dc9_values)]
-    aggregate_data = pd.concat(raw_labeled_data)
-    return aggregate_data
+    df_mix_bkg = pd.read_pickle(mix_bkg_file_path)
+    df_charge_bkg = pd.read_pickle(charge_bkg_file_path)
+
+    df_signal[df_signal["isSignal"]==1]["source_id"] = 0    # signal      : id 0
+    df_signal[df_signal["isSignal"]!=1]["source_id"] = 1    # mis. recon. : id 1
+    df_charge_bkg["source_id"] = 2                          # charged bkg : id 2
+    df_mix_bkg["source_id"] = 3                             # mixed bkg   : id 3
+
+    df_agg = pd.concat([df_signal, df_charge_bkg, df_mix_bkg])
+    return df_agg
 
 
 class Aggregated_Raw_Dataset(Dataset):
@@ -40,7 +51,7 @@ class Aggregated_Raw_Dataset(Dataset):
     def __init__(self):
         pass
     
-    def generate(self, level, split, columns, raw_data_dir, save_dir, sample=None):    
+    def generate(self, level, split, columns, signal_dir, mix_bkg_file_path, charge_bkg_file_path, save_dir):    
         save_dir = Path(save_dir)
         
         train_trial_range = (1, 31)
@@ -53,10 +64,7 @@ class Aggregated_Raw_Dataset(Dataset):
         else: 
             raise ValueError
         
-        df = aggregate_raw(level, trials, columns, raw_data_dir)
-
-        if sample is not None:
-            df = df.sample(n=sample, replace=True)
+        df = aggregate_raw(level, trials, columns, signal_dir, mix_bkg_file_path, charge_bkg_file_path)
 
         save_file_name = make_save_file_name(level, split)
         save_path = save_dir.joinpath(save_file_name)
