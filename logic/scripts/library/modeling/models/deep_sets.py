@@ -10,13 +10,11 @@ class Phi(nn.Module):
         super().__init__()
         
         self.dense = nn.Sequential(
-            nn.Linear(4, 16),
+            nn.Linear(4, 256),
             nn.ReLU(),
-            nn.Linear(16, 32),
+            nn.Linear(256, 256),
             nn.ReLU(),
-            nn.Linear(32, 64),
-            nn.ReLU(),
-            nn.Linear(64, 128),
+            nn.Linear(256, 256),
         )
 
     def forward(self, x):
@@ -31,17 +29,13 @@ class Rho(nn.Module):
         super().__init__()
 
         self.dense = nn.Sequential(
-            nn.Linear(128, 64),
+            nn.Linear(256, 256),
             nn.ReLU(),
-            nn.Linear(64, 32),
+            nn.Linear(256, 256),
             nn.ReLU(),
-            nn.Linear(32, 16),
+            nn.Linear(256, 256),
             nn.ReLU(),
-            nn.Linear(16, 8),
-            nn.ReLU(),
-            nn.Linear(8, 4),
-            nn.ReLU(),
-            nn.Linear(4, 1),
+            nn.Linear(256, 1)
         )
     
     def forward(self, x):

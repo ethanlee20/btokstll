@@ -7,14 +7,19 @@ import torch
 from torch.utils.data import Dataset
 
 from .aggregated_signal import Aggregated_Signal_Dataset
+from .background import Background_Dataset
 
 
 def make_feature_file_name(level, split):
+    assert level in {"gen", "det"}
+    assert split in {"train", "eval", "lin_eval"}
     name = f"boot_sets_feat_{level}_{split}.pkl"
     return name
 
 
 def make_label_file_name(level, split):
+    assert level in {"gen", "det"}
+    assert split in {"train", "eval", "lin_eval"}
     name = f"boot_sets_label_{level}_{split}.npy"
     return name
 
@@ -69,9 +74,9 @@ class Bootstrapped_Sets_Dataset(Dataset):
         pass
 
     def generate(
-            self, level, split, features, label, 
+            self, level, split, label, 
             n_signal, n_bkg, m, q2_veto, 
-            agg_sig_data_dir, bkg_charge_file_path, bkg_mix_file_path, save_dir
+            agg_sig_data_dir, bkg_data_dir, save_dir
         ):
         save_dir = Path(save_dir)
         feature_file_name = make_feature_file_name(level, split)
@@ -80,12 +85,21 @@ class Bootstrapped_Sets_Dataset(Dataset):
         label_file_path = save_dir.joinpath(label_file_name)
 
         sig_dset = Aggregated_Signal_Dataset()
-        sig_dset.load(level, split, label, agg_sig_data_dir)
-        
+        if split == "train":
+            sig_dset.load(level, "train", label, agg_sig_data_dir)
+        elif split in {"eval", "lin_eval"}:
+            sig_dset.load(level, "eval", label, agg_sig_data_dir)
+
+        bkg_dset = Background_Dataset()
+        if split == "train":
+            bkg_dset.load("train", bkg_data_dir)
+        elif split in {"eval", "lin_eval"}:
+            bkg_dset.load("eval", bkg_data_dir)
+
         df_sig = sig_dset.df
-        df_bkg_charge = pd.read_pickle(bkg_charge_file_path).loc["det"][features]
-        df_bkg_mix = pd.read_pickle(bkg_mix_file_path).loc["det"][features]
-        
+        df_bkg_charge = bkg_dset.df_charge
+        df_bkg_mix = bkg_dset.df_mix
+
         df_sig = df_sig.dropna(how="any")
         df_bkg_charge = df_bkg_charge.dropna(how="any")
         df_bkg_mix = df_bkg_mix.dropna(how="any")
@@ -110,6 +124,7 @@ class Bootstrapped_Sets_Dataset(Dataset):
         df_bkg_mix_sets = pd.concat(bkg_mix_sets, keys=range(n_sets), names=["set", "event"])
 
         df_sets  = pd.concat([df_signal_sets, df_bkg_charge_sets, df_bkg_mix_sets])
+        # breakpoint()
         df_sets.to_pickle(feature_file_path)
         np.save(label_file_path, labels)
         
