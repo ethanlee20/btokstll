@@ -5,7 +5,7 @@ dset = Bootstrapped_Sets_Dataset()
 
 label = "dc9"
 n_sig = 42000 # 85_000 max if veto
-n_bkg = 42000 # 18_000 max if veto
+n_bkg = 0 # 18_000 max if veto
 m_train = 1
 m_eval = 1
 m_lin_eval = 10

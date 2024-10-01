@@ -10,8 +10,8 @@ from library.modeling.lin_test import plot_linearity
 from library.modeling.util import select_device
 
 
-run_name = "deep_sets_bkg"
-level = "det"
+run_name = "deep_sets_gen"
+level = "gen"
 model = Deep_Sets()
 
 learning_rate = 1e-3
