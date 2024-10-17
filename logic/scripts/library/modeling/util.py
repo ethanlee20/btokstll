@@ -2,6 +2,14 @@
 import torch.cuda
 
 
+def print_gpu_memory_summary():
+    print(torch.cuda.memory_summary(abbreviated=True))
+
+
+def gpu_peak_memory_usage():
+    return f"{torch.cuda.max_memory_allocated()/1024**3:.5f} GB"
+
+
 def select_device():
     """
     Select a device to compute with.

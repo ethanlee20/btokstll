@@ -24,7 +24,7 @@ def make_label_file_name(level, split):
     return name
 
 
-def bootstrap_labeled_sets(df, label, n, m):
+def bootstrap_labeled_sets(df, label, n, m, dtype='float32'):
     """
     Bootstrap sets from the distribution of each label in a
     source dataframe.
@@ -51,7 +51,7 @@ def bootstrap_labeled_sets(df, label, n, m):
     """
     
     df_grouped = df.groupby(label)
-    
+
     sets = []
     labels = []
 
@@ -64,7 +64,9 @@ def bootstrap_labeled_sets(df, label, n, m):
             labels.append(label_value)
 
     sets = pd.concat(sets, keys=range(len(sets)), names=["set", "event"])
-    labels = np.array(labels)
+    sets = sets.astype(dtype)
+
+    labels = np.array(labels, dtype)
 
     return sets, labels
 
@@ -114,18 +116,18 @@ class Bootstrapped_Sets_Dataset(Dataset):
             label, n_signal, m
         )
 
-        n_sets = m * len(labels)
+        num_sets = len(labels)
         
         # Seeing a similar number of mixed bkg events to charged bkg events (after scaling for initial data size)
-        bkg_charge_sets = [df_bkg_charge.sample(n=int(n_bkg/2), replace=True) for i in range(n_sets)]
-        bkg_mix_sets = [df_bkg_mix.sample(n=int(n_bkg/2), replace=True) for i in range(n_sets)]
+        bkg_charge_sets = [df_bkg_charge.sample(n=int(n_bkg/2), replace=True) for i in range(num_sets)]
+        bkg_mix_sets = [df_bkg_mix.sample(n=int(n_bkg/2), replace=True) for i in range(num_sets)]
         
-        df_bkg_charge_sets = pd.concat(bkg_charge_sets, keys=range(n_sets), names=["set", "event"])
-        df_bkg_mix_sets = pd.concat(bkg_mix_sets, keys=range(n_sets), names=["set", "event"])
+        df_bkg_charge_sets = pd.concat(bkg_charge_sets, keys=range(num_sets), names=["set", "event"])
+        df_bkg_mix_sets = pd.concat(bkg_mix_sets, keys=range(num_sets), names=["set", "event"])
 
         df_sets  = pd.concat([df_signal_sets, df_bkg_charge_sets, df_bkg_mix_sets])
-        # breakpoint()
         df_sets.to_pickle(feature_file_path)
+        
         np.save(label_file_path, labels)
         
     def load(self, level, split, save_dir):
@@ -135,15 +137,15 @@ class Bootstrapped_Sets_Dataset(Dataset):
         feature_file_path = save_dir.joinpath(feature_file_name)
         label_file_path = save_dir.joinpath(label_file_name)
 
-        self.sets = pd.read_pickle(feature_file_path)
+        self.sets_df = pd.read_pickle(feature_file_path)
+        self.sets_torch = torch.from_numpy(np.concatenate([np.expand_dims(s, axis=0) for _, s in self.sets_df.groupby(level="set")], axis=0))
         self.labels = torch.from_numpy(np.load(label_file_path, allow_pickle=True))
 
     def __len__(self):
         return len(self.labels)
     
     def __getitem__(self, index):
-        x = self.sets.loc[index]
-        x = torch.from_numpy(x.to_numpy())
+        x = self.sets_torch[index]
         y = self.labels[index]
         # y = torch.unsqueeze(y, 0)
         return x, y

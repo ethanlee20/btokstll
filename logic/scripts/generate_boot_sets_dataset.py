@@ -4,11 +4,11 @@ from library.data.datasets.bootstrapped_sets import Bootstrapped_Sets_Dataset
 dset = Bootstrapped_Sets_Dataset()
 
 label = "dc9"
-n_sig = 42000 # 85_000 max if veto
-n_bkg = 0 # 18_000 max if veto
-m_train = 1
-m_eval = 1
-m_lin_eval = 10
+n_sig = 24_000 # 85_000 max if veto
+n_bkg = 2 # 18_000 max if veto
+m_train = 30
+m_eval = 5
+m_lin_eval = 30
 
 features = ["q_squared", "costheta_mu", "costheta_K", "chi"]
 q2_veto = True

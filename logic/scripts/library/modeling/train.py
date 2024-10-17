@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
 
+from .util import print_gpu_memory_summary, gpu_peak_memory_usage
+
+
 def _train_batch(x, y, model, loss_fn, optimizer, device):
     """
     Train a model on a single batch given by x, y.
@@ -15,19 +18,25 @@ def _train_batch(x, y, model, loss_fn, optimizer, device):
     -------
     loss : float
     """
-
     model.train()
-    
+    print("moving batch")
     x = x.to(device)
-    y= y.to(device)
-    
-    yhat = model(x)
+    y = y.to(device)
+    print("moving done")
 
+    print("forward pass")
+    yhat = model(x) # takes kinda long time
+    print("forward pass done")
+    
     train_loss = loss_fn(yhat, y)
-    train_loss.backward()
+
+    print("backward pass")
+    train_loss.backward() # takes long time
+    print("backward pass done")
+
     optimizer.step()
     optimizer.zero_grad()
-    
+    print(f"train batch complete - train_loss: {train_loss:.5f} - peak_mem: {gpu_peak_memory_usage()}")
     return train_loss
 
 
@@ -38,7 +47,7 @@ def _train_epoch(dataloader, model, loss_fn, optimizer, device):
     for batch_index, (x, y) in enumerate(dataloader):
         batch_loss = _train_batch(x, y, model, loss_fn, optimizer, device)
         batch_losses[batch_index] = batch_loss
-    
+
     epoch_train_loss = torch.mean(batch_losses).item()
     return epoch_train_loss
 
@@ -53,13 +62,13 @@ def _evaluate_batch(x, y, model, loss_fn, device):
     with torch.no_grad():
         yhat = model(x)
         eval_loss = loss_fn(yhat, y)
+        print(f"eval batch complete - eval_loss: {eval_loss:.5f} - peak_mem: {gpu_peak_memory_usage()}")
         return eval_loss
     
 
 def _evaluate_epoch(dataloader, model, loss_fn, device):
     num_batches = len(dataloader)
     batch_losses = torch.zeros(num_batches).to(device)
-    
     for batch_index, (x, y) in enumerate(dataloader):
         batch_loss = _evaluate_batch(x, y, model, loss_fn, device)
         batch_losses[batch_index] = batch_loss
@@ -69,9 +78,10 @@ def _evaluate_epoch(dataloader, model, loss_fn, device):
 
 
 def _print_epoch_loss(epoch, train_loss, eval_loss):
-    print(f"Epoch: {epoch}")
-    print(f"Train loss: {train_loss}")
-    print(f"Eval loss: {eval_loss}")
+    print()
+    print(f"epoch {epoch} complete:")
+    print(f"    Train loss: {train_loss}")
+    print(f"    Eval loss: {eval_loss}")
     print()
 
 
@@ -105,8 +115,8 @@ def train_and_eval(
 
     model = model.to(device)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
-    eval_dataloader = DataLoader(eval_dataset, batch_size=eval_batch_size, shuffle=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, drop_last=True, shuffle=True)#, pin_memory=True, num_workers=4)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=eval_batch_size, drop_last=True, shuffle=True)#, pin_memory=True, num_workers=4)
 
     losses = []
     for t in range(epochs):

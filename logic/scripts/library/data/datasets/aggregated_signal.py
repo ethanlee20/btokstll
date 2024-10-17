@@ -43,6 +43,7 @@ def aggregate(level, split, columns, dir):
     labeled_data = [df.assign(dc9=dc9) for df, dc9 in zip(data, labels)]
     
     df = pd.concat(labeled_data)
+
     return df
 
 
@@ -51,10 +52,11 @@ class Aggregated_Signal_Dataset(Dataset):
     def __init__(self):
         pass
     
-    def generate(self, level, split, features, signal_dir, save_dir):    
+    def generate(self, level, split, features, signal_dir, save_dir, dtype='float32'):    
         save_dir = Path(save_dir)
         
         df = aggregate(level, split, features, signal_dir)
+        df = df.astype(dtype)
 
         save_file_name = make_save_file_name(level, split)
         save_path = save_dir.joinpath(save_file_name)

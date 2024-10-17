@@ -17,7 +17,8 @@ class Background_Dataset():
         self,
         features,
         bkg_charge_all_file_path, bkg_mix_all_file_path,
-        save_dir
+        save_dir,
+        dtype='float32'
     ):
         save_dir = Path(save_dir)
         
@@ -32,6 +33,9 @@ class Background_Dataset():
 
         df_bkg_charge_all = pd.read_pickle(bkg_charge_all_file_path).loc["det"][features]
         df_bkg_mix_all = pd.read_pickle(bkg_mix_all_file_path).loc["det"][features]
+
+        df_bkg_charge_all = df_bkg_charge_all.astype(dtype)
+        df_bkg_mix_all = df_bkg_mix_all.astype(dtype)
 
         ns = {
             "charge_train": int(len(df_bkg_charge_all)/2),

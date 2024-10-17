@@ -10,11 +10,13 @@ class Phi(nn.Module):
         super().__init__()
         
         self.dense = nn.Sequential(
-            nn.Linear(4, 256),
+            nn.Linear(4, 16),
             nn.ReLU(),
-            nn.Linear(256, 256),
+            nn.Linear(16, 32),
             nn.ReLU(),
-            nn.Linear(256, 256),
+            nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Linear(32, 32),
         )
 
     def forward(self, x):
@@ -29,13 +31,16 @@ class Rho(nn.Module):
         super().__init__()
 
         self.dense = nn.Sequential(
-            nn.Linear(256, 256),
+            nn.Softmax(1),
+            nn.Linear(32, 32),
             nn.ReLU(),
-            nn.Linear(256, 256),
+            nn.Linear(32, 32),
             nn.ReLU(),
-            nn.Linear(256, 256),
+            nn.Linear(32, 32),
             nn.ReLU(),
-            nn.Linear(256, 1)
+            nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1)
         )
     
     def forward(self, x):
@@ -52,8 +57,6 @@ class Deep_Sets(nn.Module):
 
         self.phi = Phi()
         self.rho = Rho()
-
-        self.double()
 
     def forward(self, x):
 
