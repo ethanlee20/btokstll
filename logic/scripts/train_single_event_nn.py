@@ -1,42 +1,46 @@
 
 from torch.optim import Adam
-from torch.nn import MSELoss, L1Loss
+from torch.nn import CrossEntropyLoss
 
+from library.utilities.plotting import setup_mpl_params
 from library.modeling.models.single_event_nn import Single_Event_NN
-from logic.scripts.library.data.datasets.aggregated_signal import Aggregated_Raw_Dataset
+from library.data.datasets.aggregated_signal_binned import Aggregated_Signal_Binned_Dataset
 from library.modeling.train import train_and_eval
 from library.modeling.lin_test import plot_linearity
-from library.modeling.util import select_device
+from library.modeling.util import select_device, print_gpu_memory_summary
 
 
-run_name = "single_event_nn"
-level = "gen"
-model = Single_Event_NN()
+if __name__ == "__main__":
 
-learning_rate = 1e-3
-epochs = 200
-train_batch_size = 24_000
-eval_batch_size = 24_000
+    run_name = "single_event_nn_gen"
+    level = "gen"
+    model = Single_Event_NN()
 
-device = select_device()
+    learning_rate = 4e-3
+    epochs = 100
+    train_batch_size = 128
+    eval_batch_size = 128
 
-loss_fn = MSELoss()
-optimizer = Adam(model.parameters(), lr=learning_rate)
+    device = select_device()
 
-label = "dc9"
-train_dataset = Aggregated_Raw_Dataset()
-train_dataset.load(level, "train", label, "../../state/new_physics/data/processed")
-eval_dataset = Aggregated_Raw_Dataset()
-eval_dataset.load(level, "eval", label, "../../state/new_physics/data/processed")
+    loss_fn = CrossEntropyLoss()
+    optimizer = Adam(model.parameters(), lr=learning_rate)
 
-models_dir = "../../state/new_physics/models"
-plots_dir = "../../state/new_physics/plots"
+    train_dataset = Aggregated_Signal_Binned_Dataset()
+    train_dataset.load(level, "train", "../../state/new_physics/data/processed")
+    eval_dataset = Aggregated_Signal_Binned_Dataset()
+    eval_dataset.load(level, "eval", "../../state/new_physics/data/processed")
 
-train_and_eval(
-    run_name, model, train_dataset, eval_dataset,
-    loss_fn, optimizer, device,
-    models_dir, plots_dir,
-    epochs, train_batch_size, eval_batch_size
-)
+    models_dir = "../../state/new_physics/models"
+    plots_dir = "../../state/new_physics/plots"
 
-plot_linearity(run_name, model, eval_dataset, device, plots_dir)
+    setup_mpl_params()
+
+    train_and_eval(
+        run_name, model, train_dataset, eval_dataset,
+        loss_fn, optimizer, device,
+        models_dir, plots_dir,
+        epochs, train_batch_size, eval_batch_size
+    )
+
+    print_gpu_memory_summary()

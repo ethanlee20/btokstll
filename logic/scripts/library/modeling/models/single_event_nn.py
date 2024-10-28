@@ -1,4 +1,5 @@
 
+import torch
 from torch import nn
 
 
@@ -7,12 +8,18 @@ class Single_Event_NN(nn.Module):
         super().__init__()
 
         self.layers = nn.Sequential(
-            nn.Linear(4, 64),
+            nn.Linear(4, 1024),
             nn.ReLU(),
-            nn.Linear(64, 64),
+            # nn.Dropout(p=0.5),
+            nn.Linear(1024, 1024),
             nn.ReLU(),
-            nn.Linear(64, 1)
+            # nn.Dropout(p=0.5),
+            nn.Linear(1024, 1024),
+            nn.ReLU(),
+            # nn.Dropout(p=0.5),
+            nn.Linear(1024, 44),
         )
+
         self.double()
 
     def forward(self, x):

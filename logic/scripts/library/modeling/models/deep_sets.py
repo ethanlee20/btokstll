@@ -31,7 +31,6 @@ class Rho(nn.Module):
         super().__init__()
 
         self.dense = nn.Sequential(
-            nn.Softmax(1),
             nn.Linear(32, 32),
             nn.ReLU(),
             nn.Linear(32, 32),

@@ -19,37 +19,31 @@ def _train_batch(x, y, model, loss_fn, optimizer, device):
     loss : float
     """
     model.train()
-    print("moving batch")
+    
     x = x.to(device)
     y = y.to(device)
-    print("moving done")
 
-    print("forward pass")
-    yhat = model(x) # takes kinda long time
-    print("forward pass done")
-    
+    yhat = model(x) # takes kinda long time    
     train_loss = loss_fn(yhat, y)
 
-    print("backward pass")
     train_loss.backward() # takes long time
-    print("backward pass done")
 
     optimizer.step()
     optimizer.zero_grad()
-    print(f"train batch complete - train_loss: {train_loss:.5f} - peak_mem: {gpu_peak_memory_usage()}")
+    # print(f"train batch complete - train_loss: {train_loss:.5f} - peak_mem: {gpu_peak_memory_usage()}")
     return train_loss
 
 
 def _train_epoch(dataloader, model, loss_fn, optimizer, device):
     num_batches = len(dataloader)
-    batch_losses = torch.zeros(num_batches).to(device)
 
-    for batch_index, (x, y) in enumerate(dataloader):
+    total_batch_loss = 0
+    for x, y in dataloader:
         batch_loss = _train_batch(x, y, model, loss_fn, optimizer, device)
-        batch_losses[batch_index] = batch_loss
+        total_batch_loss += batch_loss
 
-    epoch_train_loss = torch.mean(batch_losses).item()
-    return epoch_train_loss
+    avg_batch_loss = total_batch_loss/num_batches
+    return avg_batch_loss
 
 
 def _evaluate_batch(x, y, model, loss_fn, device):
@@ -62,19 +56,20 @@ def _evaluate_batch(x, y, model, loss_fn, device):
     with torch.no_grad():
         yhat = model(x)
         eval_loss = loss_fn(yhat, y)
-        print(f"eval batch complete - eval_loss: {eval_loss:.5f} - peak_mem: {gpu_peak_memory_usage()}")
+        # print(f"eval batch complete - eval_loss: {eval_loss:.5f} - peak_mem: {gpu_peak_memory_usage()}")
         return eval_loss
     
 
 def _evaluate_epoch(dataloader, model, loss_fn, device):
     num_batches = len(dataloader)
-    batch_losses = torch.zeros(num_batches).to(device)
-    for batch_index, (x, y) in enumerate(dataloader):
-        batch_loss = _evaluate_batch(x, y, model, loss_fn, device)
-        batch_losses[batch_index] = batch_loss
     
-    epoch_eval_loss = torch.mean(batch_losses).item()
-    return epoch_eval_loss
+    total_batch_loss = 0
+    for x, y in dataloader:
+        batch_loss = _evaluate_batch(x, y, model, loss_fn, device)
+        total_batch_loss += batch_loss
+    
+    avg_batch_loss = total_batch_loss / num_batches
+    return avg_batch_loss
 
 
 def _print_epoch_loss(epoch, train_loss, eval_loss):
@@ -117,11 +112,10 @@ def train_and_eval(
 
     train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, drop_last=True, shuffle=True)#, pin_memory=True, num_workers=4)
     eval_dataloader = DataLoader(eval_dataset, batch_size=eval_batch_size, drop_last=True, shuffle=True)#, pin_memory=True, num_workers=4)
-
     losses = []
     for t in range(epochs):
-        train_loss = _train_epoch(train_dataloader, model, loss_fn, optimizer, device)
-        eval_loss = _evaluate_epoch(eval_dataloader, model, loss_fn, device)
+        train_loss = _train_epoch(train_dataloader, model, loss_fn, optimizer, device).item()
+        eval_loss = _evaluate_epoch(eval_dataloader, model, loss_fn, device).item()
         epoch_loss = {"epoch":t, "train_loss":train_loss, "eval_loss": eval_loss}
         losses.append(epoch_loss)
         _print_epoch_loss(t, train_loss, eval_loss)
@@ -132,7 +126,6 @@ def train_and_eval(
     
     # loss plot
     fig, ax = plt.subplots() 
-    df_loss = df_loss.iloc[2:]
     plot_loss(
         run_name, 
         df_loss["epoch"], df_loss["train_loss"], df_loss["eval_loss"], 
