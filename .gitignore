@@ -1,5 +1,4 @@
 __pycache__
-*.ipynb
 .jupyter
 *.DS_Store
 *.root

@@ -10,11 +10,17 @@ class Phi(nn.Module):
         super().__init__()
         
         self.dense = nn.Sequential(
-            nn.Linear(4, 16),
+            nn.Linear(4, 32),
             nn.ReLU(),
-            nn.Linear(16, 32),
-            nn.ReLU(),
+            nn.Dropout(p=0.2),
             nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(32, 32),
+
         )
 
     def forward(self, x):
@@ -29,8 +35,16 @@ class Rho(nn.Module):
         super().__init__()
 
         self.dense = nn.Sequential(
-            # nn.Linear(4, 4),
-            nn.Linear(4, 1)
+            nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+            nn.Linear(32, 44)
         )
     
     def forward(self, x):
@@ -39,7 +53,7 @@ class Rho(nn.Module):
 
     
 
-class Deep_Sets(nn.Module):
+class Deep_Sets_Cat(nn.Module):
 
     def __init__(self):
 
@@ -48,13 +62,14 @@ class Deep_Sets(nn.Module):
         self.phi = Phi()
         self.rho = Rho()
 
+        self.double()
 
     def forward(self, x):
+
+        phi_of_x = self.phi(x)
+        mean_phi = torch.mean(phi_of_x, 1)
+        rho_of_mean_phi = self.rho(mean_phi)
         # breakpoint()
-        # phi_of_x = self.phi(x)
-        mean_phi = torch.mean(x, 1)
-        rho_of_mean_phi = self.rho(mean_phi).squeeze()
-        
         return rho_of_mean_phi
 
 

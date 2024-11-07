@@ -1,8 +1,9 @@
 
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 
-def setup_mpl_params():
+def setup_high_quality_mpl_params():
     """
     Setup plotting parameters.
     
@@ -33,3 +34,10 @@ def setup_mpl_params():
     mpl.rcParams["legend.framealpha"] = 0
     mpl.rcParams["legend.markerscale"] = 1
     mpl.rcParams["legend.fontsize"] = 7.5
+
+
+def plot_loss_curves(epochs:list, train_losses:list, eval_losses:list, ax):
+    ax.plot(epochs, train_losses, label="Training Loss")
+    ax.plot(epochs, eval_losses, label="Eval. Loss")
+    ax.legend()
+    ax.set_xlabel("Epoch")

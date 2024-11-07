@@ -2,11 +2,11 @@
 from torch.optim import Adam
 from torch.nn import MSELoss
 
-from library.utilities.plotting import setup_mpl_params
+from logic.scripts.library.plotting import setup_mpl_params
 from library.modeling.models.gravnet import GravNet_Model
 from library.data.datasets.bootstrapped_sets import Bootstrapped_Sets_Dataset
 from library.data.datasets.gmm import Gaussian_Mixture_Model_Dataset
-from library.modeling.train import train_and_eval
+from logic.scripts.library.modeling.training import train_and_eval
 from library.modeling.lin_test import plot_linearity
 from library.modeling.util import select_device, print_gpu_memory_summary
 

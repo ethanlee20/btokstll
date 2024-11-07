@@ -2,11 +2,11 @@
 from torch.optim import Adam
 from torch.nn import MSELoss, L1Loss
 
-from library.utilities.plotting import setup_mpl_params
+from logic.scripts.library.plotting import setup_mpl_params
 from library.modeling.models.deep_sets import Deep_Sets
 from library.data.datasets.bootstrapped_sets import Bootstrapped_Sets_Dataset
 from library.data.datasets.gmm import Gaussian_Mixture_Model_Dataset
-from library.modeling.train import train_and_eval
+from logic.scripts.library.modeling.training import train_and_eval
 from library.modeling.lin_test import plot_linearity
 from library.modeling.util import select_device, print_gpu_memory_summary
 
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     model = Deep_Sets()
 
     learning_rate = 3e-4
-    epochs = 100
+    epochs = 200
     train_batch_size = 32
     eval_batch_size = 32
 

@@ -18,6 +18,7 @@ class Background_Dataset():
         features,
         bkg_charge_all_file_path, bkg_mix_all_file_path,
         save_dir,
+        veto_q2=True,
         dtype='float32'
     ):
         save_dir = Path(save_dir)
@@ -33,6 +34,11 @@ class Background_Dataset():
 
         df_bkg_charge_all = pd.read_pickle(bkg_charge_all_file_path).loc["det"][features]
         df_bkg_mix_all = pd.read_pickle(bkg_mix_all_file_path).loc["det"][features]
+
+        if veto_q2:
+            apply_q2_cut = lambda x: x[(x["q_squared"]>1) & (x["q_squared"]<8)]
+            df_bkg_charge_all = apply_q2_cut(df_bkg_charge_all)
+            df_bkg_mix_all = apply_q2_cut(df_bkg_mix_all)
 
         df_bkg_charge_all = df_bkg_charge_all.astype(dtype)
         df_bkg_mix_all = df_bkg_mix_all.astype(dtype)

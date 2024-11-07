@@ -1,10 +1,11 @@
 
 from torch.optim import Adam
+from torch.nn import MSELoss, L1Loss
 from torch.nn import CrossEntropyLoss
 
 from logic.scripts.library.plotting import setup_mpl_params
-from library.modeling.models.single_event_nn import Single_Event_NN
-from library.data.datasets.aggregated_signal_binned import Aggregated_Signal_Binned_Dataset
+from library.modeling.models.deep_sets_cat import Deep_Sets_Cat
+from library.data.datasets.bootstrapped_sets_binned import Bootstrapped_Sets_Binned_Dataset
 from logic.scripts.library.modeling.training import train_and_eval
 from library.modeling.lin_test import plot_linearity
 from library.modeling.util import select_device, print_gpu_memory_summary
@@ -12,24 +13,26 @@ from library.modeling.util import select_device, print_gpu_memory_summary
 
 if __name__ == "__main__":
 
-    run_name = "single_event_nn_gen"
+    run_name = "deep_sets_gen_cat"
     level = "gen"
-    model = Single_Event_NN()
+    model = Deep_Sets_Cat()
 
-    learning_rate = 4e-3
+    learning_rate = 3e-4
     epochs = 100
-    train_batch_size = 128
-    eval_batch_size = 128
+    train_batch_size = 32
+    eval_batch_size = 32
 
     device = select_device()
 
     loss_fn = CrossEntropyLoss()
     optimizer = Adam(model.parameters(), lr=learning_rate)
 
-    train_dataset = Aggregated_Signal_Binned_Dataset()
+    train_dataset = Bootstrapped_Sets_Binned_Dataset()
     train_dataset.load(level, "train", "../../state/new_physics/data/processed")
-    eval_dataset = Aggregated_Signal_Binned_Dataset()
+    eval_dataset = Bootstrapped_Sets_Binned_Dataset()
     eval_dataset.load(level, "eval", "../../state/new_physics/data/processed")
+    lin_eval_dataset = Bootstrapped_Sets_Binned_Dataset() 
+    lin_eval_dataset.load(level, "lin_eval", "../../state/new_physics/data/processed")
 
     models_dir = "../../state/new_physics/models"
     plots_dir = "../../state/new_physics/plots"
@@ -44,3 +47,5 @@ if __name__ == "__main__":
     )
 
     print_gpu_memory_summary()
+
+    # plot_linearity(run_name, model, lin_eval_dataset, device, plots_dir)
