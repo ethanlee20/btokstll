@@ -1,7 +1,7 @@
 
 from sys import argv
 
-from library.decay_variables import calculate_variables
+from logic.scripts.library.physics import calculate_variables
 
 
 ell = argv[1]

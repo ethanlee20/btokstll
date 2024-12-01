@@ -46,7 +46,7 @@ def _train_batch(x, y, model, loss_fn, optimizer):
     loss : float
     """
     model.train()
-
+    
     yhat = model(x)    
     train_loss = loss_fn(yhat, y)
 
@@ -59,9 +59,10 @@ def _train_batch(x, y, model, loss_fn, optimizer):
 
 
 def _evaluate_batch(x, y, model, loss_fn):
-    
+    """
+    Evaluate model on a mini-batch of data.
+    """
     model.eval()
-
     with torch.no_grad():
         yhat = model(x)
         eval_loss = loss_fn(yhat, y)
@@ -69,6 +70,9 @@ def _evaluate_batch(x, y, model, loss_fn):
 
 
 def _train_epoch(dataloader, model, loss_fn, optimizer, data_destination=None):
+    """
+    Train model over the dataset.
+    """
     num_batches = len(dataloader)
     total_batch_loss = 0
     for x, y in dataloader:
@@ -82,6 +86,9 @@ def _train_epoch(dataloader, model, loss_fn, optimizer, data_destination=None):
     
 
 def _evaluate_epoch(dataloader, model, loss_fn, data_destination=None):
+    """
+    Evaluate model over the dataset.
+    """
     num_batches = len(dataloader)
     total_batch_loss = 0
     for x, y in dataloader:
@@ -95,6 +102,9 @@ def _evaluate_epoch(dataloader, model, loss_fn, data_destination=None):
 
 
 def _print_epoch_loss(epoch, train_loss, eval_loss):
+    """
+    Print a summary of loss values for an epoch.
+    """
     print(f"\nepoch {epoch} complete:")
     print(f"    Train loss: {train_loss}")
     print(f"    Eval loss: {eval_loss}\n")
@@ -107,6 +117,9 @@ def train_and_eval(
     epochs, train_batch_size, eval_batch_size, 
     device, move_data=True,
 ):
+    """
+    Train and evaluate a model.
+    """
     train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, drop_last=True, shuffle=True) #, pin_memory=True, num_workers=4)
     eval_dataloader = DataLoader(eval_dataset, batch_size=eval_batch_size, drop_last=True, shuffle=True) #, pin_memory=True, num_workers=4)
     

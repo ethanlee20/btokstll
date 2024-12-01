@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .math_calculations import (
+from .my_math import (
     cosine_angle, 
     cross_product_3d, 
     dot_product, 

@@ -24,50 +24,6 @@ def make_label_file_name(level, split):
     return name
 
 
-def bootstrap_labeled_sets(df, label, n, m):
-    """
-    Bootstrap sets from the distribution of each label in a
-    source dataframe.
-
-    Bootstrapping refers to sampling with replacement.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The source dataframe to sample from
-    label : str 
-        Name of the column specifying the labels.
-    n : int
-        The number of elements per set.
-    m : int
-        The number of sets per label. 
-    
-    Returns
-    -------
-    sets : pd.DataFrame
-        The sampled sets.
-    labels : np.ndarray
-        The corresponding labels.
-    """
-    
-    df_grouped = df.groupby(label)
-
-    sets = []
-    labels = []
-
-    for label_value, df_label in df_grouped:
-
-        for _ in range(m):
-            
-            df_set = df_label.sample(n=n, replace=True).drop(columns=label)
-            sets.append(df_set)
-            labels.append(label_value)
-
-    sets = pd.concat(sets, keys=range(len(sets)), names=["set", "event"])
-
-    labels = np.array(labels)
-
-    return sets, labels
 
 
 class Bootstrapped_Sets_Binned_Dataset(Dataset):

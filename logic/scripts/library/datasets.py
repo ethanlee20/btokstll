@@ -1,9 +1,13 @@
 
+"""Dataset definitions and utilities."""
+
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
+
+from library.util import bootstrap_labeled_sets
 
 
 def get_raw_datafile_info(path):
@@ -38,9 +42,17 @@ def apply_q_squared_veto(df: pd.DataFrame):
     return df_vetoed
 
 
-def apply_std_scale(df: pd.DataFrame):
+def apply_std_scale_dataframe(df: pd.DataFrame):
     df_scaled = (df - df.mean()) / df.std()
-    return df_scaled    
+    return df_scaled
+
+
+def apply_std_scale_numpy_sets(a: np.ndarray):
+    """Standard scale each set in an array of sets."""
+    mu = np.expand_dims(np.mean(a, axis=(-1,-2)), axis=(-1,-2))
+    sigma = np.expand_dims(np.std(a, axis=(-1, -2)), axis=(-1, -2))
+    a_scaled = (a - mu) / sigma    
+    return a_scaled
 
 
 def to_bins(ar):
@@ -52,6 +64,7 @@ def to_bins(ar):
 
 
 def balance_classes(df: pd.DataFrame, label_column_name: str):
+    """Reduce the number of events per label to the minimum over the labels."""
     group_by_label = df.groupby(label_column_name)
     num_events = [len(df_label) for _, df_label in group_by_label]
     min_num_events = min(num_events)
@@ -99,7 +112,7 @@ class Aggregated_Signal_Binned_Dataset(Dataset):
             df_agg = balance_classes(df_agg, self.dc9_bin_column_name)
 
         if std_scale:
-            df_agg[self.features] = apply_std_scale(df_agg[self.features])
+            df_agg[self.features] = apply_std_scale_dataframe(df_agg[self.features])
 
         df_agg.to_pickle(self.dataframe_file_save_path)
         np.save(self.bin_values_file_save_path, bin_values)
@@ -120,5 +133,249 @@ class Aggregated_Signal_Binned_Dataset(Dataset):
     
     def __getitem__(self, index):
         x = self.feat[index]
+        y = self.labels[index]
+        return x, y
+    
+
+class Bootstrapped_Signal_Binned_Dataset(Dataset):
+
+    def __init__(self, level, split, save_dir):
+        self.level = level
+        self.split = split
+        self.save_dir = Path(save_dir)
+        
+        self.feature_names = ["q_squared", "costheta_mu", "costheta_K", "chi"]
+        self.dc9_column_name = "dc9" # defined elsewhere as well: can fix this
+        self.dc9_bin_column_name = "dc9_bin_index"
+
+        features_file_name = self.make_features_save_file_name()
+        labels_file_name = self.make_labels_save_file_name()
+        bin_values_file_name = self.make_bin_values_save_file_name()
+        self.features_save_path = self.save_dir.joinpath(features_file_name)
+        self.labels_save_path = self.save_dir.joinpath(labels_file_name)
+        self.bin_values_save_path = self.save_dir.joinpath(bin_values_file_name)
+
+    def make_features_save_file_name(self):
+        name = f"boot_sig_bin_feat_{self.level}_{self.split}.pt"
+        return name
+
+    def make_labels_save_file_name(self):
+        name = f"boot_sig_bin_lab_{self.level}_{self.split}.pt"
+        return name
+
+    def make_bin_values_save_file_name(self):
+        name = f"boot_sig_bin_values_{self.level}_{self.split}.npy"
+        return name
+
+    def generate(
+        self, raw_trials, raw_signal_dir, 
+        num_events_per_set, num_sets_per_label, 
+        q_squared_veto=True, std_scale=True, balanced_classes=True
+    ):
+        df_agg = aggregate_raw_signal(self.level, raw_trials, self.feature_names, raw_signal_dir)
+
+        bins, bin_values = to_bins(df_agg[self.dc9_column_name])
+        np.save(self.bin_values_save_path, bin_values)
+        
+        df_agg[self.dc9_bin_column_name] = bins
+        df_agg = df_agg.drop(columns=self.dc9_column_name)
+        
+        if q_squared_veto:
+            df_agg = apply_q_squared_veto(df_agg)
+
+        if balanced_classes:
+            df_agg = balance_classes(df_agg, self.dc9_bin_column_name)
+
+        df_sets = bootstrap_labeled_sets(
+            df_agg,
+            self.dc9_bin_column_name,
+            num_events_per_set, num_sets_per_label
+        )
+
+        set_labels = df_sets.index.get_level_values("label")[::num_events_per_set]
+        labels = torch.from_numpy(set_labels.to_numpy())
+        torch.save(labels, self.labels_save_path)
+
+        num_sets = len(labels)
+        set_indices = range(num_sets)
+        list_of_sets = [df_sets.xs(i, level="set") for i in set_indices]
+        expanded_list_of_sets = [np.expand_dims(s, axis=0) for s in list_of_sets]
+        ndarray_of_sets = np.concatenate(expanded_list_of_sets, axis=0)
+
+        if std_scale:
+            ndarray_of_sets = apply_std_scale_numpy_sets(ndarray_of_sets)
+
+        features = torch.from_numpy(ndarray_of_sets)
+        torch.save(features, self.features_save_path)
+
+    def load(self, device="cpu"): 
+        self.bin_values = np.load(self.bin_values_save_path, allow_pickle=True)
+        self.features = torch.load(self.features_save_path, weights_only=True)
+        self.labels = torch.load(self.labels_save_path, weights_only=True)
+        if device != "cpu":
+            self.features = self.features.to(device)
+            self.labels = self.labels.to(device)
+
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, index):
+        x = self.features[index]
+        y = self.labels[index]
+        return x, y
+    
+
+class Signal_Unbinned_Dataset(Dataset):
+    """Torch dataset of unbinned signal events."""
+
+    def __init__(self, level, split, save_dir):
+        """Setup paths and names."""
+        self.level = level
+        self.split = split
+        self.save_dir = Path(save_dir)
+
+        self.feature_names = ["q_squared", "costheta_mu", "costheta_K", "chi"]
+        self.label_name = "dc9" # defined elsewhere as well
+
+        features_file_name = self.make_features_file_name()
+        labels_file_name = self.make_labels_file_name()
+        self.features_file_path = self.save_dir.joinpath(features_file_name)
+        self.labels_file_path = self.save_dir.joinpath(labels_file_name)
+
+    def make_features_file_name(self):
+        return f"signal_unbinned_ebe_feat_{self.level}_{self.split}.pt"
+    
+    def make_labels_file_name(self):
+        return f"signal_unbinned_ebe_labels_{self.level}_{self.split}.pt"
+
+    def generate(self, raw_trials, raw_signal_dir,  
+        q_squared_veto=True, std_scale=True, balanced_classes=True,
+        dtype="float32"
+    ):
+        """Generate and save dataset state."""
+
+        df_agg = aggregate_raw_signal(self.level, raw_trials, self.feature_names, raw_signal_dir, dtype=dtype)
+        
+        if q_squared_veto:
+            df_agg = apply_q_squared_veto(df_agg)
+
+        if balanced_classes:
+            df_agg = balance_classes(df_agg, self.label_name)
+
+        labels = df_agg[self.label_name].copy()
+        features = df_agg[self.feature_names].copy()
+
+        if std_scale:
+            features = apply_std_scale_dataframe(features)
+
+        torch.save(torch.from_numpy(labels.to_numpy()), self.labels_file_path)
+        torch.save(torch.from_numpy(features.to_numpy()), self.features_file_path)
+
+    def load(self, device="cpu"):
+        """Load dataset state."""
+
+        self.features = torch.load(self.features_file_path, weights_only=True)
+        self.labels = torch.load(self.labels_file_path, weights_only=True)
+        if device != "cpu":
+            self.features = self.features.to(device)
+            self.labels = self.labels.to(device)
+   
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, index):
+        x = self.features[index]
+        y = self.labels[index]
+        return x, y
+
+
+class Bootstrapped_Signal_Unbinned_Dataset(Dataset):
+    """Torch dataset of bootstrapped sets of unbinned signal events."""
+
+    def __init__(self, level, split, save_dir):
+        """
+        Setup paths and things.
+
+        level : "gen" or "det"
+        split : "train" or "val" (or custom)
+        save_dir : path to directory where the dataset state should be saved and loaded from.
+        """
+        self.level = level
+        self.split = split
+        self.save_dir = Path(save_dir)
+        
+        self.feature_names = ["q_squared", "costheta_mu", "costheta_K", "chi"]
+        self.label_name = "dc9" # defined elsewhere as well: can fix this
+
+        features_file_name = self._make_features_file_name()
+        labels_file_name = self._make_labels_file_name()
+        self.features_file_path = self.save_dir.joinpath(features_file_name)
+        self.labels_file_path = self.save_dir.joinpath(labels_file_name)
+
+    def _make_features_file_name(self):
+        name = f"signal_unbinned_sets_feat_{self.level}_{self.split}.pt"
+        return name
+    
+    def _make_labels_file_name(self):
+        name = f"signal_unbinned_sets_labels_{self.level}_{self.split}.pt"
+        return name
+
+    def generate(
+        self, raw_trials, raw_signal_dir, 
+        num_events_per_set, num_sets_per_label, 
+        q_squared_veto=True, std_scale=True, balanced_classes=True,
+        dtype="float32"
+    ):
+        """
+        Generate and save dataset state.
+        """
+        df_agg = aggregate_raw_signal(self.level, raw_trials, self.feature_names, raw_signal_dir, dtype=dtype)
+        
+        if q_squared_veto:
+            df_agg = apply_q_squared_veto(df_agg)
+
+        if balanced_classes:
+            df_agg = balance_classes(df_agg, self.label_name)
+
+        df_sets = bootstrap_labeled_sets(
+            df_agg,
+            self.label_name,
+            num_events_per_set, num_sets_per_label
+        )
+
+        # labels
+        event_labels = df_sets.index.get_level_values("label")
+        set_labels = event_labels[::num_events_per_set]
+        set_labels = torch.from_numpy(set_labels.to_numpy())
+        torch.save(set_labels, self.labels_file_path)
+
+        # features
+        num_sets = len(set_labels)
+        set_indices = range(num_sets)
+        list_of_sets = [df_sets.xs(i, level="set") for i in set_indices]
+        expanded_list_of_sets = [np.expand_dims(s, axis=0) for s in list_of_sets]
+        ndarray_of_sets = np.concatenate(expanded_list_of_sets, axis=0)
+
+        if std_scale:
+            ndarray_of_sets = apply_std_scale_numpy_sets(ndarray_of_sets)
+
+        set_features = torch.from_numpy(ndarray_of_sets)
+        torch.save(set_features, self.features_file_path)
+
+    def load(self, device="cpu"): 
+        """
+        Load saved dataset state to specified device. 
+        """
+        self.features = torch.load(self.features_file_path, weights_only=True)
+        self.labels = torch.load(self.labels_file_path, weights_only=True)
+        if device != "cpu":
+            self.features = self.features.to(device)
+            self.labels = self.labels.to(device)
+
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, index):
+        x = self.features[index]
         y = self.labels[index]
         return x, y

@@ -1,9 +1,90 @@
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import uproot
 
+
+## Data ##
+
+def bootstrap_over_bins(x, y, n, rng=np.random.default_rng()):
+    """
+    x : ndarray of events
+    y : ndarray of bins
+    n : number of events to sample from each bin    
+    """
+    bootstrap_x = []
+    bootstrap_y = []
+    for bin in np.unique(y):
+    
+        pool_x = x[y==bin]
+        pool_y = y[y==bin]
+        assert pool_x.shape[0] == pool_y.shape[0]
+
+        selection_indices = rng.choice(len(pool_x), n)
+
+        bin_bootstrap_x = pool_x[selection_indices]
+        bin_bootstrap_y = pool_y[selection_indices]
+
+        bootstrap_x.append(bin_bootstrap_x)
+        bootstrap_y.append(bin_bootstrap_y)
+
+    bootstrap_x = np.concatenate(bootstrap_x)
+    bootstrap_y = np.concatenate(bootstrap_y)
+
+    return bootstrap_x, bootstrap_y
+
+
+def bootstrap_labeled_sets(df, label, n, m):
+    """
+    Bootstrap sets from the distribution of each label in a
+    source dataframe.
+
+    Bootstrapping refers to sampling with replacement.
+
+    The resulting dataframe has a multi-index where the first
+    index is the set index and the second index is the label value.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The source dataframe to sample from
+    label : str 
+        Name of the column specifying the labels.
+    n : int
+        The number of elements per set.
+    m : int
+        The number of sets per label. 
+    
+    Returns
+    -------
+    sets : pd.DataFrame
+        The sampled sets.
+    """
+    
+    df_grouped = df.groupby(label)
+
+    sets = []
+    labels = []
+
+    for label_value, df_label in df_grouped:
+
+        for _ in range(m):
+            
+            df_set = df_label.sample(n=n, replace=True).drop(columns=label)
+            sets.append(df_set)
+            labels.append(label_value)
+
+    set_indices = range(len(sets))
+    assert len(set_indices) == len(labels)
+    keys = zip(set_indices, labels)
+    sets = pd.concat(sets, keys=keys, names=["set", "label"])
+    return sets
+
+
+
+## File handling ##
 
 def open_tree(filepath, tree_name):
     """
