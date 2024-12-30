@@ -62,7 +62,6 @@ def bootstrap_labeled_sets(df, label, n, m):
     sets : pd.DataFrame
         The sampled sets.
     """
-    
     df_grouped = df.groupby(label)
 
     sets = []
@@ -76,9 +75,10 @@ def bootstrap_labeled_sets(df, label, n, m):
             sets.append(df_set)
             labels.append(label_value)
 
+    labels = np.array(labels).astype(df[label].dtype)
     set_indices = range(len(sets))
     assert len(set_indices) == len(labels)
-    keys = zip(set_indices, labels)
+    keys = list(zip(set_indices, labels))
     sets = pd.concat(sets, keys=keys, names=["set", "label"])
     return sets
 

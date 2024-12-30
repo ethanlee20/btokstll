@@ -79,13 +79,16 @@ def _train_epoch(dataloader, model, loss_fn, optimizer, data_destination=None):
         if data_destination is not None:
             x = x.to(data_destination)
             y = y.to(data_destination)
+        # y = y.repeat(x.shape[1], 1).T
+        # x = x.flatten(end_dim=1)
+        # y = y.flatten()
         batch_loss = _train_batch(x, y, model, loss_fn, optimizer)
         total_batch_loss += batch_loss
     avg_batch_loss = total_batch_loss / num_batches
     return avg_batch_loss
     
 
-def _evaluate_epoch(dataloader, model, loss_fn, data_destination=None):
+def _evaluate_epoch(dataloader, model, loss_fn, data_destination=None, scheduler=None):
     """
     Evaluate model over the dataset.
     """
@@ -95,9 +98,14 @@ def _evaluate_epoch(dataloader, model, loss_fn, data_destination=None):
         if data_destination is not None:
             x = x.to(data_destination)
             y = y.to(data_destination)
+        # y = y.repeat(x.shape[1], 1).T
+        # x = x.flatten(end_dim=1)
+        # y = y.flatten()
         batch_loss = _evaluate_batch(x, y, model, loss_fn)
         total_batch_loss += batch_loss
     avg_batch_loss = total_batch_loss / num_batches
+    if scheduler:
+        scheduler.step(avg_batch_loss)
     return avg_batch_loss
 
 
@@ -116,6 +124,7 @@ def train_and_eval(
     loss_fn, optimizer, 
     epochs, train_batch_size, eval_batch_size, 
     device, move_data=True,
+    scheduler=None
 ):
     """
     Train and evaluate a model.
@@ -129,11 +138,13 @@ def train_and_eval(
     loss_table = {"epoch":[], "train_loss":[], "eval_loss":[]}
     for ep in range(epochs):
         train_loss = _train_epoch(train_dataloader, model, loss_fn, optimizer, data_destination=data_destination).item()
-        eval_loss = _evaluate_epoch(eval_dataloader, model, loss_fn, data_destination=data_destination).item()
+        eval_loss = _evaluate_epoch(eval_dataloader, model, loss_fn, data_destination=data_destination, scheduler=scheduler).item()
         loss_table["epoch"].append(ep)
         loss_table["train_loss"].append(train_loss)
         loss_table["eval_loss"].append(eval_loss)
         _print_epoch_loss(ep, train_loss, eval_loss)
+        if scheduler:
+            print(f"learning rate: {scheduler.get_last_lr()}")
         print_gpu_peak_memory_usage()
     assert len(loss_table["epoch"]) == len(loss_table["train_loss"]) == len(loss_table["eval_loss"])
 
