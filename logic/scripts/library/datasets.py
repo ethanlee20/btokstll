@@ -111,10 +111,9 @@ stds = {         # no q squared veto, from first 5 trials #
 
 class Aggregated_Signal_Binned_Dataset(Dataset):
     
-    def __init__(self, level, split, raw_trials, save_dir, feature_names=["q_squared", "costheta_mu", "costheta_K", "chi"]):
+    def __init__(self, level, split, save_dir, feature_names=["q_squared", "costheta_mu", "costheta_K", "chi"]):
         self.level = level
         self.split = split
-        self.raw_trials = raw_trials
         self.save_dir = Path(save_dir)
         
         self.feature_names = feature_names
@@ -134,8 +133,8 @@ class Aggregated_Signal_Binned_Dataset(Dataset):
         name = f"agg_sig_bin_values_{self.level}_{self.split}.npy"
         return name
 
-    def generate(self, raw_signal_dir, q_squared_veto=True, std_scale=True, balanced_classes=True, shuffle=True):    
-        df_agg = aggregate_raw_signal(self.level, self.raw_trials, self.feature_names, raw_signal_dir)
+    def generate(self, raw_trials, raw_signal_dir, q_squared_veto=True, std_scale=True, balanced_classes=True, shuffle=True):    
+        df_agg = aggregate_raw_signal(self.level, raw_trials, self.feature_names, raw_signal_dir)
 
         bins, bin_values = to_bins(df_agg[self.dc9_column_name])
         df_agg[self.dc9_bin_column_name] = bins

@@ -11,7 +11,7 @@ def print_gpu_peak_memory_usage():
 
     def gpu_peak_memory_usage():
         return f"{torch.cuda.max_memory_allocated()/1024**3:.5f} GB"
-
+    
     print(f"peak gpu memory usage: {gpu_peak_memory_usage()}")
 
 
@@ -67,7 +67,7 @@ def _evaluate_batch(x, y, model, loss_fn):
         yhat = model(x)
         eval_loss = loss_fn(yhat, y)
         return eval_loss
-
+    
 
 def _train_epoch(dataloader, model, loss_fn, optimizer, data_destination=None):
     """
@@ -79,9 +79,6 @@ def _train_epoch(dataloader, model, loss_fn, optimizer, data_destination=None):
         if data_destination is not None:
             x = x.to(data_destination)
             y = y.to(data_destination)
-        # y = y.repeat(x.shape[1], 1).T
-        # x = x.flatten(end_dim=1)
-        # y = y.flatten()
         batch_loss = _train_batch(x, y, model, loss_fn, optimizer)
         total_batch_loss += batch_loss
     avg_batch_loss = total_batch_loss / num_batches
@@ -98,9 +95,6 @@ def _evaluate_epoch(dataloader, model, loss_fn, data_destination=None, scheduler
         if data_destination is not None:
             x = x.to(data_destination)
             y = y.to(data_destination)
-        # y = y.repeat(x.shape[1], 1).T
-        # x = x.flatten(end_dim=1)
-        # y = y.flatten()
         batch_loss = _evaluate_batch(x, y, model, loss_fn)
         total_batch_loss += batch_loss
     avg_batch_loss = total_batch_loss / num_batches
@@ -118,34 +112,41 @@ def _print_epoch_loss(epoch, train_loss, eval_loss):
     print(f"    Eval loss: {eval_loss}\n")
 
 
+def _print_scheduler_last_learning_rate(scheduler):
+    last_learning_rate = scheduler.get_last_lr()
+    message = f"learning rate: {last_learning_rate}"
+    print(message)
+
+
 def train_and_eval(
     model, 
     train_dataset, eval_dataset,
     loss_fn, optimizer, 
     epochs, train_batch_size, eval_batch_size, 
     device, move_data=True,
-    scheduler=None
+    scheduler=None,
+    checkpoint_epochs=10
 ):
     """
     Train and evaluate a model.
     """
+
     train_dataloader = DataLoader(train_dataset, batch_size=train_batch_size, drop_last=True, shuffle=True) #, pin_memory=True, num_workers=4)
-    eval_dataloader = DataLoader(eval_dataset, batch_size=eval_batch_size, drop_last=True, shuffle=True) #, pin_memory=True, num_workers=4)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=eval_batch_size, drop_last=True, shuffle=True) # , pin_memory=True, num_workers=4)
     
     model = model.to(device)
     data_destination = (device if move_data else None)
 
-    loss_table = {"epoch":[], "train_loss":[], "eval_loss":[]}
     for ep in range(epochs):
         train_loss = _train_epoch(train_dataloader, model, loss_fn, optimizer, data_destination=data_destination).item()
         eval_loss = _evaluate_epoch(eval_dataloader, model, loss_fn, data_destination=data_destination, scheduler=scheduler).item()
-        loss_table["epoch"].append(ep)
-        loss_table["train_loss"].append(train_loss)
-        loss_table["eval_loss"].append(eval_loss)
+        model.append_to_loss_table(ep, train_loss, eval_loss)
         _print_epoch_loss(ep, train_loss, eval_loss)
         if scheduler:
-            print(f"learning rate: {scheduler.get_last_lr()}")
+            _print_scheduler_last_learning_rate(scheduler)
         print_gpu_peak_memory_usage()
-    assert len(loss_table["epoch"]) == len(loss_table["train_loss"]) == len(loss_table["eval_loss"])
+        if (ep % checkpoint_epochs == 0):
+            model.save_checkpoint(ep)
 
-    return loss_table
+    model.save_final()    
+    model.save_loss_table()

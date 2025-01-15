@@ -49,4 +49,41 @@ def plot_loss_curves(epochs:list, train_losses:list, eval_losses:list, ax):
     ax.set_xlabel("Epoch")
 
 
+def plot_prediction_linearity(
+        ax,
+        input_values, avg_pred, stdev_pred, ref_line_buffer=0.05, 
+        xlim=None, ylim=None, xlabel=None, ylabel=None
+):
+    """
+    input_values : value corresponding to each bin index
+    avg_pred : ndarray of average prediction per input bin
+    stdev_pred : ndarray of standard deviation of prediction per input bin 
+    ref_line_buffer : extra amount to extend reference line
+    xlim : x limits
+    ylim : y limits
+    """
+        
+    ax.scatter(input_values, avg_pred, label="Avg.", color="firebrick", s=16, zorder=5)
+    ax.errorbar(input_values, avg_pred, yerr=stdev_pred, fmt="none", elinewidth=0.5, capsize=0.5, color="black", label="Std. Dev.", zorder=10)
+
+    ref_ticks = np.linspace(np.min(input_values)-ref_line_buffer, np.max(input_values)+ref_line_buffer, 2)
+    ax.plot(
+        ref_ticks, ref_ticks,
+        label="Ref. Line (Slope = 1)",
+        color="grey",
+        linewidth=0.5,
+        zorder=0
+    )
+
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+
+    ax.legend()
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+
 

@@ -10,9 +10,12 @@ import uproot
 
 def bootstrap_over_bins(x, y, n, rng=np.random.default_rng()):
     """
+    Bootstrap a set of n items for each unique y.
+
     x : ndarray of events
     y : ndarray of bins
     n : number of events to sample from each bin    
+    rng : numpy random number generator
     """
     bootstrap_x = []
     bootstrap_y = []
