@@ -41,7 +41,7 @@ def bootstrap_over_bins(x, y, n, rng=np.random.default_rng()):
 
 def bootstrap_labeled_sets(df, label, n, m):
     """
-    Bootstrap sets from the distribution of each label in a
+    Bootstrap sets from the dataset of each label in a
     source dataframe.
 
     Bootstrapping refers to sampling with replacement.
@@ -63,7 +63,8 @@ def bootstrap_labeled_sets(df, label, n, m):
     Returns
     -------
     sets : pd.DataFrame
-        The sampled sets.
+        Dataframe of sampled sets.
+        Set index is named "set" and label index is named "label".
     """
     df_grouped = df.groupby(label)
 

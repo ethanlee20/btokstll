@@ -19,6 +19,13 @@ def get_raw_datafile_info(path):
 
 
 def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_dir_path, dtype="float64"):
+    """
+    Aggregate data from specified raw signal files.
+    
+    Returns
+    ------
+    A dataframe with specified feature columns and a label column named "dc9".
+    """
     raw_signal_dir_path = Path(raw_signal_dir_path)
     
     raw_datafile_paths = []
@@ -36,8 +43,37 @@ def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_
     loaded_dataframe_dc9_values = [get_raw_datafile_info(path)["dc9"] for path in raw_datafile_paths]
     labeled_dataframe = pd.concat([df.assign(dc9=dc9) for df, dc9 in zip(loaded_dataframes, loaded_dataframe_dc9_values)])
     labeled_dataframe = labeled_dataframe.astype(dtype)
-    
     return labeled_dataframe
+
+
+def make_image(df, n_bins):
+    """
+    Make an image of a dataset. (Like Shawn.)
+
+    Parameters
+    ----------
+    df : Dataframe of dataset
+    n_bins : The number of bins of each angular variable.
+
+    Returns
+    -------
+    pytorch Tensor image. 
+    """
+    df = df.copy()
+    bins = {
+        "chi": np.linspace(start=0, stop=2*np.pi, num=n_bins+1),
+        "costheta_mu": np.linspace(start=-1, stop=1, num=n_bins+1),
+        "costheta_K": np.linspace(start=-1, stop=1, num=n_bins+1),
+    }
+    var_col_names = [*bins.keys()]
+    bin_col_names = [var_col_name + "_bin" for var_col_name in var_col_names]
+    for var_col_name, bin_col_name in zip(var_col_names, bin_col_names):
+        df[bin_col_name] = pd.cut(df[var_col_name], bins=bins[var_col_name], include_lowest=True)
+    df_image = df.groupby(bin_col_names, observed=False).mean()["q_squared"]
+    np_image = df_image.to_numpy().reshape((n_bins,)*3) # dimensions of (chi, costheta_mu, costheta_K)
+    np_image = np.nan_to_num(np_image)
+    torch_image = torch.from_numpy(np_image)
+    return torch_image
 
 
 def apply_q_squared_veto(df: pd.DataFrame):
@@ -86,10 +122,10 @@ means = {         # with q squared veto, from first 5 trials #
         "chi": 3.14130932e+00, 
     }, 
     "det": {
-        "q_squared": 0,  # not calculated yet
-        "costheta_mu": 0,
-        "costheta_K": 0,
-        "chi": 0, 
+        "q_squared": None,  # not calculated yet
+        "costheta_mu": None,
+        "costheta_K": None,
+        "chi": None, 
     }
 }
 
@@ -101,10 +137,10 @@ stds = {         # no q squared veto, from first 5 trials #
         "chi": 1.81157865, 
     }, 
     "det": {
-        "q_squared": 0,  # not calculated yet
-        "costheta_mu": 0,
-        "costheta_K": 0,
-        "chi": 0, 
+        "q_squared": None,  # not calculated yet
+        "costheta_mu": None,
+        "costheta_K": None,
+        "chi": None, 
     }
 }
 
@@ -174,27 +210,6 @@ class Aggregated_Signal_Binned_Dataset(Dataset):
 
     def __len__(self):
         return len(self.labels)
-    
-    def __getitem__(self, index):
-        x = self.features[index]
-        y = self.labels[index]
-        return x, y
-    
-
-class Bag_Signal_Binned_Dataset(Dataset):
-    def __init__(self, n, source_features, source_labels):
-        self.n = n
-        self.source_features = source_features
-        self.source_labels = source_labels
-
-        random_indices = torch.randperm(n)
-        self.features = source_features[random_indices]
-        self.labels = source_labels[random_indices]
-
-        assert len(self.features) == len(self.labels) == n
-
-    def __len__(self):
-        return self.n
     
     def __getitem__(self, index):
         x = self.features[index]
@@ -454,13 +469,62 @@ class Bootstrapped_Signal_Unbinned_Dataset(Dataset):
         return x, y
     
 
-class Test_Linear_Dataset(Dataset):
-    def __init__(self):
-        self.features = torch.linspace(8, 9, 44).unsqueeze(1)
-        self.features = ( self.features - torch.mean(self.features, dim=0) ) / torch.std(self.features, dim=0)
-        self.labels = torch.linspace(-2, 1.1, 44).unsqueeze(1)
-        # self.labels = ( self.labels - torch.mean(self.labels, dim=0) ) / torch.std(self.labels, dim=0)
-        assert len(self.labels) == len(self.features)
+class Signal_Images_Dataset(Dataset):
+    """Bootstrapped images (like Shawn)."""
+    def __init__(self, level, split, save_dir, feature_names=["q_squared", "costheta_mu", "costheta_K", "chi"]):
+        self.level = level
+        self.split = split
+        self.save_dir = Path(save_dir)
+        self.feature_names = feature_names
+        self.features_save_path = self.save_dir.joinpath(self.make_features_file_name())
+        self.labels_save_path = self.save_dir.joinpath(self.make_labels_file_name())
+
+    def make_features_file_name(self):
+        name = f"img_sig_feat_{self.level}_{self.split}.pt"
+        return name
+    
+    def make_labels_file_name(self):
+        name = f"img_sig_label_{self.level}_{self.split}.pt"
+        return name
+    
+    def generate(
+            self, raw_trials:range, raw_signal_dir, 
+            num_events_per_set, num_sets_per_label, n_bins,
+            q_squared_veto=True, std_scale=True, balanced_classes=True,
+        ):
+        df_agg = aggregate_raw_signal(self.level, raw_trials, self.feature_names, raw_signal_dir)
+
+        if q_squared_veto:
+            df_agg = apply_q_squared_veto(df_agg)
+
+        if std_scale:
+            df_agg["q_squared"] = (df_agg["q_squared"] - means[self.level]["q_squared"]) / stds[self.level]["q_squared"]
+
+        if balanced_classes:
+            df_agg = balance_classes(df_agg, label_column_name="dc9")
+
+        df_sets = bootstrap_labeled_sets(df_agg, label="dc9", n=num_events_per_set, m=num_sets_per_label)
+        set_labels = df_sets.index.get_level_values("label")[::num_events_per_set]
+        set_labels = torch.from_numpy(set_labels.to_numpy())
+
+        num_sets = len(set_labels)
+        set_indices = range(num_sets)
+        list_of_set_dfs = [df_sets.xs(i, level="set") for i in set_indices]
+        list_of_images = [make_image(df, n_bins=n_bins) for df in list_of_set_dfs]
+        list_of_expanded_images = [torch.unsqueeze(image, axis=0) for image in list_of_images]
+        images_tensor = torch.concatenate(list_of_expanded_images, axis=0)
+        
+        torch.save(images_tensor, self.features_save_path)
+        torch.save(set_labels, self.labels_save_path)
+
+    def load(self, device="cpu"): 
+        self.features = torch.load(self.features_save_path, weights_only=True)
+        self.labels = torch.load(self.labels_save_path, weights_only=True)
+        print(f"Loaded data with features size: {self.features.shape} and labels size: {self.labels.shape}.")
+
+        if device != "cpu":
+            self.features = self.features.to(device)
+            self.labels = self.labels.to(device)
 
     def __len__(self):
         return len(self.labels)
@@ -469,5 +533,12 @@ class Test_Linear_Dataset(Dataset):
         x = self.features[index]
         y = self.labels[index]
         return x, y
+
+
+
+
+    
+
+        
 
 
