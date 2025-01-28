@@ -71,6 +71,7 @@ def make_image(df, n_bins):
         df[bin_col_name] = pd.cut(df[var_col_name], bins=bins[var_col_name], include_lowest=True)
     df_image = df.groupby(bin_col_names, observed=False).mean()["q_squared"]
     np_image = df_image.to_numpy().reshape((n_bins,)*3) # dimensions of (chi, costheta_mu, costheta_K)
+    np_image = np.expand_dims(np_image, axis=0)
     np_image = np.nan_to_num(np_image)
     torch_image = torch.from_numpy(np_image)
     return torch_image
