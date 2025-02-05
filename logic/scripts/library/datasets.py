@@ -390,20 +390,15 @@ class Bootstrapped_Signal_Unbinned_Dataset(Dataset):
         self.level = level
         self.split = split
         self.save_dir = Path(save_dir)
-        
         self.feature_names = feature_names
-        self.label_name = "dc9" # defined elsewhere as well: can fix this
+        self.features_save_path = self.save_dir.joinpath(self.make_features_file_name())
+        self.labels_save_path = self.save_dir.joinpath(self.make_labels_file_name())
 
-        features_file_name = self._make_features_file_name()
-        labels_file_name = self._make_labels_file_name()
-        self.features_file_path = self.save_dir.joinpath(features_file_name)
-        self.labels_file_path = self.save_dir.joinpath(labels_file_name)
-
-    def _make_features_file_name(self):
+    def make_features_file_name(self):
         name = f"signal_unbinned_sets_feat_{self.level}_{self.split}.pt"
         return name
     
-    def _make_labels_file_name(self):
+    def make_labels_file_name(self):
         name = f"signal_unbinned_sets_labels_{self.level}_{self.split}.pt"
         return name
 
@@ -411,12 +406,11 @@ class Bootstrapped_Signal_Unbinned_Dataset(Dataset):
         self, raw_trials, raw_signal_dir, 
         num_events_per_set, num_sets_per_label, 
         q_squared_veto=True, std_scale=True, balanced_classes=True,
-        dtype="float32"
     ):
         """
         Generate and save dataset state.
         """
-        df_agg = aggregate_raw_signal(self.level, raw_trials, self.feature_names, raw_signal_dir, dtype=dtype)
+        df_agg = aggregate_raw_signal(self.level, raw_trials, self.feature_names, raw_signal_dir)
        
         if q_squared_veto:
             df_agg = apply_q_squared_veto(df_agg)
@@ -426,40 +420,39 @@ class Bootstrapped_Signal_Unbinned_Dataset(Dataset):
                 df_agg[column_name] = (df_agg[column_name] - means[self.level][column_name]) / stds[self.level][column_name]
 
         if balanced_classes:
-            df_agg = balance_classes(df_agg, self.label_name)
+            df_agg = balance_classes(df_agg, label_column_name="dc9")
 
         df_sets = bootstrap_labeled_sets(
             df_agg,
-            self.label_name,
-            num_events_per_set, num_sets_per_label
+            label="dc9",
+            n=num_events_per_set, m=num_sets_per_label
         )
 
-        # labels
-        event_labels = df_sets.index.get_level_values("label").astype(dtype)
-        set_labels = event_labels[::num_events_per_set]
+        set_labels = df_sets.index.get_level_values("label")[::num_events_per_set]
         set_labels = torch.from_numpy(set_labels.to_numpy())
-        set_labels = set_labels.unsqueeze(1)
-        torch.save(set_labels, self.labels_file_path)
 
-        # features
         num_sets = len(set_labels)
         set_indices = range(num_sets)
-        list_of_sets = [df_sets.xs(i, level="set") for i in set_indices]
-        expanded_list_of_sets = [np.expand_dims(s, axis=0) for s in list_of_sets]
-        ndarray_of_sets = np.concatenate(expanded_list_of_sets, axis=0)
+        list_of_set_dfs = [df_sets.xs(i, level="set") for i in set_indices]
+        list_of_expanded_numpy_sets = [np.expand_dims(s, axis=0) for s in list_of_set_dfs]
+        numpy_sets = np.concatenate(list_of_expanded_numpy_sets, axis=0)
+        torch_sets = torch.from_numpy(numpy_sets)
 
-        set_features = torch.from_numpy(ndarray_of_sets)
-        torch.save(set_features, self.features_file_path)
+        torch.save(torch_sets, self.features_save_path)
+        torch.save(set_labels, self.labels_save_path)
 
     def load(self, device="cpu"): 
         """
         Load saved dataset state to specified device. 
         """
-        self.features = torch.load(self.features_file_path, weights_only=True)
-        self.labels = torch.load(self.labels_file_path, weights_only=True)
+        self.features = torch.load(self.features_save_path, weights_only=True)
+        self.labels = torch.load(self.labels_save_path, weights_only=True)
+        print(f"Loaded data with features size: {self.features.shape} and labels size: {self.labels.shape}.")
+
         if device != "cpu":
             self.features = self.features.to(device)
             self.labels = self.labels.to(device)
+            print(f"Moved data to: {device}.")
 
     def __len__(self):
         return len(self.labels)
@@ -526,6 +519,7 @@ class Signal_Images_Dataset(Dataset):
         if device != "cpu":
             self.features = self.features.to(device)
             self.labels = self.labels.to(device)
+            print(f"Moved data to: {device}.")
 
     def __len__(self):
         return len(self.labels)
