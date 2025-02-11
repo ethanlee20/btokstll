@@ -20,7 +20,7 @@ def bootstrap_over_bins(x, y, n, rng=np.random.default_rng()):
     bootstrap_x = []
     bootstrap_y = []
     for bin in np.unique(y):
-    
+        
         pool_x = x[y==bin]
         pool_y = y[y==bin]
         assert pool_x.shape[0] == pool_y.shape[0]
@@ -37,6 +37,9 @@ def bootstrap_over_bins(x, y, n, rng=np.random.default_rng()):
     bootstrap_y = np.concatenate(bootstrap_y)
 
     return bootstrap_x, bootstrap_y
+
+
+
 
 
 def bootstrap_labeled_sets(df, label, n, m):
@@ -85,6 +88,38 @@ def bootstrap_labeled_sets(df, label, n, m):
     keys = list(zip(set_indices, labels))
     sets = pd.concat(sets, keys=keys, names=["set", "label"])
     return sets
+
+
+def bootstrap_sets_single_value(df, label, value, n, m):
+    """
+    Bootstrap sets from a specific label.
+    df : 
+        source dataframe
+    label : str
+        name of label column
+    value : 
+        value of label to bootstrap
+    n : int
+        num elements per set
+    m : int
+        num sets
+    """
+    df_reduced = df[df[label]==value]
+    sets = []
+    labels = []
+    for _ in range(m):
+        df_set = df_reduced.sample(n=n, replace=True).drop(columns=label)
+        sets.append(df_set)
+        labels.append(value)
+    set_indices = range(len(sets))
+    assert len(set_indices) == len(labels)
+    keys = list(zip(set_indices, labels))
+    sets = pd.concat(sets, keys=keys, names=["set", "label"])
+    return sets
+
+
+    
+
 
 
 
