@@ -4,6 +4,9 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
+
 
 def setup_high_quality_mpl_params():
     """
@@ -87,3 +90,98 @@ def plot_prediction_linearity(
         ax.set_ylabel(ylabel)
 
 
+def plot_volume_slices(arr, n_slices=3, cmap=plt.cm.magma, note=""):
+    """
+    Plot slices of volumetric data.
+
+    Array dimensions must be (costheta_mu, costheta_K, chi).
+    Slices are along the z-axis (axis 2).
+    Array arr should be a three-dimensional array.
+    Slices might not be evenly spaced along z-axis.
+    """
+
+    fig = plt.figure()
+    ax_3d = fig.add_subplot(projection="3d")
+
+    var_dim = {
+        0: "costheta_mu",
+        1: "costheta_K",
+        2: "chi",
+    }
+
+    cartesian_dim = {
+        "x": 0,     
+        "y": 1,
+        "z": 2,  
+    }
+
+    norm = Normalize(vmin=-1.1, vmax=1.1)
+    arr = arr.squeeze().cpu()
+    colors = cmap(norm(arr))
+    
+    cartesian_shape = {
+        "x": arr.shape[cartesian_dim["x"]],
+        "y": arr.shape[cartesian_dim["y"]],
+        "z": arr.shape[cartesian_dim["z"]],
+    }
+
+    def xy_plane(z_pos):
+        x, y = np.indices(
+            (cartesian_shape["x"] + 1, cartesian_shape["y"] + 1)
+        )
+        z = np.full(
+            (cartesian_shape["x"] + 1, cartesian_shape["y"] + 1), z_pos
+        )
+        return x, y, z
+    
+    def plot_slice(z_index):
+        x, y, z = xy_plane(z_index) 
+        ax_3d.plot_surface(
+            x, y, z, 
+            rstride=1, cstride=1, 
+            facecolors=colors[:,:,z_index], 
+            shade=False,
+        )
+
+    def plot_outline(z_index, offset=0.3):
+        x, y, z = xy_plane(z_index - offset)
+        
+        ax_3d.plot_surface(
+            x, y, z, 
+            rstride=1, cstride=1, 
+            shade=False,
+            color="#f2f2f2",
+            edgecolor="#f2f2f2", 
+        )
+
+    z_indices = np.linspace(0, cartesian_shape["z"]-1, n_slices, dtype=int) # forces integer indices
+    for i in z_indices:
+        plot_outline(i)
+        plot_slice(i)
+
+    cbar = fig.colorbar(ScalarMappable(norm=norm, cmap=cmap), ax=ax_3d, location="left", shrink=0.5, pad=-0.05)
+    cbar.set_label(r"${q^2}$ (Avg.)", size=11)
+
+    ax_labels = {
+        "x": r"$\cos\theta_\mu$",
+        "y": r"$\cos\theta_K$",
+        "z": r"$\chi$", 
+    }
+    ax_3d.set_xlabel(ax_labels["x"], labelpad=0)
+    ax_3d.set_ylabel(ax_labels["y"], labelpad=0)
+    # ax_3d.zaxis.set_rotate_label(False)
+    ax_3d.set_zlabel(ax_labels["z"], labelpad=-3,) #rotation="horizontal") 
+
+    ticks = {
+        "x": ["-1", "1"],
+        "y": ["-1", "1"],
+        "z": ['0', r"$2\pi$"],
+    }      
+    ax_3d.set_xticks([0, cartesian_shape["x"]-1], ticks["x"])
+    ax_3d.set_xticks([0, cartesian_shape["y"]-1], ticks["y"])
+    ax_3d.set_xticks([0, cartesian_shape["z"]-1], ticks["z"])
+    ax_3d.tick_params(pad=0.3)
+
+    ax_3d.set_box_aspect(None, zoom=0.85)
+
+    ax_3d.set_title(f"{note}", loc="center", y=1)

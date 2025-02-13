@@ -1,126 +1,9 @@
 
 from pathlib import Path
 
-import numpy as np
+import torch
 import pandas as pd
 import uproot
-
-
-## Data ##
-
-def bootstrap_over_bins(x, y, n, rng=np.random.default_rng()):
-    """
-    Bootstrap a set of n items for each unique y.
-
-    x : ndarray of events
-    y : ndarray of bins
-    n : number of events to sample from each bin    
-    rng : numpy random number generator
-    """
-    bootstrap_x = []
-    bootstrap_y = []
-    for bin in np.unique(y):
-        
-        pool_x = x[y==bin]
-        pool_y = y[y==bin]
-        assert pool_x.shape[0] == pool_y.shape[0]
-
-        selection_indices = rng.choice(len(pool_x), n)
-
-        bin_bootstrap_x = pool_x[selection_indices]
-        bin_bootstrap_y = pool_y[selection_indices]
-
-        bootstrap_x.append(bin_bootstrap_x)
-        bootstrap_y.append(bin_bootstrap_y)
-
-    bootstrap_x = np.concatenate(bootstrap_x)
-    bootstrap_y = np.concatenate(bootstrap_y)
-
-    return bootstrap_x, bootstrap_y
-
-
-
-
-
-def bootstrap_labeled_sets(df, label, n, m):
-    """
-    Bootstrap sets from the dataset of each label in a
-    source dataframe.
-
-    Bootstrapping refers to sampling with replacement.
-
-    The resulting dataframe has a multi-index where the first
-    index is the set index and the second index is the label value.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The source dataframe to sample from
-    label : str 
-        Name of the column specifying the labels.
-    n : int
-        The number of elements per set.
-    m : int
-        The number of sets per label. 
-    
-    Returns
-    -------
-    sets : pd.DataFrame
-        Dataframe of sampled sets.
-        Set index is named "set" and label index is named "label".
-    """
-    df_grouped = df.groupby(label)
-
-    sets = []
-    labels = []
-
-    for label_value, df_label in df_grouped:
-
-        for _ in range(m):
-            
-            df_set = df_label.sample(n=n, replace=True).drop(columns=label)
-            sets.append(df_set)
-            labels.append(label_value)
-
-    labels = np.array(labels).astype(df[label].dtype)
-    set_indices = range(len(sets))
-    assert len(set_indices) == len(labels)
-    keys = list(zip(set_indices, labels))
-    sets = pd.concat(sets, keys=keys, names=["set", "label"])
-    return sets
-
-
-def bootstrap_sets_single_value(df, label, value, n, m):
-    """
-    Bootstrap sets from a specific label.
-    df : 
-        source dataframe
-    label : str
-        name of label column
-    value : 
-        value of label to bootstrap
-    n : int
-        num elements per set
-    m : int
-        num sets
-    """
-    df_reduced = df[df[label]==value]
-    sets = []
-    labels = []
-    for _ in range(m):
-        df_set = df_reduced.sample(n=n, replace=True).drop(columns=label)
-        sets.append(df_set)
-        labels.append(value)
-    set_indices = range(len(sets))
-    assert len(set_indices) == len(labels)
-    keys = list(zip(set_indices, labels))
-    sets = pd.concat(sets, keys=keys, names=["set", "label"])
-    return sets
-
-
-    
-
-
 
 
 ## File handling ##
@@ -243,4 +126,101 @@ def open_data(path):
         data = open_datafile(path) 
     elif path.is_dir(): 
         data = open_data_dir(path) 
+
     return data
+
+
+def get_raw_datafile_info(path):
+    path = Path(path)
+    dc9 = float(path.name.split('_')[1])
+    trial = int(path.name.split('_')[2])
+    info = {"dc9": dc9, "trial": trial}
+    return info
+
+
+def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_dir_path, dtype="float64"):
+    """
+    Aggregate data from specified raw signal files.
+    
+    Returns
+    ------
+    A dataframe with specified feature columns and a label column named "dc9".
+    """
+    raw_signal_dir_path = Path(raw_signal_dir_path)
+
+    raw_datafile_paths = []
+    for raw_datafile_path in list(raw_signal_dir_path.glob("*.pkl")):
+        raw_datafile_trial_number = get_raw_datafile_info(raw_datafile_path)["trial"]
+        if raw_datafile_trial_number in raw_trials:
+            raw_datafile_paths.append(raw_datafile_path)
+    
+    num_files_to_load = len(raw_datafile_paths)
+    loaded_dataframes = []
+    for file_number, path in enumerate(raw_datafile_paths, start=1):
+        loaded_dataframe = pd.read_pickle(path).loc[level][columns]
+        print(f"opened raw file: [{file_number}/{num_files_to_load}] {path}")
+        loaded_dataframes.append(loaded_dataframe)
+    loaded_dataframe_dc9_values = [get_raw_datafile_info(path)["dc9"] for path in raw_datafile_paths]
+    labeled_dataframe = pd.concat([df.assign(dc9=dc9) for df, dc9 in zip(loaded_dataframes, loaded_dataframe_dc9_values)])
+    labeled_dataframe = labeled_dataframe.astype(dtype)
+    return labeled_dataframe
+
+
+## Bootstrapping ##
+
+def bootstrap_labeled_sets(x, y, n, m, reduce_labels=True, labels_to_sample=None):
+    """
+    Bootstrap m sets of n examples for each label.
+
+    Parameters
+    ----------
+    x : 
+        Array of features of shape: (num_events, num_features)
+    y : 
+        Array of labels of shape: (num_events)
+    n : int
+        Number of examples per bootstrap  
+    m : int
+        Number of bootstraps per label  
+    reduce_labels : 
+        Whether or not to return one label per set
+        (vs one label per example).
+    labels_to_sample : list
+        Subset of label values to bootstrap.
+        If None, bootstrap from all unique label values.
+
+    Returns
+    -------
+    (bootstrap_x, bootstrap_y) : tuple
+        tuple of torch tensors.
+    """
+    bootstrap_x = []
+    bootstrap_y = []
+    
+    if labels_to_sample is None:
+        labels_to_sample = torch.unique(y) 
+
+    for label in labels_to_sample:    
+
+        for iter in range(m):
+
+            pool_x = x[y==label]
+            pool_y = y[y==label]
+            assert pool_x.shape[0] == pool_y.shape[0]
+
+            selection_indices = torch.randint(low=0, high=len(pool_x), size=(n,))
+
+            label_bootstrap_x = pool_x[selection_indices]
+            label_bootstrap_y = pool_y[selection_indices]
+
+            bootstrap_x.append(label_bootstrap_x.unsqueeze(0))
+            bootstrap_y.append(label_bootstrap_y.unsqueeze(0))
+
+    bootstrap_x = torch.concatenate(bootstrap_x)
+    bootstrap_y = torch.concatenate(bootstrap_y)
+
+    if reduce_labels:
+        bootstrap_y = torch.unique_consecutive(bootstrap_y, dim=1).squeeze()
+        assert bootstrap_y.shape[0] == bootstrap_x.shape[0]
+
+    return bootstrap_x, bootstrap_y
