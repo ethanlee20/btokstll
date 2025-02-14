@@ -6,6 +6,8 @@ import torch
 from torch.utils.data import DataLoader
 from torch import nn
 
+from library.models import Custom_Model
+
 
 def print_gpu_memory_summary():
     print(torch.cuda.memory_summary(abbreviated=True))
@@ -41,69 +43,6 @@ def select_device():
     return device
 
 
-class Custom_Model(nn.Module):
-    """Custom model."""
-    def __init__(self, nickname, model_dir):
-        super().__init__()
-
-        self.nickname = nickname
-        self.model_dir = Path(model_dir)
-        self.loss_table = self.make_empty_loss_table()
-        
-    def make_final_save_path(self):
-        final_save_path = self.model_dir.joinpath(f"{self.nickname}.pt")
-        return final_save_path 
-    
-    def save_final(self):
-        final_save_path = self.make_final_save_path()
-        torch.save(self.state_dict(), final_save_path)
-
-    def load_final(self):
-        file_path = self.make_final_save_path()
-        self.load_state_dict(torch.load(file_path, weights_only=True))
-    
-    def make_checkpoint_save_path(self, epoch_number):
-        checkpoint_save_name = self.nickname + f"_epoch_{epoch_number}"
-        checkpoint_save_path = self.model_dir.joinpath(f"{checkpoint_save_name}.pt")
-        return checkpoint_save_path
-        
-    def save_checkpoint(self, epoch_number):
-        checkpoint_save_path = self.make_checkpoint_save_path(epoch_number)
-        torch.save(self.state_dict(), checkpoint_save_path)
-
-    def load_checkpoint(self, epoch_number):
-        file_path = self.make_checkpoint_save_path(epoch_number)
-        self.load_state_dict(torch.load(file_path, weights_only=True))
-
-    def make_loss_table_file_path(self):
-        file_name = f"{self.nickname}_loss.pkl"
-        file_path = self.model_dir.joinpath(file_name)
-        return file_path
-    
-    def save_loss_table(self):
-        file_path = self.make_loss_table_file_path()
-        with open(file_path, "wb") as handle:
-            pickle.dump(self.loss_table, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    def load_loss_table(self):
-        file_path = self.make_loss_table_file_path()
-        with open(file_path, "rb") as handle:
-            loss_table = pickle.load(handle)
-        return loss_table
-    
-    def append_to_loss_table(self, epoch, train_loss, eval_loss):
-        self.loss_table["epoch"].append(epoch)
-        self.loss_table["train_loss"].append(train_loss)
-        self.loss_table["eval_loss"].append(eval_loss)
-        assert len(self.loss_table["epoch"]) == len(self.loss_table["train_loss"]) == len(self.loss_table["eval_loss"])
-
-    def make_empty_loss_table(self):
-        """Create an empty loss table."""
-        empty_loss_table = {"epoch":[], "train_loss":[], "eval_loss":[]}
-        return empty_loss_table
-    
-    def clear_loss_table(self):
-        self.loss_table = self.make_empty_loss_table()
 
 
 def _train_batch(x, y, model, loss_fn, optimizer):

@@ -166,7 +166,7 @@ def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_
     return labeled_dataframe
 
 
-## Bootstrapping ##
+### Data handling ###
 
 def bootstrap_labeled_sets(x, y, n, m, reduce_labels=True, labels_to_sample=None):
     """
@@ -224,3 +224,31 @@ def bootstrap_labeled_sets(x, y, n, m, reduce_labels=True, labels_to_sample=None
         assert bootstrap_y.shape[0] == bootstrap_x.shape[0]
 
     return bootstrap_x, bootstrap_y
+
+
+def get_num_per_unique_label(labels):
+    """
+    Get the number of examples of each unique label.
+
+    Only works if there is a constant number
+    of examples for each unique label.
+
+    Parameters
+    ----------
+    labels : array
+        Array of labels.
+    
+    Returns
+    -------
+    num_per_label : int
+        Number of examples of each unique label.
+    """
+
+    _, label_counts = torch.unique(
+        labels, 
+        return_counts=True
+    )
+    # check same number of sets per label
+    assert torch.all(label_counts == label_counts[0]) 
+    num_per_label = label_counts[0].item()
+    return num_per_label

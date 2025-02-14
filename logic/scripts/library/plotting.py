@@ -41,41 +41,114 @@ def setup_high_quality_mpl_params():
     mpl.rcParams["legend.fontsize"] = 7.5
 
 
-def make_plot_note(ax, content, fontsize):
-    ax.text(1,1.01, content, horizontalalignment="right", verticalalignment="bottom", transform=ax.transAxes, fontsize=fontsize)
+def make_plot_note(ax, content, fontsize="medium"):
+    ax.text(
+        1,
+        1.01, 
+        content, 
+        horizontalalignment="right", 
+        verticalalignment="bottom", 
+        transform=ax.transAxes, 
+        fontsize=fontsize
+    )
 
 
-def plot_loss_curves(epochs:list, train_losses:list, eval_losses:list, ax):
-    ax.plot(epochs, train_losses, label="Training Loss")
-    ax.plot(epochs, eval_losses, label="Eval. Loss")
+def plot_loss_curves(loss_table, ax, start_epoch=0, log_scale=False):
+    """
+    Plot loss curves given a loss table.
+
+    Parameters
+    ----------
+    loss_table : dict
+        Dictionary with keys "epoch", "train_loss", and "eval_loss".
+    start_epoch : int
+        First epoch to plot. (Previous epochs are not plotted.)
+    ax : matplotlib axes
+        Axes on which to plot.
+    """
+
+    epochs_to_plot = loss_table["epoch"][start_epoch:]
+    train_losses_to_plot = loss_table["train_loss"][start_epoch:]
+    eval_losses_to_plot = loss_table["eval_loss"][start_epoch:]
+    
+    ax.plot(
+        epochs_to_plot, 
+        train_losses_to_plot, 
+        label="Training Loss"
+    )
+    ax.plot(
+        epochs_to_plot, 
+        eval_losses_to_plot, 
+        label="Eval. Loss"
+    )
+    if log_scale:
+        ax.set_yscale("log")
     ax.legend()
     ax.set_xlabel("Epoch")
 
 
 def plot_prediction_linearity(
-        ax,
-        input_values, avg_pred, stdev_pred, ref_line_buffer=0.05, 
-        xlim=None, ylim=None, xlabel=None, ylabel=None
+    ax,
+    input_values, 
+    avg_pred, 
+    stdev_pred, 
+    ref_line_buffer=0.05, 
+    xlim=(-2.25, 1.35), 
+    ylim=(-2.25, 1.35), 
+    xlabel=r"Actual $\delta C_9$", 
+    ylabel=r"Predicted $\delta C_9$",
 ):
     """
-    input_values : value corresponding to each bin index
-    avg_pred : ndarray of average prediction per input bin
-    stdev_pred : ndarray of standard deviation of prediction per input bin 
-    ref_line_buffer : extra amount to extend reference line
-    xlim : x limits
-    ylim : y limits
+    input_values : array 
+        value corresponding to each bin index
+    avg_pred : array
+        ndarray of average prediction per input bin
+    stdev_pred : array
+        ndarray of standard deviation of prediction per input bin 
+    ref_line_buffer : float 
+        extra amount to extend reference line
+    xlim : tuple
+        x limits
+    ylim : tuple
+        y limits
+    xlabel : str
+        x axis label
+    ylabel : str
+        y axis label
     """
         
-    ax.scatter(input_values, avg_pred, label="Avg.", color="firebrick", s=16, zorder=5)
-    ax.errorbar(input_values, avg_pred, yerr=stdev_pred, fmt="none", elinewidth=0.5, capsize=0.5, color="black", label="Std. Dev.", zorder=10)
+    ax.scatter(
+        input_values, 
+        avg_pred, 
+        label="Avg.", 
+        color="firebrick", 
+        s=16, 
+        zorder=5
+    )
+    ax.errorbar(
+        input_values, 
+        avg_pred, 
+        yerr=stdev_pred, 
+        fmt="none", 
+        elinewidth=0.5, 
+        capsize=0.5, 
+        color="black", 
+        label="Std. Dev.", 
+        zorder=10
+    )
 
-    ref_ticks = np.linspace(np.min(input_values)-ref_line_buffer, np.max(input_values)+ref_line_buffer, 2)
+    ref_ticks = np.linspace(
+        np.min(input_values)-ref_line_buffer, 
+        np.max(input_values)+ref_line_buffer, 
+        2,
+    )
     ax.plot(
-        ref_ticks, ref_ticks,
+        ref_ticks, 
+        ref_ticks,
         label="Ref. Line (Slope = 1)",
         color="grey",
         linewidth=0.5,
-        zorder=0
+        zorder=0,
     )
 
     if xlim is not None:
@@ -84,6 +157,7 @@ def plot_prediction_linearity(
         ax.set_ylim(ylim)
 
     ax.legend()
+
     if xlabel is not None:
         ax.set_xlabel(xlabel)
     if ylabel is not None:

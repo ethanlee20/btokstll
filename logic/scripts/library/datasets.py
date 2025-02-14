@@ -113,8 +113,9 @@ def make_image(set_features, n_bins):
 ## Datasets ##
 
 class Custom_Dataset(torch.utils.data.Dataset):
-    def __init__(self, name, level, split, save_dir):
-        self.name = name
+    def __init__(self, name, level, split, save_dir, extra_description=None):
+        self.name = name 
+        self.extra_description = extra_description
         self.level = level
         self.split = split
         self.save_dir = pathlib.Path(save_dir)
@@ -143,16 +144,15 @@ class Custom_Dataset(torch.utils.data.Dataset):
         (at least features and labels).
         """
         pass
-
+    
     def make_file_path(self, kind):
-        file_name = f"{self.name}_{self.level}_{self.split}_{kind}.pt"
+        file_name = (
+            f"{self.name}_{self.extra_description}_{self.level}_{self.split}_{kind}.pt"
+            if self.extra_description
+            else f"{self.name}_{self.level}_{self.split}_{kind}.pt"
+        )
         file_path = self.save_dir.joinpath(file_name)
         return file_path
-
-    def to(self, device):
-        self.features = self.features.to(device)
-        self.labels = self.labels.to(device)
-        print(f"Sent features and labels to {device}.")
 
     def __len__(self):
         return len(self.labels)
@@ -165,8 +165,8 @@ class Custom_Dataset(torch.utils.data.Dataset):
 
 class Binned_Signal_Dataset(Custom_Dataset):
     
-    def __init__(self, name, level, split, save_dir):
-        super().__init__(name, level, split, save_dir)
+    def __init__(self, level, split, save_dir, extra_description=None):
+        super().__init__("binned_signal", level, split, save_dir, extra_description=extra_description)
         self.bin_values_file_path = self.make_file_path("bin_values")
 
     def generate(
@@ -218,13 +218,14 @@ class Binned_Signal_Dataset(Custom_Dataset):
         print(f"Loaded labels of shape: {self.labels.shape}.")
         print(f"Loaded bin values of shape: {self.bin_values.shape}.")
 
+
     
 
 class Bootstrapped_Unbinned_Signal_Dataset(Custom_Dataset):
     """Torch dataset of bootstrapped sets of unbinned signal events."""
 
-    def __init__(self, name, level, split, save_dir,):
-        super().__init__(name, level, split, save_dir,)
+    def __init__(self, level, split, save_dir, extra_description=None):
+        super().__init__("unbinned_sets", level, split, save_dir, extra_description=extra_description)
 
     def generate(
         self, raw_trials, raw_signal_dir, 
@@ -259,8 +260,8 @@ class Bootstrapped_Unbinned_Signal_Dataset(Custom_Dataset):
             labels_to_sample=labels_to_sample,
         )
 
-        torch.save(features, self.features_save_path)
-        torch.save(labels, self.labels_save_path)
+        torch.save(features, self.features_file_path)
+        torch.save(labels, self.labels_file_path)
         print(f"Generated features of shape: {features.shape}.")
         print(f"Generated labels of shape: {labels.shape}.")
 
@@ -276,8 +277,8 @@ class Bootstrapped_Unbinned_Signal_Dataset(Custom_Dataset):
 
 class Signal_Images_Dataset(Custom_Dataset):
     """Bootstrapped images (like Shawn)."""
-    def __init__(self, name, level, split, save_dir):
-        super().__init__(name, level, split, save_dir)
+    def __init__(self, level, split, save_dir, extra_description=None):
+        super().__init__("signal_images", level, split, save_dir, extra_description=extra_description)
     
     def generate(
             self, raw_trials:range, raw_signal_dir, 
