@@ -11,6 +11,22 @@ import torch
 from library.util import aggregate_raw_signal, bootstrap_labeled_sets
 
 
+def load_aggregated_raw_signal(level:str, split:str, dir_path):
+    if split == "train":
+        trial_interval = (1,20)
+    elif split == "eval":
+        trial_interval = (21, 40)
+    else:
+        raise ValueError
+    
+    dir_path = pathlib.Path(dir_path)
+    file_name = f"agg_sig_{trial_interval[0]}_to_{trial_interval[1]}_{level}.pkl"
+    file_path = dir_path.joinpath(file_name)
+    df_agg = pandas.read_pickle(file_path)
+    print(f"Loaded aggregated raw signal file: {file_path}")
+    return df_agg
+
+
 ## Preprocessing ##
 
 def apply_q_squared_veto(df: pandas.DataFrame):
@@ -138,6 +154,12 @@ class Custom_Dataset(torch.utils.data.Dataset):
         (at least set self.features and self.labels).
         """
 
+    def unload(self):
+        """
+        Overwrite this with a function that unloads the
+        loaded data from memory (self.features and self.labels).
+        """
+
     def generate(self):
         """
         Overwrite this with a function that saves some files
@@ -165,17 +187,41 @@ class Custom_Dataset(torch.utils.data.Dataset):
 
 class Binned_Signal_Dataset(Custom_Dataset):
     
-    def __init__(self, level, split, save_dir, extra_description=None):
-        super().__init__("binned_signal", level, split, save_dir, extra_description=extra_description)
-        self.bin_values_file_path = self.make_file_path("bin_values")
-
-    def generate(
+    def __init__(
             self, 
-            raw_trials, raw_signal_dir, 
-            q_squared_veto=True, std_scale=True, 
-            balanced_classes=True, shuffle=True,):    
+            level, 
+            split, 
+            save_dir, 
+            q_squared_veto=True,
+            std_scale=True,
+            balanced_classes=True,
+            shuffle=True,
+            extra_description=None,
+            regenerate=False,
+    ):
+        super().__init__(
+            "binned_signal", 
+            level, 
+            split, 
+            save_dir, 
+            extra_description=extra_description
+        )
+        self.bin_values_file_path = self.make_file_path("bin_values")
+        self.q_squared_veto = q_squared_veto
+        self.std_scale = std_scale
+        self.balanced_classes = balanced_classes
+        self.shuffle = shuffle
 
-        df_agg = aggregate_raw_signal(self.level, raw_trials, self.feature_names, raw_signal_dir)
+        if regenerate:
+            self.generate()
+
+    def generate(self):    
+
+        df_agg = load_aggregated_raw_signal(
+            self.level, 
+            self.split, 
+            self.save_dir
+        )
         
         def convert_to_binned_df(df_agg):
             bins, bin_values = to_bins(df_agg[self.label_name])
@@ -186,14 +232,17 @@ class Binned_Signal_Dataset(Custom_Dataset):
         
         def apply_preprocessing(df_agg):
             df_agg = df_agg.copy()
-            if q_squared_veto:
+            if self.q_squared_veto:
                 df_agg = apply_q_squared_veto(df_agg)
-            if std_scale:
+            if self.std_scale:
                 for column_name in self.feature_names:
-                    df_agg[column_name] = (df_agg[column_name] - means[self.level][column_name]) / stds[self.level][column_name]
-            if balanced_classes:
+                    df_agg[column_name] = (
+                        (df_agg[column_name] - means[self.level][column_name]) 
+                        / stds[self.level][column_name]
+                    )
+            if self.balanced_classes:
                 df_agg = balance_classes(df_agg, self.binned_label_name)
-            if shuffle:
+            if self.shuffle:
                 df_agg = df_agg.sample(frac=1)
             return df_agg
         df_agg = apply_preprocessing(df_agg)
@@ -211,6 +260,7 @@ class Binned_Signal_Dataset(Custom_Dataset):
         print(f"Generated bin values of shape: {bin_values.shape}.")
 
     def load(self):
+
         self.features = torch.load(self.features_file_path, weights_only=True)
         self.labels = torch.load(self.labels_file_path, weights_only=True)
         self.bin_values = torch.load(self.bin_values_file_path, weights_only=True)
@@ -218,85 +268,227 @@ class Binned_Signal_Dataset(Custom_Dataset):
         print(f"Loaded labels of shape: {self.labels.shape}.")
         print(f"Loaded bin values of shape: {self.bin_values.shape}.")
 
+    def unload(self):
+        del self.features
+        del self.labels
+        del self.bin_values
+        print("Unloaded data.")
 
-    
 
-class Bootstrapped_Unbinned_Signal_Dataset(Custom_Dataset):
-    """Torch dataset of bootstrapped sets of unbinned signal events."""
+class Signal_Sets_Dataset(Custom_Dataset):
+    """Torch dataset of bootstrapped sets of signal events."""
 
-    def __init__(self, level, split, save_dir, extra_description=None):
-        super().__init__("unbinned_sets", level, split, save_dir, extra_description=extra_description)
-
-    def generate(
-        self, raw_trials, raw_signal_dir, 
-        num_events_per_set, num_sets_per_label, 
-        q_squared_veto=True, std_scale=True, balanced_classes=True,
-        labels_to_sample=None
+    def __init__(
+            self, 
+            level, 
+            split, 
+            save_dir, 
+            num_events_per_set,
+            num_sets_per_label,
+            binned=False,
+            q_squared_veto=True,
+            std_scale=True,
+            balanced_classes=True,
+            labels_to_sample=None,
+            extra_description=None,
+            regenerate=False,
     ):
+        super().__init__(
+            "signal_sets", 
+            level, 
+            split, 
+            save_dir, 
+            extra_description=extra_description
+        )
+
+        self.bin_values_file_path = self.make_file_path("bin_values")
+        self.num_events_per_set = num_events_per_set
+        self.num_sets_per_label = num_sets_per_label
+        self.binned = binned
+        self.q_squared_veto = q_squared_veto
+        self.std_scale = std_scale
+        self.balanced_classes = balanced_classes
+        self.labels_to_sample = labels_to_sample
+
+        if regenerate:
+            self.generate()
+
+    def generate(self):
         """
         Generate and save dataset state.
         """
-        df_agg = aggregate_raw_signal(self.level, raw_trials, self.feature_names, raw_signal_dir)
+        label_column_name = (
+            self.binned_label_name if self.binned
+            else self.label_name
+        )
+
+        df_agg = load_aggregated_raw_signal(
+            self.level, 
+            self.split, 
+            self.save_dir
+        )
+
+        def convert_to_binned_df(df_agg):
+            bins, bin_values = to_bins(df_agg[self.label_name])
+            df_agg[self.binned_label_name] = bins
+            df_agg = df_agg.drop(columns=self.label_name)
+            return df_agg, bin_values
+        if self.binned:
+            df_agg, bin_values = convert_to_binned_df(df_agg)
+            bin_values = torch.from_numpy(bin_values)
 
         def apply_preprocessing(df_agg):
             df_agg = df_agg.copy()
-            if q_squared_veto:
+            if self.q_squared_veto:
                 df_agg = apply_q_squared_veto(df_agg)
-            if std_scale:
+            if self.std_scale:
                 for column_name in self.feature_names:
-                    df_agg[column_name] = (df_agg[column_name] - means[self.level][column_name]) / stds[self.level][column_name]
-            if balanced_classes:
-                df_agg = balance_classes(df_agg, label_column_name="dc9")
+                    df_agg[column_name] = (
+                        (df_agg[column_name] - means[self.level][column_name]) 
+                        / stds[self.level][column_name]
+                    )
+            if self.balanced_classes:
+                df_agg = balance_classes(
+                    df_agg, 
+                    label_column_name=label_column_name
+                )
             return df_agg
         df_agg = apply_preprocessing(df_agg)
 
-        source_features = torch.from_numpy(df_agg[self.feature_names].to_numpy())
-        source_labels = torch.from_numpy(df_agg[self.label_name].to_numpy())
+        source_features = torch.from_numpy(
+            df_agg[self.feature_names]
+            .to_numpy()
+        )
+        source_labels = torch.from_numpy(
+            df_agg[label_column_name]
+            .to_numpy()
+        )
+
+        if self.binned and self.labels_to_sample:
+            self.labels_to_sample = [
+                torch.argwhere(bin_values == label)
+                .item() 
+                for label in self.labels_to_sample
+            ]
+
         features, labels = bootstrap_labeled_sets(
             source_features,
             source_labels,
-            n=num_events_per_set, m=num_sets_per_label,
+            n=self.num_events_per_set, 
+            m=self.num_sets_per_label,
             reduce_labels=True,
-            labels_to_sample=labels_to_sample,
+            labels_to_sample=self.labels_to_sample,
         )
 
-        torch.save(features, self.features_file_path)
-        torch.save(labels, self.labels_file_path)
-        print(f"Generated features of shape: {features.shape}.")
-        print(f"Generated labels of shape: {labels.shape}.")
+        torch.save(
+            features, 
+            self.features_file_path
+        )
+        print(
+            f"Generated features of shape: {features.shape}."
+        )
+        torch.save(
+            labels, 
+            self.labels_file_path
+        )
+        print(
+            f"Generated labels of shape: {labels.shape}."
+        )
+        if self.binned:
+            torch.save(
+                bin_values, 
+                self.bin_values_file_path
+            )
+            print(
+               f"Generated bin values of shape: {bin_values.shape}."
+            )
 
     def load(self): 
         """
         Load saved dataset state. 
         """
-        self.features = torch.load(self.features_file_path, weights_only=True)
-        self.labels = torch.load(self.labels_file_path, weights_only=True)
-        print(f"Loaded features of shape: {self.features.shape}.")
-        print(f"Loaded labels of shape: {self.labels.shape}.")
+        self.features = torch.load(
+            self.features_file_path, 
+            weights_only=True
+        )
+        print(
+            f"Loaded features of shape: {self.features.shape}."
+        )
+        self.labels = torch.load(
+            self.labels_file_path, 
+            weights_only=True
+        )
+        print(
+            f"Loaded labels of shape: {self.labels.shape}."
+        )
+        if self.binned:
+            self.bin_values = torch.load(
+                self.bin_values_file_path,
+                weights_only=True
+            )
+            print(
+                f"Loaded bin values of shape: {self.bin_values.shape}."
+            )
+
+    def unload(self):
+        del self.features
+        del self.labels
+        if self.binned:
+            del self.bin_values
+        print("Unloaded data.")
 
 
 class Signal_Images_Dataset(Custom_Dataset):
     """Bootstrapped images (like Shawn)."""
-    def __init__(self, level, split, save_dir, extra_description=None):
-        super().__init__("signal_images", level, split, save_dir, extra_description=extra_description)
-    
-    def generate(
-            self, raw_trials:range, raw_signal_dir, 
-            num_events_per_set, num_sets_per_label, n_bins,
-            q_squared_veto=True, std_scale=True, balanced_classes=True,
+    def __init__(
+            self, 
+            level, 
+            split, 
+            save_dir, 
+            num_events_per_set,
+            num_sets_per_label,
+            n_bins,
+            q_squared_veto=True,
+            std_scale=True,
+            balanced_classes=True,
             labels_to_sample=None,
+            extra_description=None,
+            regenerate=False,
     ):
+        super().__init__(
+            "signal_images", 
+            level, 
+            split, 
+            save_dir, 
+            extra_description=extra_description
+        )
 
-        df_agg = aggregate_raw_signal(self.level, raw_trials, self.feature_names, raw_signal_dir)
+        self.num_events_per_set = num_events_per_set
+        self.num_sets_per_label = num_sets_per_label
+        self.n_bins = n_bins
+        self.q_squared_veto = q_squared_veto
+        self.std_scale = std_scale
+        self.balanced_classes = balanced_classes
+        self.labels_to_sample = labels_to_sample
+
+        if regenerate:
+            self.generate()
+    
+    def generate(self):
+
+        df_agg = load_aggregated_raw_signal(self.level, self.split, self.save_dir)
         
         def apply_preprocessing(df_agg):
             df_agg = df_agg.copy()
-            if q_squared_veto:
+            if self.q_squared_veto:
                 df_agg = apply_q_squared_veto(df_agg)
-            if std_scale:
-                df_agg["q_squared"] = (df_agg["q_squared"] - means[self.level]["q_squared"]) / stds[self.level]["q_squared"]
-            if balanced_classes:
-                df_agg = balance_classes(df_agg, label_column_name="dc9")
+            if self.std_scale:
+                df_agg["q_squared"] = (
+                    (df_agg["q_squared"] - means[self.level]["q_squared"]) 
+                    / stds[self.level]["q_squared"]
+                )
+            if self.balanced_classes:
+                df_agg = balance_classes(df_agg, label_column_name=self.label_name)
             return df_agg
         df_agg = apply_preprocessing(df_agg)
 
@@ -305,11 +497,16 @@ class Signal_Images_Dataset(Custom_Dataset):
         set_features, labels = bootstrap_labeled_sets(
             source_features,
             source_labels,
-            n=num_events_per_set, m=num_sets_per_label,
+            n=self.num_events_per_set, m=self.num_sets_per_label,
             reduce_labels=True,
-            labels_to_sample=labels_to_sample
+            labels_to_sample=self.labels_to_sample
         )
-        features = torch.cat([make_image(set_feat, n_bins=n_bins).unsqueeze(0) for set_feat in set_features.numpy()])
+        features = torch.cat(
+            [
+                make_image(set_feat, n_bins=self.n_bins).unsqueeze(0) 
+                for set_feat in set_features.numpy()
+            ]
+        )
         
         torch.save(features, self.features_file_path)
         torch.save(labels, self.labels_file_path)
@@ -321,6 +518,11 @@ class Signal_Images_Dataset(Custom_Dataset):
         self.labels = torch.load(self.labels_file_path, weights_only=True)
         print(f"Loaded features of shape: {self.features.shape}.")
         print(f"Loaded labels of shape: {self.labels.shape}.")
+
+    def unload(self):
+        del self.features
+        del self.labels
+        print("Unloaded data.")
 
 
 

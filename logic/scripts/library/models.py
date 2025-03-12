@@ -314,3 +314,10 @@ class Event_By_Event_NN(Custom_Model):
             lse = torch.logsumexp(log_bin_values + log_probs, dim=0)
             yhat = torch.exp(lse) - bin_shift
         return yhat
+    
+
+
+
+
+
+

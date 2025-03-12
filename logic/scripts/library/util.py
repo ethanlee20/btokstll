@@ -138,7 +138,7 @@ def get_raw_datafile_info(path):
     return info
 
 
-def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_dir_path, dtype="float64"):
+def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_dir, save_dir, dtype="float64"):
     """
     Aggregate data from specified raw signal files.
     
@@ -146,10 +146,10 @@ def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_
     ------
     A dataframe with specified feature columns and a label column named "dc9".
     """
-    raw_signal_dir_path = Path(raw_signal_dir_path)
+    raw_signal_dir = Path(raw_signal_dir)
 
     raw_datafile_paths = []
-    for raw_datafile_path in list(raw_signal_dir_path.glob("*.pkl")):
+    for raw_datafile_path in list(raw_signal_dir.glob("*.pkl")):
         raw_datafile_trial_number = get_raw_datafile_info(raw_datafile_path)["trial"]
         if raw_datafile_trial_number in raw_trials:
             raw_datafile_paths.append(raw_datafile_path)
@@ -163,7 +163,11 @@ def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_
     loaded_dataframe_dc9_values = [get_raw_datafile_info(path)["dc9"] for path in raw_datafile_paths]
     labeled_dataframe = pd.concat([df.assign(dc9=dc9) for df, dc9 in zip(loaded_dataframes, loaded_dataframe_dc9_values)])
     labeled_dataframe = labeled_dataframe.astype(dtype)
-    return labeled_dataframe
+
+    save_dir = Path(save_dir)
+    save_name = f"agg_sig_{raw_trials[0]}_to_{raw_trials[-1]}_{level}.pkl"
+    save_path = save_dir.joinpath(save_name)
+    labeled_dataframe.to_pickle(save_path)
 
 
 ### Data handling ###
@@ -252,3 +256,6 @@ def get_num_per_unique_label(labels):
     assert torch.all(label_counts == label_counts[0]) 
     num_per_label = label_counts[0].item()
     return num_per_label
+
+
+

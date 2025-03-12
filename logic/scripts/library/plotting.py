@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
 
+from library.predict import run_sensitivity_test
+
 
 def setup_high_quality_mpl_params():
     """
@@ -97,6 +99,7 @@ def plot_prediction_linearity(
     ylim=(-2.25, 1.35), 
     xlabel=r"Actual $\delta C_9$", 
     ylabel=r"Predicted $\delta C_9$",
+    note=None,
 ):
     """
     input_values : array 
@@ -115,6 +118,8 @@ def plot_prediction_linearity(
         x axis label
     ylabel : str
         y axis label
+    note : str
+        note to add
     """
         
     ax.scatter(
@@ -162,6 +167,8 @@ def plot_prediction_linearity(
         ax.set_xlabel(xlabel)
     if ylabel is not None:
         ax.set_ylabel(ylabel)
+    
+    make_plot_note(ax, note)
 
 
 def plot_volume_slices(arr, n_slices=3, cmap=plt.cm.magma, note=""):
@@ -259,3 +266,62 @@ def plot_volume_slices(arr, n_slices=3, cmap=plt.cm.magma, note=""):
     ax_3d.set_box_aspect(None, zoom=0.85)
 
     ax_3d.set_title(f"{note}", loc="center", y=1)
+
+
+def plot_sensitivity(
+    ax, 
+    predictions,
+    label,
+    bins=50, 
+    xbounds=(-1.5, 0), 
+    ybounds=(0, 200), 
+    std_marker_height=20,
+    note=None,
+):
+    
+    (
+        mean, 
+        std, 
+        bias
+    ) = run_sensitivity_test(
+        predictions, 
+        label
+    )
+
+    ax.hist(
+        predictions, 
+        bins=bins, 
+        range=xbounds
+    )
+    ax.vlines(
+        label,
+        0,
+        ybounds[1],
+        color="red",
+        label=f"Target ({label})",
+    )
+    ax.vlines(
+        mean,
+        0,
+        ybounds[1],
+        color="red",
+        linestyles="--",
+        label=r"$\mu = $ " + f"{mean.round(decimals=3)}"
+    )
+    ax.hlines(
+        std_marker_height,
+        mean,
+        mean+std,
+        color="orange",
+        linestyles="dashdot",
+        label=r"$\sigma = $ " + f"{std.round(decimals=3)}"
+    )
+    ax.set_xlabel(r"Predicted $\delta C_9$")
+    ax.set_xbound(*xbounds)
+    ax.set_ybound(*ybounds)
+    ax.legend()
+    make_plot_note(
+        ax, 
+        note, 
+        fontsize="medium"
+    )
