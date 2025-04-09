@@ -6,8 +6,6 @@ import torch
 from torch.utils.data import DataLoader
 from torch import nn
 
-from library.models import Custom_Model
-
 
 def print_gpu_memory_summary():
     print(torch.cuda.memory_summary(abbreviated=True))
@@ -127,7 +125,7 @@ def _print_scheduler_last_learning_rate(scheduler):
 
 
 def train_and_eval(
-    model:Custom_Model, 
+    model, 
     train_dataset, eval_dataset,
     loss_fn, optimizer, 
     epochs, train_batch_size, eval_batch_size, 

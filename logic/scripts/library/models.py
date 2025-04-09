@@ -5,50 +5,60 @@ import pickle
 import torch
 from torch import nn
 
+from library.nn_training import train_and_eval
+
 
 class Custom_Model(nn.Module):
     """Custom model."""
-    def __init__(self, name, model_dir, extra_description=None):
+    def __init__(self, kind, save_dir, extra_description=None):
+        """
+        save_dir : str
+            Directory where all models are saved.
+            Model will be saved in a subdirectory of
+            the save_dir directory.
+        """
         super().__init__()
 
-        self.name = name
-        self.model_dir = Path(model_dir)
+        self.kind = kind
         self.extra_description = extra_description
 
-        self.base_save_name = (
-            f"{self.name}_{self.extra_description}" if extra_description
-            else self.name
+        self.save_sub_dir = Path(save_dir).joinpath(
+            f"{self.kind}_{self.extra_description}" if extra_description
+            else self.kind
         )
+        
         self.loss_table = self.make_empty_loss_table()
         
     def make_final_save_path(self):
-        final_save_path = self.model_dir.joinpath(f"{self.base_save_name}.pt")
-        return final_save_path 
+        file_name = "final.pt"
+        file_path = self.save_sub_dir.joinpath(file_name)
+        return file_path 
     
     def save_final(self):
-        final_save_path = self.make_final_save_path()
-        torch.save(self.state_dict(), final_save_path)
+        file_path = self.make_final_save_path()
+        torch.save(self.state_dict(), file_path)
 
     def load_final(self):
-        file_path = self.make_final_save_path()
-        self.load_state_dict(torch.load(file_path, weights_only=True))
+        model_file_path = self.make_final_save_path()
+        self.load_state_dict(torch.load(model_file_path, weights_only=True))
+        self.loss_table = self.load_loss_table()
     
-    def make_checkpoint_save_path(self, epoch_number):
-        checkpoint_save_name = f"{self.base_save_name}_epoch_{epoch_number}"
-        checkpoint_save_path = self.model_dir.joinpath(f"{checkpoint_save_name}.pt")
-        return checkpoint_save_path
+    def make_checkpoint_save_path(self, epoch:int):
+        file_name = f"epoch_{epoch}.pt"
+        file_path = self.save_sub_dir.joinpath(file_name)
+        return file_path
         
-    def save_checkpoint(self, epoch_number):
-        checkpoint_save_path = self.make_checkpoint_save_path(epoch_number)
-        torch.save(self.state_dict(), checkpoint_save_path)
+    def save_checkpoint(self, epoch):
+        file_path = self.make_checkpoint_save_path(epoch)
+        torch.save(self.state_dict(), file_path)
 
-    def load_checkpoint(self, epoch_number):
-        file_path = self.make_checkpoint_save_path(epoch_number)
+    def load_checkpoint(self, epoch):
+        file_path = self.make_checkpoint_save_path(epoch)
         self.load_state_dict(torch.load(file_path, weights_only=True))
 
     def make_loss_table_file_path(self):
-        file_name = f"{self.base_save_name}_loss.pkl"
-        file_path = self.model_dir.joinpath(file_name)
+        file_name = "loss_table.pkl"
+        file_path = self.save_sub_dir.joinpath(file_name)
         return file_path
     
     def save_loss_table(self):
@@ -80,14 +90,53 @@ class Custom_Model(nn.Module):
     def clear_loss_table(self):
         self.loss_table = self.make_empty_loss_table()
 
+    def retrain(
+        self,
+        train_dataset,
+        eval_dataset,
+        loss_fn,
+        optimizer,
+        epochs,
+        train_batch_size,
+        eval_batch_size,
+        device,
+        move_data=True,
+        scheduler=None,
+        checkpoint_epochs=5,
+    ):
+        
+        try: self.save_sub_dir.mkdir()
+        except FileExistsError:
+            error_message = (
+                "Model already exists."
+                + " Delete existing model (subdirectory) to continue."
+            )
+            raise FileExistsError(error_message)
+        
+        train_and_eval(
+            model=self, 
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+            loss_fn=loss_fn,
+            optimizer=optimizer,
+            epochs=epochs,
+            train_batch_size=train_batch_size,
+            eval_batch_size=eval_batch_size,
+            device=device,
+            move_data=move_data,
+            scheduler=scheduler,
+            checkpoint_epochs=checkpoint_epochs,
+        )
+        
+
 
 
 ##### CNN #####
 
 class CNN_Res(Custom_Model):
     
-    def __init__(self, model_dir, extra_description=None):
-        super().__init__("cnn_res", model_dir, extra_description=extra_description)
+    def __init__(self, save_dir, extra_description=None):
+        super().__init__("cnn_res", save_dir, extra_description=extra_description)
 
         self.conv = nn.Sequential(
             nn.Conv3d(
@@ -202,8 +251,8 @@ class CNN_Res(Custom_Model):
 
 class Deep_Sets(Custom_Model):
 
-    def __init__(self, model_dir, extra_description=None):
-        super().__init__("deep_sets", model_dir, extra_description=extra_description)
+    def __init__(self, save_dir, extra_description=None):
+        super().__init__("deep_sets", save_dir, extra_description=extra_description)
 
         self.f = nn.Sequential(
             nn.Linear(in_features=4, out_features=32),
@@ -270,8 +319,8 @@ class Deep_Sets(Custom_Model):
 ##### Event-by-event #####
 
 class Event_By_Event_NN(Custom_Model):
-    def __init__(self, model_dir, extra_description=None):
-        super().__init__("event_by_event_nn", model_dir, extra_description=extra_description)
+    def __init__(self, save_dir, extra_description=None):
+        super().__init__("event_by_event_nn", save_dir, extra_description=extra_description)
 
         self.base = nn.Sequential(
             nn.Linear(4, 32),

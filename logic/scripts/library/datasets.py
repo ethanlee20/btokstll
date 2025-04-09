@@ -29,15 +29,33 @@ def load_aggregated_raw_signal(level:str, split:str, dir_path):
 
 ## Preprocessing ##
 
-def apply_q_squared_veto(df: pandas.DataFrame):
-    lower_bound = 1
-    upper_bound = 8
+def apply_q_squared_veto(df: pandas.DataFrame, strength:str):
+    """
+    strength : 'tight' or 'loose'
+    """
+    tight_lower_bound = 1
+    tight_upper_bound = 8
+    loose_lower_bound = 0
+    loose_upper_bound = 20
+
+    if strength == "tight":
+        lower_bound = tight_lower_bound
+        upper_bound = tight_upper_bound
+    elif strength == "loose":
+        lower_bound = loose_lower_bound
+        upper_bound = loose_upper_bound
+    else: raise ValueError
+
     df_vetoed = df[(df["q_squared"]>lower_bound) & (df["q_squared"]<upper_bound)]
     return df_vetoed
 
 
 def balance_classes(df: pandas.DataFrame, label_column_name: str):
-    """Reduce the number of events per label to the minimum over the labels."""
+    """
+    Reduce the number of events per label to the minimum over the labels.
+
+    Danger: Assumes shuffled data.
+    """
     group_by_label = df.groupby(label_column_name)
     num_events = [len(df_label) for _, df_label in group_by_label]
     min_num_events = min(num_events)
@@ -46,38 +64,96 @@ def balance_classes(df: pandas.DataFrame, label_column_name: str):
     return balanced_df
 
 
-means = {         # with q squared veto, from first 5 trials # 
-    "gen": {
-        "q_squared": 4.75234051e+00,
-        "costheta_mu": 6.51485574e-02,
-        "costheta_K": 6.42255401e-05,
-        "chi": 3.14130932e+00, 
-    }, 
-    "det": {
-        "q_squared": None,  # not calculated yet
-        "costheta_mu": None,
-        "costheta_K": None,
-        "chi": None, 
-    }
-}
+def get_dataset_prescale(
+    kind:str, 
+    level:str, 
+    q_squared_veto:bool, 
+    var:str,
+):
+    """
+    From first 20 trials
+    With q2_veto means kept only  1 < q^2 < 8
+    Without q2_veto means kept only 0 < q^2 < 20 (full expected range)
+    """
 
-stds = {         # no q squared veto, from first 5 trials # 
-    "gen": {
-        "q_squared": 2.05356902,
-        "costheta_mu": 0.50583777,
-        "costheta_K": 0.69434327,
-        "chi": 1.81157865, 
-    }, 
-    "det": {
-        "q_squared": None,  # not calculated yet
-        "costheta_mu": None,
-        "costheta_K": None,
-        "chi": None, 
+    with_q2_veto = {
+        "mean": {
+            "gen": {
+                "q_squared": 4.752486,
+                "costheta_mu": 0.065137,
+                "costheta_K": 0.000146,
+                "chi": 3.141082, 
+            }, 
+            "det": {
+                "q_squared": 4.943439,
+                "costheta_mu": 0.077301,
+                "costheta_K": -0.068484,
+                "chi": 3.141730, 
+            }
+        },
+        "std": {
+            "gen": {
+                "q_squared": 2.053569,
+                "costheta_mu": 0.505880,
+                "costheta_K": 0.694362,
+                "chi": 1.811370, 
+            }, 
+            "det": {
+                "q_squared": 2.030002,
+                "costheta_mu": 0.463005,
+                "costheta_K": 0.696061,
+                "chi": 1.830277, 
+            }
+        }
     }
-}
+
+    without_q2_veto = {
+        "mean": {
+            "gen": {
+                "q_squared": 9.248781,
+                "costheta_mu": 0.151290,
+                "costheta_K": 0.000234,
+                "chi": 3.141442, 
+            }, 
+            "det": {
+                "q_squared": 10.353162,
+                "costheta_mu": 0.177404,
+                "costheta_K": -0.031136,
+                "chi": 3.141597, 
+            }
+        },
+        "std": {
+            "gen": {
+                "q_squared": 5.311177,
+                "costheta_mu": 0.524446,
+                "costheta_K": 0.635314,
+                "chi": 1.803100, 
+            }, 
+            "det": {
+                "q_squared": 5.242896,
+                "costheta_mu": 0.508787,
+                "costheta_K": 0.622743,
+                "chi": 1.820018, 
+            }    
+        }
+    }
+
+    table = with_q2_veto if q_squared_veto else without_q2_veto
+    return table[kind][level][var]
 
 
 def to_bins(ar):
+    """
+    Assign a bin number to each unique value in an array.
+
+    Returns
+    -------
+    bins 
+        array of bin numbers
+    bin_values 
+        array of original values corresponding to
+        each bin number.
+    """
     ar = numpy.array(ar)
     bin_values, inverse_indices = numpy.unique(ar, return_inverse=True)
     bin_indices = numpy.arange(len(bin_values))
@@ -129,15 +205,24 @@ def make_image(set_features, n_bins):
 ## Datasets ##
 
 class Custom_Dataset(torch.utils.data.Dataset):
-    def __init__(self, name, level, split, save_dir, extra_description=None):
+    """
+    Custom dataset base class.
+    """
+    def __init__(self, name, level, q_squared_veto, split, save_dir, extra_description=None, regenerate=False):
         self.name = name 
         self.extra_description = extra_description
         self.level = level
+        self.q_squared_veto = q_squared_veto
         self.split = split
         self.save_dir = pathlib.Path(save_dir)
 
+        save_sub_dir_name = f"{name}_{level}_q2v_{q_squared_veto}"
+        self.save_sub_dir = save_dir.joinpath(save_sub_dir_name)
+        self.save_sub_dir.mkdir(exist_ok=True)
+        
         self.features_file_path = self.make_file_path("features")
         self.labels_file_path = self.make_file_path("labels")
+        self.bin_values_file_path = self.make_file_path("bin_values")
 
         self.feature_names = [
             "q_squared", 
@@ -147,6 +232,9 @@ class Custom_Dataset(torch.utils.data.Dataset):
         ]
         self.label_name = "dc9"
         self.binned_label_name = "dc9_bin_index"
+
+        if regenerate:
+            self.generate()
 
     def load(self):
         """
@@ -169,11 +257,11 @@ class Custom_Dataset(torch.utils.data.Dataset):
     
     def make_file_path(self, kind):
         file_name = (
-            f"{self.name}_{self.extra_description}_{self.level}_{self.split}_{kind}.pt"
-            if self.extra_description
-            else f"{self.name}_{self.level}_{self.split}_{kind}.pt"
+            f"{self.extra_description}_{self.split}_{kind}.pt" 
+            if self.extra_description 
+            else f"{self.split}_{kind}.pt"
         )
-        file_path = self.save_dir.joinpath(file_name)
+        file_path = self.save_sub_dir.joinpath(file_name)
         return file_path
 
     def __len__(self):
@@ -186,7 +274,7 @@ class Custom_Dataset(torch.utils.data.Dataset):
 
 
 class Binned_Signal_Dataset(Custom_Dataset):
-    
+    """For event-by-event approach."""
     def __init__(
             self, 
             level, 
@@ -199,21 +287,20 @@ class Binned_Signal_Dataset(Custom_Dataset):
             extra_description=None,
             regenerate=False,
     ):
-        super().__init__(
-            "binned_signal", 
-            level, 
-            split, 
-            save_dir, 
-            extra_description=extra_description
-        )
-        self.bin_values_file_path = self.make_file_path("bin_values")
         self.q_squared_veto = q_squared_veto
         self.std_scale = std_scale
         self.balanced_classes = balanced_classes
         self.shuffle = shuffle
-
-        if regenerate:
-            self.generate()
+        
+        super().__init__(
+            "binned_signal", 
+            level, 
+            q_squared_veto,
+            split, 
+            save_dir, 
+            extra_description=extra_description,
+            regenerate=regenerate,
+        )
 
     def generate(self):    
 
@@ -232,13 +319,19 @@ class Binned_Signal_Dataset(Custom_Dataset):
         
         def apply_preprocessing(df_agg):
             df_agg = df_agg.copy()
-            if self.q_squared_veto:
-                df_agg = apply_q_squared_veto(df_agg)
+            q2_cut_strength = (
+                "tight" if self.q_squared_veto
+                else "loose"
+            )
+            df_agg = apply_q_squared_veto(df_agg, q2_cut_strength)
             if self.std_scale:
                 for column_name in self.feature_names:
-                    df_agg[column_name] = (
-                        (df_agg[column_name] - means[self.level][column_name]) 
-                        / stds[self.level][column_name]
+                    df_agg[column_name] = ( 
+                        (
+                            df_agg[column_name] 
+                            - get_dataset_prescale("mean", self.level, self.q_squared_veto, column_name)
+                        ) 
+                        / get_dataset_prescale("std", self.level, self.q_squared_veto, column_name)
                     )
             if self.balanced_classes:
                 df_agg = balance_classes(df_agg, self.binned_label_name)
@@ -293,15 +386,11 @@ class Signal_Sets_Dataset(Custom_Dataset):
             extra_description=None,
             regenerate=False,
     ):
-        super().__init__(
-            "signal_sets", 
-            level, 
-            split, 
-            save_dir, 
-            extra_description=extra_description
+        
+        name = (
+            "signal_sets_binned" if binned
+            else "signal_sets_unbinned"
         )
-
-        self.bin_values_file_path = self.make_file_path("bin_values")
         self.num_events_per_set = num_events_per_set
         self.num_sets_per_label = num_sets_per_label
         self.binned = binned
@@ -310,8 +399,15 @@ class Signal_Sets_Dataset(Custom_Dataset):
         self.balanced_classes = balanced_classes
         self.labels_to_sample = labels_to_sample
 
-        if regenerate:
-            self.generate()
+        super().__init__(
+            name, 
+            level, 
+            q_squared_veto,
+            split, 
+            save_dir, 
+            extra_description=extra_description,
+            regenerate=regenerate,
+        )
 
     def generate(self):
         """
@@ -339,13 +435,19 @@ class Signal_Sets_Dataset(Custom_Dataset):
 
         def apply_preprocessing(df_agg):
             df_agg = df_agg.copy()
-            if self.q_squared_veto:
-                df_agg = apply_q_squared_veto(df_agg)
+            q2_cut_strength = (
+                "tight" if self.q_squared_veto
+                else "loose"
+            )
+            df_agg = apply_q_squared_veto(df_agg, q2_cut_strength)
             if self.std_scale:
                 for column_name in self.feature_names:
-                    df_agg[column_name] = (
-                        (df_agg[column_name] - means[self.level][column_name]) 
-                        / stds[self.level][column_name]
+                    df_agg[column_name] = ( 
+                        (
+                            df_agg[column_name] 
+                            - get_dataset_prescale("mean", self.level, self.q_squared_veto, column_name)
+                        ) 
+                        / get_dataset_prescale("std", self.level, self.q_squared_veto, column_name)
                     )
             if self.balanced_classes:
                 df_agg = balance_classes(
@@ -455,14 +557,6 @@ class Signal_Images_Dataset(Custom_Dataset):
             extra_description=None,
             regenerate=False,
     ):
-        super().__init__(
-            "signal_images", 
-            level, 
-            split, 
-            save_dir, 
-            extra_description=extra_description
-        )
-
         self.num_events_per_set = num_events_per_set
         self.num_sets_per_label = num_sets_per_label
         self.n_bins = n_bins
@@ -470,22 +564,35 @@ class Signal_Images_Dataset(Custom_Dataset):
         self.std_scale = std_scale
         self.balanced_classes = balanced_classes
         self.labels_to_sample = labels_to_sample
+        
+        super().__init__(
+            "signal_images", 
+            level, 
+            q_squared_veto,
+            split, 
+            save_dir, 
+            extra_description=extra_description,
+            regenerate=regenerate,
+        )
 
-        if regenerate:
-            self.generate()
-    
     def generate(self):
 
         df_agg = load_aggregated_raw_signal(self.level, self.split, self.save_dir)
         
         def apply_preprocessing(df_agg):
             df_agg = df_agg.copy()
-            if self.q_squared_veto:
-                df_agg = apply_q_squared_veto(df_agg)
+            q2_cut_strength = (
+                "tight" if self.q_squared_veto
+                else "loose"
+            )
+            df_agg = apply_q_squared_veto(df_agg, q2_cut_strength)
             if self.std_scale:
                 df_agg["q_squared"] = (
-                    (df_agg["q_squared"] - means[self.level]["q_squared"]) 
-                    / stds[self.level]["q_squared"]
+                    (
+                        df_agg["q_squared"] 
+                        - get_dataset_prescale("mean", self.level, self.q_squared_veto, "q_squared")
+                    )
+                    / get_dataset_prescale("std", self.level, self.q_squared_veto, "q_squared")
                 )
             if self.balanced_classes:
                 df_agg = balance_classes(df_agg, label_column_name=self.label_name)

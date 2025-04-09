@@ -2,7 +2,7 @@
 import torch
 import pandas
 
-from util import get_num_per_unique_label
+from library.util import get_num_per_unique_label
 
 
 class Summary_Table:
@@ -11,6 +11,8 @@ class Summary_Table:
 
     def add_item(
         self, 
+        level,
+        q_squared_veto:bool,
         method_name, 
         item_name, 
         num_events_per_set, 
@@ -19,7 +21,7 @@ class Summary_Table:
         if type(item) is torch.Tensor:
             item = item.item()
         self.table.loc[
-            (method_name, num_events_per_set), 
+            (level, q_squared_veto, method_name, num_events_per_set), 
             item_name,
         ] = item
     
@@ -30,6 +32,7 @@ class Summary_Table:
         index = pandas.MultiIndex.from_product(
             [
                 ["gen", "det"],
+                [True, False],
                 [
                     "Images", 
                     "Deep Sets", 
@@ -37,7 +40,7 @@ class Summary_Table:
                 ],
                 [70_000, 24_000, 6_000],
             ],
-            names=["Level", "Method", "Events/set"]
+            names=["Level", "q2_veto", "Method", "Events/set"]
         )
         table = pandas.DataFrame(
             index=index, 
@@ -61,13 +64,17 @@ def make_predictions(
 ):
     """
     Make predictions on an array of features.
+
+    Features should be an array of sets of events.
+    Bin values must be specified for event-by-event method.
     """
     with torch.no_grad():
         predictions = []
         for feat in features:
             if event_by_event:
+                assert bin_values is not None
                 prediction = model.calculate_expected_value(
-                    features.to(device),
+                    feat.to(device),
                     bin_values.to(device),
                 )
             else:
@@ -100,6 +107,9 @@ def run_linearity_test(predictions, labels):
 
 def run_sensitivity_test(predictions, label):
     """
+    Find the standard deviation and mean of predictions for
+    a single label.
+
     Returns
     -------
     mean : ...

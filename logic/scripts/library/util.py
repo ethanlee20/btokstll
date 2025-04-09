@@ -56,7 +56,7 @@ def open_datafile(filepath):
     """
     Open a datafile as a pandas dataframe.
 
-    The datafile can be a root or pickled pandas dataframe file.
+    The datafile can be a root file or pickled pandas dataframe file.
     
     Parameters
     ----------
@@ -131,6 +131,10 @@ def open_data(path):
 
 
 def get_raw_datafile_info(path):
+    """
+    Get the delta C 9 label and trial number of a raw datafile.
+    Return result as a dictionary.
+    """
     path = Path(path)
     dc9 = float(path.name.split('_')[1])
     trial = int(path.name.split('_')[2])
@@ -138,7 +142,7 @@ def get_raw_datafile_info(path):
     return info
 
 
-def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_dir, save_dir, dtype="float64"):
+def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_dir, save_dir=None, dtype="float64"):
     """
     Aggregate data from specified raw signal files.
     
@@ -164,10 +168,19 @@ def aggregate_raw_signal(level, raw_trials:range, columns:list[str], raw_signal_
     labeled_dataframe = pd.concat([df.assign(dc9=dc9) for df, dc9 in zip(loaded_dataframes, loaded_dataframe_dc9_values)])
     labeled_dataframe = labeled_dataframe.astype(dtype)
 
+    print("Number of NA values: ", labeled_dataframe.isna().sum())
+
+    labeled_dataframe = labeled_dataframe.dropna()
+    print("Removed NA rows.")
+
+    if save_dir is None:
+        return labeled_dataframe
+
     save_dir = Path(save_dir)
     save_name = f"agg_sig_{raw_trials[0]}_to_{raw_trials[-1]}_{level}.pkl"
     save_path = save_dir.joinpath(save_name)
     labeled_dataframe.to_pickle(save_path)
+    print(f"Saved file {save_path}")
 
 
 ### Data handling ###
@@ -234,7 +247,7 @@ def get_num_per_unique_label(labels):
     """
     Get the number of examples of each unique label.
 
-    Only works if there is a constant number
+    Danger: Only works if there is the same number
     of examples for each unique label.
 
     Parameters
