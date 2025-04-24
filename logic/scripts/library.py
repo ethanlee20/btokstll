@@ -23,59 +23,119 @@ Datafile handling utilities
 """
 
 
-def open_tree(path, tree_name):
+def open_tree(path, tree_name, verbose=True):
+
     """
-    Open a root tree as a pandas dataframe.
+    Open a tree in a root file as a 
+    pandas dataframe.
 
     Parameters
     ----------
     path : str
-        Root file's path
+        Root file's path.
     tree_name : str
-        Tree name
+        The name of the tree.
+    verbose : bool
+        Whether or not to print 
+        loading information.
 
     Returns
     -------
     df : pandas.DataFame
-        Root tree dataframe
+        Dataframe containing the 
+        tree's data.
     """
+
     df = (
         uproot.open(f"{path}:{tree_name}")
         .arrays(library="pd")
     )
+    if verbose:
+        print(f"Opened {path}:{tree_name}")
     return df
 
 
-def open_root(path):
+def open_root(path, verbose=True):
+
     """
     Open a root file as a pandas dataframe.
 
     The file can contain multiple trees.
-    Each tree will be labeled by a pandas multi-index.
+    Each tree will be labeled by a 
+    pandas multi-index.
 
     Parameters
     ----------
     path : str
-        Root file's path
+        Root file's path.
+    verbose : bool
+        Whether or not to print 
+        loading information.
 
     Returns
     -------
     df : pandas.DataFrame
         Root file dataframe
     """
+
     f = uproot.open(path)
-    tree_names = [name.split(';')[0] for name in f.keys()]
-    dfs = [f[name].arrays(library="pd") for name in tree_names] 
+    tree_names = [
+        name.split(';')[0] for name in f.keys()
+    ]
+    dfs = [
+        f[name].arrays(library="pd") 
+        for name in tree_names
+    ] 
     df = pandas.concat(dfs, keys=tree_names)
+    if verbose:
+        print(
+            f"Opened {path}, "
+            "containing trees: " 
+            f"{", ".join(tree_names)}"
+        )
     return df
 
 
-def open_data_file(path, verbose=True):
+def open_pickle(path, verbose=True):
+
+    """
+    Open a pickled pandas dataframe file.
+
+    Parameters
+    ----------
+    path : str | pathlib.Path
+        The file's path.
+    verbose : bool
+        Whether or not to print 
+        loading information.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        A dataframe containing 
+        the file's data.
+    """
+
+    path = pathlib.Path(path)
+    if not path.is_file():
+        raise ValueError("Must be a file.")
+    if not path.suffix == ".pkl":
+        raise ValueError(
+            "File must have the '.pkl' suffix."
+        )
+    df = pandas.read_pickle(path)
+    if verbose:
+        print(f"Opened {path}")
+    return df
+
+
+def open_data_file(path, verbose=True): 
+
     """
     Open a data file as a pandas dataframe.
 
-    The data file can be a root file or pickled 
-    pandas dataframe file.
+    The data file can be either a root file 
+    or a pickled pandas dataframe file.
     
     Parameters
     ----------
@@ -87,30 +147,38 @@ def open_data_file(path, verbose=True):
     df : pandas.DataFrame
         Data file dataframe    
     """
+
     path = pathlib.Path(path)
     if not path.is_file():
         raise ValueError("Must be a file.")
+    
+    root_file_suffix = ".root"
+    pickle_file_suffix = ".pkl"
 
     suffix = path.suffix
-    if suffix not in {".root", ".pkl"}:
+    if suffix not in {
+        root_file_suffix, 
+        pickle_file_suffix
+    }:
         raise ValueError(
-            "File type not readable. " \
-            "Root and pickle only."
+            "File type not readable. "
+            "Root and pickle only. "
+            "File must have the "
+            ".root or .pkl suffix."
         )
     
     read_fn = (
-        open_root if suffix == ".root" 
-        else pandas.read_pickle
+        open_root if suffix == root_file_suffix 
+        else open_pickle if suffix == pickle_file_suffix
+        else None
     )
-    df = read_fn(path) 
-    
-    if verbose:
-        print(f"opened {path}")
+    df = read_fn(path, verbose=verbose) 
     
     return df
 
 
 def open_data_dir(path, verbose=True):
+
     """
     Open all .pkl and .root data files in a directory 
     (recursively).
@@ -120,11 +188,14 @@ def open_data_dir(path, verbose=True):
     Parameters
     ----------
     path : str
+        The directory's path.
+    verbose : bool
+        Whether or not to print loading information.
 
     Returns
     -------
     df : pandas.DataFrame
-        Data dataframe
+        Dataframe containing all data.
     """
 
     path = pathlib.Path(path)
@@ -141,13 +212,14 @@ def open_data_dir(path, verbose=True):
         for p in file_paths
     ]
     if dfs == []:
-        raise ValueError("Empty dir.")
+        raise ValueError("Empty directory.")
     
     df = pandas.concat(dfs)
     return df
 
 
 def open_data(path, verbose=True):
+
     """
     Open all .root and .pkl datafiles 
     in a directory (if path is a directory).
@@ -159,66 +231,101 @@ def open_data(path, verbose=True):
     ----------
     path : str
         Path to data directory or datafile
+    verbose : bool
+        Whether or not to print 
+        loading information.
     
     Returns
     -------
     df : pandas.DataFrame
-        Data dataframe
+        Dataframe containing all loaded data.
     """
 
     path = pathlib.Path(path)
-    if not (path.is_dir() or path.is_file()):
-        raise ValueError("Must be a file or directory.")
 
-    df = (
-        open_data_file(path, verbose=verbose) 
-        if path.is_file() 
-        else open_data_dir(path, verbose=verbose)
+    is_dir = path.is_dir()
+    is_file = path.is_file()
+
+    if not (is_dir or is_file):
+        raise ValueError(
+            "Must be a file or directory."
+        )
+
+    read_fn = (
+        open_data_file if is_file
+        else open_data_dir if is_dir
+        else None
     )
-    
+
+    df = read_fn(path, verbose=verbose)
     return df
 
 
-def get_raw_signal_data_file_dc9_label(path):
+def get_raw_signal_file_label(path, verbose=True):
+
     """
-    Get the delta C9 label of a raw signal data file.
-    This information is stored in the filename.
+    Get the label (delta C9 value) 
+    of a raw signal data file.
+    This information is obtained 
+    from the filename.
     
     Parameters
     ----------
     path : str | pathlib.Path
-        Path of the data file.
-    
+        Path of the raw signal data file.
+    verbose : bool
+        Whether or not to print 
+        file information
+        
     Returns
     -------
     dc9 : float
         delta C9 label value.
     """
+    
     path = pathlib.Path(path)
     if not path.is_file():
         raise ValueError("Needs to be a file.")
     dc9 = float(path.name.split('_')[1])
+    if verbose:
+        print(
+            f"Obtained label: {dc9} "
+            f"from file: {path}"
+        )
     return dc9
 
 
-def get_raw_signal_data_file_trial_num(path):
+def get_raw_signal_file_trial(path, verbose=True):
+
     """
-    Get the trial number of a raw signal data file.
-    This information is stored in the filename.
+    Get the trial number of a 
+    raw signal data file.
+    This information is obtained from 
+    the filename.
 
     Parameters
     ----------
     path : str | pathlib.Path
-        Path of the data file.
+        Path of the raw signal data file.
+    verbose : bool
+        Whether or not to print 
+        file information.
+
     Returns
     -------
     trial : int
         Trial number
     """
+    
     path = pathlib.Path(path)
     if not path.is_file():
         raise ValueError("Needs to be a file.")
     trial = int(path.name.split('_')[2])
+    if verbose:
+        print(
+            f"Obtained trial number: {trial} "
+            f"from file: {path}"
+        )
     return trial
 
 
@@ -226,13 +333,14 @@ def get_raw_signal_data_file_trial_num(path):
 
 
 def setup_high_quality_mpl_params():
+
     """
     Setup plotting parameters.
     
-    i.e. Setup to make fancy looking plots.
+    Setup environment to make 
+    fancy looking plots.
     Inspiration from Chris Ketter.
-
-    Good for exporting plot images.
+    Good quality for exporting.
 
     Side Effects
     ------------
@@ -260,16 +368,19 @@ def setup_high_quality_mpl_params():
     mpl.rcParams["legend.fontsize"] = 7.5
 
 
-def make_plot_note(ax, content, fontsize="medium"):
+def make_plot_note(ax, text:str, fontsize="medium"):
+
     """
     Annotate a plot in the upper right corner,
     above the plot box.
+
+    This doesn't work for 3D plots.
 
     Parameters
     ----------
     ax : matplotlib.axes.Axes
         The axes to annotate.
-    content : str
+    text : str
         What to write.
     fontsize : str
         The fontsize.
@@ -278,13 +389,13 @@ def make_plot_note(ax, content, fontsize="medium"):
     
     Side Effects
     ------------
-    Modifies the given axes.
+    - Modifies the given axes.
     """
 
     ax.text(
         1,
         1.01, 
-        content, 
+        text, 
         horizontalalignment="right", 
         verticalalignment="bottom", 
         transform=ax.transAxes, 
@@ -299,10 +410,12 @@ pandas Dataframe matrix multiplication, etc.
 
 
 def square_matrix_transform(df_matrix, df_vec):
-    """
-    Multiply a vector dataframe by a square matrix dataframe.
 
-    Danger: Only works for square matrices.
+    """
+    Multiply a dataframe of vectors 
+    by a dataframe of square matrices.
+
+    Only works for square matrices.
    
     Parameters
     ----------
@@ -313,14 +426,16 @@ def square_matrix_transform(df_matrix, df_vec):
 
     Returns
     -------
-    pandas.DataFrame
+    result : pandas.DataFrame
         Transformed vector dataframe.
     """
 
-    assert (
+    if not (
         numpy.sqrt(df_matrix.shape[1]) 
         == df_vec.shape[1]
-    )
+    ):
+        raise ValueError("Matrix must be square.")
+
     dims = df_vec.shape[1]
 
     result = pandas.DataFrame(
@@ -353,11 +468,16 @@ def dot_product(df_vec1, df_vec2):
         Dataframe of vectors
     Returns
     -------
-    pandas.Series
-        A series of the results
+    result : pandas.Series
+        A series of the results.
     """
 
-    assert df_vec1.shape[1] == df_vec2.shape[1]
+    if not (
+        df_vec1.shape[1] == df_vec2.shape[1]
+    ):
+        raise ValueError(
+            "Vector dimensions do not match."
+        )
     dims = df_vec1.shape[1]
 
     result = pandas.Series(
@@ -374,6 +494,7 @@ def dot_product(df_vec1, df_vec2):
 
 
 def vector_magnitude(df_vec):
+    
     """
     Compute the magnitude of each vector 
     in a vector dataframe.
@@ -385,17 +506,18 @@ def vector_magnitude(df_vec):
 
     Returns
     -------
-    pandas.Series
+    result : pandas.Series
         Series of the magnitudes.
     """
 
-    return numpy.sqrt(dot_product(df_vec, df_vec))
+    result = numpy.sqrt(dot_product(df_vec, df_vec))
+    return result
 
 
 def cosine_angle(df_vec1, df_vec2):
     """
-    Find the cosine of the angle between vectors 
-    in vector dataframes.
+    Find the cosine of the angle 
+    between vectors in vector dataframes.
     Computed row-wise.
     
     Parameters
@@ -411,13 +533,16 @@ def cosine_angle(df_vec1, df_vec2):
         A series of the results.
     """
 
-    return dot_product(df_vec1, df_vec2) / (
+    result = dot_product(df_vec1, df_vec2) / (
         vector_magnitude(df_vec1)
         * vector_magnitude(df_vec2)
     )
 
+    return result
+
 
 def cross_product_3d(df_3vec1, df_3vec2):
+
     """
     Find the cross product of vectors of two 
     3-dimensional vector dataframes.
@@ -432,7 +557,7 @@ def cross_product_3d(df_3vec1, df_3vec2):
 
     Returns
     -------
-    pandas.DataFrame 
+    result : pandas.DataFrame 
         Dataframe of vectors.
     """
 
@@ -476,6 +601,7 @@ def cross_product_3d(df_3vec1, df_3vec2):
 
 
 def unit_normal(df_3vec1, df_3vec2):
+    
     """
     Compute the unit normal dataframe of 
     planes specified by two vector dataframes.
@@ -489,7 +615,7 @@ def unit_normal(df_3vec1, df_3vec2):
     
     Returns
     -------
-    pandas.DataFrame
+    df_unit_normal_vec : pandas.DataFrame
         Dataframe of vectors.
     """
 
@@ -497,11 +623,11 @@ def unit_normal(df_3vec1, df_3vec2):
         df_3vec1, 
         df_3vec2
     )
-    df_normal_unit_vec = df_normal_vec.divide(
+    df_unit_normal_vec = df_normal_vec.divide(
         vector_magnitude(df_normal_vec), axis="index"
     )
 
-    return df_normal_unit_vec
+    return df_unit_normal_vec
 
 
 """
@@ -512,6 +638,7 @@ variables and q^2.
 
 
 def four_momemtum_dataframe(df_with_4_col):
+    
     """
     Create a four-momentum dataframe.
 
@@ -526,7 +653,7 @@ def four_momemtum_dataframe(df_with_4_col):
 
     Returns
     -------
-    pandas.DataFrame
+    df_4mom : pandas.DataFrame
         Well-labeled four-momentum dataframe.
     """
 
@@ -536,6 +663,7 @@ def four_momemtum_dataframe(df_with_4_col):
 
 
 def three_momemtum_dataframe(df_with_3_col):
+
     """
     Create a three-momentum dataframe.
 
@@ -550,7 +678,7 @@ def three_momemtum_dataframe(df_with_3_col):
 
     Returns
     -------
-    pandas.DataFrame
+    df_3mom : pandas.DataFrame
         Well-labeled three-momentum dataframe.
     """
 
@@ -560,6 +688,7 @@ def three_momemtum_dataframe(df_with_3_col):
 
 
 def three_velocity_dataframe(df_with_3_col):
+
     """
     Create a three-velocity dataframe.
 
@@ -574,7 +703,7 @@ def three_velocity_dataframe(df_with_3_col):
 
     Returns
     -------
-    pandas.DataFrame
+    df_3vel : pandas.DataFrame
         Well-labeled three-velocity dataframe.
     """
     
@@ -586,6 +715,7 @@ def three_velocity_dataframe(df_with_3_col):
 def inv_mass_sq_two_particles(
     df_p1_4mom, df_p2_4mom
 ):
+    
     """
     Compute the squares of the invariant masses 
     for two particles systems.
@@ -593,13 +723,13 @@ def inv_mass_sq_two_particles(
     Parameters
     ----------
     df_p1_4mom : pandas.DataFrame
-        four-momentum dataframe of particle 1
+        Four-momentum dataframe of particle 1
     df_p2_4mom : pandas.DataFrame
-        four momentum dataframe of particle 2
+        Four momentum dataframe of particle 2
 
     Returns
     -------
-    pandas.Series
+    df_inv_m_sq : pandas.Series
         Series of squared invariant masses.
     """
 
@@ -615,11 +745,12 @@ def inv_mass_sq_two_particles(
         vector_magnitude(df_sum_3mom) ** 2
     )
 
-    df_invM_sq = df_sum_E**2 - df_sum_3mom_mag_sq
-    return df_invM_sq
+    df_inv_m_sq = df_sum_E**2 - df_sum_3mom_mag_sq
+    return df_inv_m_sq
 
 
 def three_velocity_from_four_momentum_dataframe(df_4mom):
+
     """
     Compute a three-velocity dataframe 
     from a four-momentum dataframe.
@@ -631,7 +762,7 @@ def three_velocity_from_four_momentum_dataframe(df_4mom):
 
     Returns
     -------
-    pandas.DataFrame
+    df_3vel : pandas.DataFrame
         Dataframe of three-velocities.
     """
 
@@ -649,6 +780,7 @@ def three_velocity_from_four_momentum_dataframe(df_4mom):
 
 
 def compute_gamma(df_3vel):
+
     """
     Compute a series of Lorentz factors.
 
@@ -659,7 +791,7 @@ def compute_gamma(df_3vel):
 
     Returns
     -------
-    pandas.Series
+    series_gamma : pandas.Series
         Series of Lorentz factors.
     """
 
@@ -670,7 +802,8 @@ def compute_gamma(df_3vel):
     return series_gamma
 
 
-def compute_Lorentz_boost_matrix(df_vel3vec):
+def compute_Lorentz_boost_matrix(df_3vel):
+
     """
     Compute a dataframe of Lorentz boost matricies.
 
@@ -681,19 +814,18 @@ def compute_Lorentz_boost_matrix(df_vel3vec):
     
     Returns
     -------
-    pandas.DataFrame
+    df_boost_matrix : pandas.DataFrame
         Dataframe of Lorentz boost matricies.
         Each row contains a matrix.
     """
 
-    df_vel3vec = df_vel3vec.copy()
-    df_vel3vec.columns = ["vx", "vy", "vz"]
-    df_vel_mag = vector_magnitude(df_vel3vec)
-    df_gamma = compute_gamma(df_vel3vec)
+    df_3vel = three_velocity_dataframe(df_3vel)
+    df_vel_mag = vector_magnitude(df_3vel)
+    df_gamma = compute_gamma(df_3vel)
 
     df_boost_matrix = pandas.DataFrame(
-        data=numpy.zeros(shape=(df_vel3vec.shape[0], 16)),
-        index=df_vel3vec.index,
+        data=numpy.zeros(shape=(df_3vel.shape[0], 16)),
+        index=df_3vel.index,
         columns=[
             "b00",
             "b01",
@@ -715,64 +847,64 @@ def compute_Lorentz_boost_matrix(df_vel3vec):
     )
 
     df_boost_matrix["b00"] = df_gamma
-    df_boost_matrix["b01"] = -df_gamma * df_vel3vec["vx"]
-    df_boost_matrix["b02"] = -df_gamma * df_vel3vec["vy"]
-    df_boost_matrix["b03"] = -df_gamma * df_vel3vec["vz"]
-    df_boost_matrix["b10"] = -df_gamma * df_vel3vec["vx"]
+    df_boost_matrix["b01"] = -df_gamma * df_3vel["vx"]
+    df_boost_matrix["b02"] = -df_gamma * df_3vel["vy"]
+    df_boost_matrix["b03"] = -df_gamma * df_3vel["vz"]
+    df_boost_matrix["b10"] = -df_gamma * df_3vel["vx"]
     df_boost_matrix["b11"] = (
         1
         + (df_gamma - 1)
-        * df_vel3vec["vx"] ** 2
+        * df_3vel["vx"] ** 2
         / df_vel_mag**2
     )
     df_boost_matrix["b12"] = (
         (df_gamma - 1)
-        * df_vel3vec["vx"]
-        * df_vel3vec["vy"]
+        * df_3vel["vx"]
+        * df_3vel["vy"]
         / df_vel_mag**2
     )
     df_boost_matrix["b13"] = (
         (df_gamma - 1)
-        * df_vel3vec["vx"]
-        * df_vel3vec["vz"]
+        * df_3vel["vx"]
+        * df_3vel["vz"]
         / df_vel_mag**2
     )
-    df_boost_matrix["b20"] = -df_gamma * df_vel3vec["vy"]
+    df_boost_matrix["b20"] = -df_gamma * df_3vel["vy"]
     df_boost_matrix["b21"] = (
         (df_gamma - 1)
-        * df_vel3vec["vy"]
-        * df_vel3vec["vx"]
+        * df_3vel["vy"]
+        * df_3vel["vx"]
         / df_vel_mag**2
     )
     df_boost_matrix["b22"] = (
         1
         + (df_gamma - 1)
-        * df_vel3vec["vy"] ** 2
+        * df_3vel["vy"] ** 2
         / df_vel_mag**2
     )
     df_boost_matrix["b23"] = (
         (df_gamma - 1)
-        * df_vel3vec["vy"]
-        * df_vel3vec["vz"]
+        * df_3vel["vy"]
+        * df_3vel["vz"]
         / df_vel_mag**2
     )
-    df_boost_matrix["b30"] = -df_gamma * df_vel3vec["vz"]
+    df_boost_matrix["b30"] = -df_gamma * df_3vel["vz"]
     df_boost_matrix["b31"] = (
         (df_gamma - 1)
-        * df_vel3vec["vz"]
-        * df_vel3vec["vx"]
+        * df_3vel["vz"]
+        * df_3vel["vx"]
         / df_vel_mag**2
     )
     df_boost_matrix["b32"] = (
         (df_gamma - 1)
-        * df_vel3vec["vz"]
-        * df_vel3vec["vy"]
+        * df_3vel["vz"]
+        * df_3vel["vy"]
         / df_vel_mag**2
     )
     df_boost_matrix["b33"] = (
         1
         + (df_gamma - 1)
-        * df_vel3vec["vz"] ** 2
+        * df_3vel["vz"] ** 2
         / df_vel_mag**2
     )
 
@@ -1410,7 +1542,7 @@ def aggregate_raw_signal_data_files(
     
     selected_file_paths = [
         p for p in all_file_paths 
-        if get_raw_signal_data_file_trial_num(p) 
+        if get_raw_signal_file_trial(p) 
         in trials
     ]
     num_files = len(selected_file_paths)
@@ -1423,7 +1555,7 @@ def aggregate_raw_signal_data_files(
         dfs.append(_df)
     
     dc9_values = [
-        get_raw_signal_data_file_dc9_label(path) 
+        get_raw_signal_file_label(path) 
         for path in selected_file_paths
     ]
 
@@ -1486,22 +1618,22 @@ def load_aggregated_raw_signal_data_file(
 
 
 def bootstrap_labeled_sets(
-    x, 
-    y, 
-    n, 
-    m, 
-    reduce_labels=True, 
-    labels_to_sample=None
+    x:torch.Tensor, 
+    y:torch.Tensor, 
+    n:int, 
+    m:int, 
+    reduce_labels:bool=True, 
+    labels_to_sample:list[float]=None
 ):
     """
     Bootstrap m sets of n examples for each unique label.
 
     Parameters
     ----------
-    x : 
+    x : torch.Tensor
         Array of features of shape: 
         (num_events, num_features)
-    y : 
+    y : torch.Tensor
         Array of labels of shape: (num_events)
     n : int
         Number of examples per bootstrap  
@@ -1516,8 +1648,12 @@ def bootstrap_labeled_sets(
 
     Returns
     -------
-    (bootstrap_x, bootstrap_y) : tuple
-        tuple of torch tensors.
+    bootstrap_x : torch.Tensor
+        Torch tensor of bootstrapped features.
+        Shape (m, n, num_features).
+    bootstrap_y : torch.Tensor
+        Torch tenor of bootstrapped labels.
+        Shape (m, n).
     """
     bootstrap_x = []
     bootstrap_y = []
@@ -1816,7 +1952,7 @@ def to_bins(ar):
     return bins, bin_map
 
 
-def make_image(set_features, n_bins):
+def make_image(ar_feat, n_bins):
     """
     Make an image of a dataset. Like Shawn.
 
@@ -1828,43 +1964,43 @@ def make_image(set_features, n_bins):
 
     Parameters
     ----------
-    set_features : array
-        Array of features for each example 
-        of a set
+    ar_feat : array_like
+        Array of features.
     n_bins : int
         Number of bins per dimension
 
     Returns
     -------
-    image : torch array
-        3 dimensional array. Average q^2
-        calculated per 3D angular bin.
-        Shape of (n_bins, n_bins, n_bins).
+    image : torch.Tensor
+        Torch tensor of the average q^2 calculated 
+        per 3D angular bin.
+        Shape of (1, n_bins, n_bins, n_bins).
+        A 3D image with 1 color channel.
     """
-    angular_features = set_features[:,1:]
-    q_squared_features = set_features[:,0]
-    stats = scipy.stats.binned_statistic_dd(
+    angular_features = ar_feat[:,1:]
+    q_squared_features = ar_feat[:,0]
+    np_image = scipy.stats.binned_statistic_dd(
         sample=angular_features,
         values=q_squared_features, 
         bins=n_bins,
         range=[(-1, 1), (-1, 1), (0, 2*numpy.pi)]
-    )
-    image = torch.from_numpy(stats.statistic)
-    image = torch.nan_to_num(image)
-    image = image.unsqueeze(0)
-    return image
+    ).statistic
+    torch_image = torch.from_numpy(np_image)
+    torch_image = torch.nan_to_num(torch_image)
+    torch_image = torch_image.unsqueeze(0)
+    return torch_image
 
 
-def get_num_per_unique_label(labels): # put this somewhere else?
+def get_num_per_unique_label(labels:torch.Tensor):
     """
     Get the number of examples of each unique label.
 
-    Danger: Only works if there is the same number
+    Only works if there is the same number
     of examples for each unique label.
 
     Parameters
     ----------
-    labels : array
+    labels : torch.Tensor
         Array of labels.
     
     Returns
@@ -1883,14 +2019,34 @@ def get_num_per_unique_label(labels): # put this somewhere else?
     return num_per_label
 
 
-def plot_image_slices(arr, n_slices=3, cmap=plt.cm.magma, note=""):
+def plot_image_slices(
+    image, 
+    n_slices=3, 
+    cmap=plt.cm.magma, 
+    note="",
+):
     """
-    Plot slices of volumetric data.
+    Plot slices of a 3D image.
 
-    Array dimensions must be (costheta_mu, costheta_K, chi).
-    Slices are along the z-axis (axis 2).
-    Array arr should be a three-dimensional array.
-    Slices might not be evenly spaced along z-axis.
+    Slices are along the z-axis (axis 2) and might
+    not be evenly spaced.
+
+    Parameters
+    ----------
+    image : torch.Tensor
+        Tensor created by the make_image function.
+        Dimensions must correspond to 
+        (costheta_mu, costheta_K, chi).
+    n_slices : int
+        The number of slices to show.
+    cmap : matplotlib.colors.Colormap
+        The colormap.
+    note : str
+        Add an annotation to the plot.
+    
+    Side Effects
+    ------------
+    - Creates a plot.
     """
 
     fig = plt.figure()
@@ -1909,21 +2065,27 @@ def plot_image_slices(arr, n_slices=3, cmap=plt.cm.magma, note=""):
     }
 
     norm = mpl.colors.Normalize(vmin=-1.1, vmax=1.1)
-    arr = arr.squeeze().cpu()
-    colors = cmap(norm(arr))
+    image = image.squeeze().cpu()
+    colors = cmap(norm(image))
     
     cartesian_shape = {
-        "x": arr.shape[cartesian_dim["x"]],
-        "y": arr.shape[cartesian_dim["y"]],
-        "z": arr.shape[cartesian_dim["z"]],
+        "x": image.shape[cartesian_dim["x"]],
+        "y": image.shape[cartesian_dim["y"]],
+        "z": image.shape[cartesian_dim["z"]],
     }
 
     def xy_plane(z_pos):
         x, y = numpy.indices(
-            (cartesian_shape["x"] + 1, cartesian_shape["y"] + 1)
+            (
+                cartesian_shape["x"] + 1, 
+                cartesian_shape["y"] + 1
+            )
         )
         z = numpy.full(
-            (cartesian_shape["x"] + 1, cartesian_shape["y"] + 1), z_pos
+            (
+                cartesian_shape["x"] + 1, 
+                cartesian_shape["y"] + 1,
+            ), z_pos
         )
         return x, y, z
     
@@ -1937,22 +2099,37 @@ def plot_image_slices(arr, n_slices=3, cmap=plt.cm.magma, note=""):
         )
 
     def plot_outline(z_index, offset=0.3):
-        x, y, z = xy_plane(z_index - offset)
+        x, y, z = xy_plane(
+            z_index - offset
+        )
         
         ax_3d.plot_surface(
             x, y, z, 
-            rstride=1, cstride=1, 
+            rstride=1, 
+            cstride=1, 
             shade=False,
             color="#f2f2f2",
             edgecolor="#f2f2f2", 
         )
 
-    z_indices = numpy.linspace(0, cartesian_shape["z"]-1, n_slices, dtype=int) # forces integer indices
+    z_indices = numpy.linspace( # forces integer indices
+        0, 
+        cartesian_shape["z"]-1, 
+        n_slices, 
+        dtype=int
+    ) 
+    
     for i in z_indices:
         plot_outline(i)
         plot_slice(i)
 
-    cbar = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax_3d, location="left", shrink=0.5, pad=-0.05)
+    cbar = fig.colorbar(
+        mpl.cm.ScalarMappable(norm=norm, cmap=cmap), 
+        ax=ax_3d, 
+        location="left", 
+        shrink=0.5, 
+        pad=-0.05
+    )
     cbar.set_label(r"${q^2}$ (Avg.)", size=11)
 
     ax_labels = {
@@ -1963,20 +2140,19 @@ def plot_image_slices(arr, n_slices=3, cmap=plt.cm.magma, note=""):
     ax_3d.set_xlabel(ax_labels["x"], labelpad=0)
     ax_3d.set_ylabel(ax_labels["y"], labelpad=0)
     # ax_3d.zaxis.set_rotate_label(False)
-    ax_3d.set_zlabel(ax_labels["z"], labelpad=-3,) #rotation="horizontal") 
+    ax_3d.set_zlabel(ax_labels["z"], labelpad=-3)
 
     ticks = {
         "x": ["-1", "1"],
         "y": ["-1", "1"],
         "z": ['0', r"$2\pi$"],
     }      
+
     ax_3d.set_xticks([0, cartesian_shape["x"]-1], ticks["x"])
     ax_3d.set_xticks([0, cartesian_shape["y"]-1], ticks["y"])
     ax_3d.set_xticks([0, cartesian_shape["z"]-1], ticks["z"])
     ax_3d.tick_params(pad=0.3)
-
     ax_3d.set_box_aspect(None, zoom=0.85)
-
     ax_3d.set_title(f"{note}", loc="center", y=1)
 
 
@@ -1990,7 +2166,40 @@ class Custom_Dataset(torch.utils.data.Dataset):
     """
     Custom dataset base class.
     """
-    def __init__(self, name, level, q_squared_veto, split, save_dir, extra_description=None, regenerate=False):
+    def __init__(
+        self, 
+        name, 
+        level, 
+        q_squared_veto, 
+        split, 
+        save_dir, 
+        extra_description=None, 
+        regenerate=False
+    ):
+        """
+        Parameters
+        ----------
+        name : str
+            The name of the dataset.
+            e.g. "images"
+        level : str
+            The reconstruction level.
+            Either "gen" or "det".
+        q_squared_veto : bool
+            Whether or not to apply a veto
+            in q^2.
+        split : str
+            The dataset split.
+            Either "train" or "eval".
+        save_dir : str | pathlib.Path
+            The directory to save the dataset to.
+        extra_description : str
+            Any extra information to identify
+            the dataset.
+        regenerate : bool
+            Whether or not to regenerate (and save)
+            the dataset.
+        """
         self.name = name 
         self.extra_description = extra_description
         self.level = level
@@ -2002,9 +2211,9 @@ class Custom_Dataset(torch.utils.data.Dataset):
         self.save_sub_dir = save_dir.joinpath(save_sub_dir_name)
         self.save_sub_dir.mkdir(exist_ok=True)
         
-        self.features_file_path = self.make_file_path("features")
-        self.labels_file_path = self.make_file_path("labels")
-        self.bin_values_file_path = self.make_file_path("bin_values")
+        self.features_file_path = self.make_tensor_filepath("features")
+        self.labels_file_path = self.make_tensor_filepath("labels")
+        self.bin_values_file_path = self.make_tensor_filepath("bin_values")
 
         self.feature_names = [
             "q_squared", 
@@ -2037,7 +2246,16 @@ class Custom_Dataset(torch.utils.data.Dataset):
         """
         pass
     
-    def make_file_path(self, kind):
+    def make_tensor_filepath(self, kind):
+        """
+        Make a filepath for a torch tensor file.
+
+        Parameters
+        ----------
+        kind : str
+            The kind of tensor being saved.
+            e.g. "labels".
+        """
         file_name = (
             f"{self.extra_description}_{self.split}_{kind}.pt" 
             if self.extra_description 
@@ -2047,9 +2265,27 @@ class Custom_Dataset(torch.utils.data.Dataset):
         return file_path
 
     def __len__(self):
+        """
+        Get the length of the dataset.
+        """
         return len(self.labels)
     
     def __getitem__(self, index):
+        """
+        Get a (feature, label) pair.
+
+        Parameters
+        ----------
+        index : int
+            The index of the pair within the dataset.
+
+        Returns
+        -------
+        x : torch.Tensor
+            The features.
+        y : torch.Tensor
+            The label.
+        """
         x = self.features[index]
         y = self.labels[index]
         return x, y
