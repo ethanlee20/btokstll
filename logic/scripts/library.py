@@ -912,6 +912,7 @@ def compute_Lorentz_boost_matrix(df_3vel):
 
 
 def boost(df_ref_4mom, df_4vec):
+
     """
     Lorentz boost a dataframe of four-vectors.
 
@@ -925,7 +926,7 @@ def boost(df_ref_4mom, df_4vec):
 
     Returns
     -------
-    pandas.DataFrame
+    df_4vec_transformed : pandas.DataFrame
         Dataframe of boosted four-vectors.
     """
 
@@ -949,6 +950,7 @@ def find_costheta_ell(
     df_ell_m_4mom, 
     df_B_4mom
 ):
+    
     """
     Find the cosine of the muon helicity angle 
     for B -> K* ell+ ell-.
@@ -956,15 +958,15 @@ def find_costheta_ell(
     Parameters
     ----------
     df_ell_p_4mom : pandas.DataFrame
-        Dataframe of four-momenta of ell+
+        Dataframe of four-momenta of ell+.
     df_ell_m_4mom : pandas.DataFrame
-        Dataframe of four-momenta of ell-
+        Dataframe of four-momenta of ell-.
     df_B_4mom : pandas.DataFrame
-        Dataframe of four-momenta of B
+        Dataframe of four-momenta of B.
     
     Returns
     -------
-    pandas.Series
+    series_costheta_ell : pandas.Series
         Series of cosine muon helicity angles.
     """
 
@@ -996,6 +998,7 @@ def find_costheta_ell(
 
 
 def find_costheta_K(df_K_4mom, df_KST_4mom, df_B_4mom):
+    
     """
     Find the cosine of the K* helicity 
     angle for B -> K* ell+ ell-.
@@ -1011,7 +1014,7 @@ def find_costheta_K(df_K_4mom, df_KST_4mom, df_B_4mom):
 
     Returns
     -------
-    pandas.Series
+    series_costheta_K : pandas.Series
         Series of cosine K* helicity angles.
     """
 
@@ -1043,6 +1046,7 @@ def find_costheta_K(df_K_4mom, df_KST_4mom, df_B_4mom):
 def find_unit_normal_KST_K_plane(
     df_B_4mom, df_KST_4mom, df_K_4mom
 ):
+    
     """
     Find the unit normal to the plane made 
     by the direction vectors of the K* and K 
@@ -1059,7 +1063,7 @@ def find_unit_normal_KST_K_plane(
 
     Returns
     -------
-    pandas.DataFrame
+    df_unit_normal_KST_K_plane : pandas.DataFrame
         Dataframe of unit normal vectors
         from the K* and K plane.
     """
@@ -1090,6 +1094,7 @@ def find_unit_normal_KST_K_plane(
 def find_unit_normal_ellell_ellplus_plane(
     df_B_4mom, df_ell_p_4mom, df_ell_m_4mom
 ):
+    
     """
     Find the unit normal to the plane made by
     the direction vectors of the dilepton system and
@@ -1106,7 +1111,7 @@ def find_unit_normal_ellell_ellplus_plane(
 
     Returns
     -------
-    pandas.DataFrame
+    result : pandas.DataFrame
         Dataframe of unit normal vectors
         from the dilepton and positive lepton plane.
     """
@@ -1130,10 +1135,10 @@ def find_unit_normal_ellell_ellplus_plane(
         df_ellell_4mom_Bframe[["px", "py", "pz"]]
     )
 
-    df_unit_normal_ellell_ellplus_plane = unit_normal(
+    result = unit_normal(
         df_ell_p_3mom_ellellframe, df_ellell_3mom_Bframe
     )
-    return df_unit_normal_ellell_ellplus_plane
+    return result
 
 
 def find_coschi(
@@ -1143,6 +1148,7 @@ def find_coschi(
     df_ell_p_4mom,
     df_ell_m_4mom,
 ):
+    
     """
     Find the cosine of the decay angle chi.
 
@@ -1166,7 +1172,7 @@ def find_coschi(
     
     Returns
     -------
-    pandas.Series
+    series_coschi : pandas.Series
         Series of cosine chi values.
     """
 
@@ -1220,7 +1226,7 @@ def find_chi(
     
     Returns
     -------
-    pandas.Series
+    series_chi : pandas.Series
         Value of chi for each event.
     """
 
@@ -1275,6 +1281,7 @@ def find_chi(
 
 
 def calc_dif_inv_mass_k_pi_and_kst(df_K_4mom, df_pi_4mom):
+
     """
     Calcualate the difference between the 
     invariant mass of the K pi system
@@ -1290,7 +1297,7 @@ def calc_dif_inv_mass_k_pi_and_kst(df_K_4mom, df_pi_4mom):
 
     Returns
     -------
-    pandas.Series
+    series_dif : pandas.Series
         Series of differences.
     """
 
@@ -1303,14 +1310,15 @@ def calc_dif_inv_mass_k_pi_and_kst(df_K_4mom, df_pi_4mom):
         )
     )
 
-    dif = df_inv_mass_k_pi - inv_mass_kst
-    return dif
+    series_dif = df_inv_mass_k_pi - inv_mass_kst
+    return series_dif
 
 
 def calculate_variables(ell, df):
+
     """
-    Calculate additional decay variables 
-    from B->K*ll event data.
+    Calculate decay variables 
+    from B -> K* ell+ ell- data.
 
     Parameters
     ----------
@@ -1321,14 +1329,10 @@ def calculate_variables(ell, df):
 
     Returns
     -------
-    pandas.DataFrame
+    df_result : pandas.DataFrame
         Dataframe of event data with 
         additional calculated variables.
     """
-    in_path = pathlib.Path(in_path)
-    out_dir = pathlib.Path(out_dir)
-    out_file_name = f"{in_path.stem}_calc.pkl"
-    out_file_path = out_dir.joinpath(out_file_name)
 
     if ell not in {"mu", "e"}:
         raise ValueError(f"ell not recognized: {ell}")
@@ -1389,62 +1393,64 @@ def calculate_variables(ell, df):
         df[["KST0_mcE", "KST0_mcPX", "KST0_mcPY", "KST0_mcPZ"]]
     )
 
-    df["q_squared"] = inv_mass_sq_two_particles(
+    df_result = df.copy()
+
+    df_result["q_squared"] = inv_mass_sq_two_particles(
         df_ell_p_4mom, df_ell_m_4mom
     )
-    df["q_squared_mc"] = inv_mass_sq_two_particles(
+    df_result["q_squared_mc"] = inv_mass_sq_two_particles(
         df_ell_p_4mom_mc, df_ell_m_4mom_mc
     )
-    df[costheta_ell] = find_costheta_ell(
+    df_result[costheta_ell] = find_costheta_ell(
         df_ell_p_4mom, df_ell_m_4mom, df_B_4mom
     )
-    df[costheta_ell_mc] = find_costheta_ell(
+    df_result[costheta_ell_mc] = find_costheta_ell(
         df_ell_p_4mom_mc, df_ell_m_4mom_mc, df_B_4mom_mc
     )
-    df["costheta_K"] = find_costheta_K(
+    df_result["costheta_K"] = find_costheta_K(
         df_K_4mom, df_KST_4mom, df_B_4mom
     )
-    df["costheta_K_mc"] = find_costheta_K(
+    df_result["costheta_K_mc"] = find_costheta_K(
         df_K_4mom_mc, df_KST_4mom_mc, df_B_4mom_mc
     )
-    df["coschi"] = find_coschi(
+    df_result["coschi"] = find_coschi(
         df_B_4mom,
         df_K_4mom,
         df_KST_4mom,
         df_ell_p_4mom,
         df_ell_m_4mom,
     )
-    df["coschi_mc"] = find_coschi(
+    df_result["coschi_mc"] = find_coschi(
         df_B_4mom_mc,
         df_K_4mom_mc,
         df_KST_4mom_mc,
         df_ell_p_4mom_mc,
         df_ell_m_4mom_mc,
     )
-    df["chi"] = find_chi(
+    df_result["chi"] = find_chi(
         df_B_4mom,
         df_K_4mom,
         df_KST_4mom,
         df_ell_p_4mom,
         df_ell_m_4mom,
     )
-    df["chi_mc"] = find_chi(
+    df_result["chi_mc"] = find_chi(
         df_B_4mom_mc,
         df_K_4mom_mc,
         df_KST_4mom_mc,
         df_ell_p_4mom_mc,
         df_ell_m_4mom_mc,
     )
-    df["invM_K_pi_shifted"] = calc_dif_inv_mass_k_pi_and_kst(
+    df_result["invM_K_pi_shifted"] = calc_dif_inv_mass_k_pi_and_kst(
         df_K_4mom,
         df_pi_4mom
     )
-    df["invM_K_pi_shifted_mc"] = calc_dif_inv_mass_k_pi_and_kst(
+    df_result["invM_K_pi_shifted_mc"] = calc_dif_inv_mass_k_pi_and_kst(
         df_K_4mom_mc,
         df_pi_4mom_mc
     )
 
-    return df
+    return df_result
 
 
 """
@@ -1452,11 +1458,12 @@ Further preprocessing utilities
 """
 
 
-def make_aggregated_raw_signal_data_file_save_path(
+def make_aggregated_raw_signal_file_save_path(
     dir:str, 
     level:str, 
     trials:range
 ):
+    
     """
     Make the save path for an aggregated raw signal data file.
     
@@ -1467,7 +1474,8 @@ def make_aggregated_raw_signal_data_file_save_path(
     Parameters
     ----------
     dir : str
-        The directory to save the file to.
+        The path of the directory to 
+        save the file to.
     level : str
         The level of simulation. ("gen" or "det")
     trials : range
@@ -1482,7 +1490,10 @@ def make_aggregated_raw_signal_data_file_save_path(
     
     dir = pathlib.Path(dir)
     if not dir.is_dir():
-        raise ValueError("Must be a directory.")
+        raise ValueError(
+            "Must specify the "
+            "path to a directory."
+        )
 
     if not level in {"gen", "det"}:
         raise ValueError("Level must be 'gen' or 'det'.")
@@ -1490,7 +1501,6 @@ def make_aggregated_raw_signal_data_file_save_path(
     filename = f"agg_sig_{trials[0]}_to_{trials[-1]}_{level}.pkl"
     path = dir.joinpath(filename)
     return path
-
 
 
 def aggregate_raw_signal_data_files(
@@ -1502,6 +1512,7 @@ def aggregate_raw_signal_data_files(
     dtype:str="float64",
     verbose:bool=True,
 ):
+    
     """
     Aggregate data into a single dataframe 
     from multiple raw signal data files.
@@ -1535,27 +1546,32 @@ def aggregate_raw_signal_data_files(
     df : pandas.DataFrame
         A dataframe with specified feature columns 
         and a label column named "dc9".
+
+    Side Effects
+    ------------
+    - Save the aggregated data to a file
+        (if save_dir is specified).
     """
 
     raw_signal_data_dir = pathlib.Path(raw_signal_data_dir)
     all_file_paths = list(raw_signal_data_dir.glob("*.pkl"))
     
     selected_file_paths = [
-        p for p in all_file_paths 
-        if get_raw_signal_file_trial(p) 
+        path for path in all_file_paths 
+        if get_raw_signal_file_trial(path, verbose=False) 
         in trials
     ]
     num_files = len(selected_file_paths)
     
     dfs = []
-    for i, p in enumerate(selected_file_paths, start=1):
-        _df = open_data_file(p, verbose=False).loc[level][columns]
+    for i, path in enumerate(selected_file_paths, start=1):
+        _df = open_data_file(path, verbose=False).loc[level][columns]
         if verbose: 
-            print(f"Opened: [{i}/{num_files}] {p}")
+            print(f"Opened: [{i}/{num_files}] {path}")
         dfs.append(_df)
     
     dc9_values = [
-        get_raw_signal_file_label(path) 
+        get_raw_signal_file_label(path, verbose=False) 
         for path in selected_file_paths
     ]
 
@@ -1564,8 +1580,15 @@ def aggregate_raw_signal_data_files(
     )
     df = df.astype(dtype)
 
+    if verbose:
+        print(
+            "Created aggregated raw signal data file.\n"
+            f"Trials: {trials[0]} to {trials[-1]}\n"
+            f"Delta C9 values: {set(dc9_values)}"
+        )
+    
     if save_dir is not None:
-        save_path = make_aggregated_raw_signal_data_file_save_path(
+        save_path = make_aggregated_raw_signal_file_save_path(
             dir=save_dir,
             level=level,
             trials=trials,
@@ -1606,7 +1629,7 @@ def load_aggregated_raw_signal_data_file(
     df : pandas.DataFrame
         Dataframe of aggregated raw signal data.
     """
-    path = make_aggregated_raw_signal_data_file_save_path(
+    path = make_aggregated_raw_signal_file_save_path(
         dir=dir, 
         level=level, 
         trials=trials
@@ -1625,6 +1648,7 @@ def bootstrap_labeled_sets(
     reduce_labels:bool=True, 
     labels_to_sample:list[float]=None
 ):
+    
     """
     Bootstrap m sets of n examples for each unique label.
 
@@ -1632,16 +1656,16 @@ def bootstrap_labeled_sets(
     ----------
     x : torch.Tensor
         Array of features of shape: 
-        (num_events, num_features)
+        (number of events, number of features)
     y : torch.Tensor
-        Array of labels of shape: (num_events)
+        Array of labels of shape: (number of events)
     n : int
-        Number of examples per bootstrap  
+        Number of events per bootstrap  
     m : int
-        Number of bootstraps per label  
+        Number of bootstraps per unique label  
     reduce_labels : bool
-        Whether or not to return one label per set
-        (versus one label per example).
+        Whether or not to return one label per bootstrap
+        (versus one label per event).
     labels_to_sample : list
         Subset of label values to bootstrap.
         If None, bootstrap from all unique label values.
@@ -1650,11 +1674,13 @@ def bootstrap_labeled_sets(
     -------
     bootstrap_x : torch.Tensor
         Torch tensor of bootstrapped features.
-        Shape (m, n, num_features).
+        Shape (m, n, number of features).
     bootstrap_y : torch.Tensor
         Torch tenor of bootstrapped labels.
-        Shape (m, n).
+        Shape (m) if reduce_labels is True.
+        Shape (m, n) if reduce_labels is False.
     """
+
     bootstrap_x = []
     bootstrap_y = []
     
@@ -1708,6 +1734,7 @@ def bootstrap_labeled_sets(
 
 
 def drop_na(df, verbose=True):
+
     """
     Drop rows of a dataframe that contain a NaN.
 
@@ -1731,6 +1758,7 @@ def drop_na(df, verbose=True):
 
 
 def apply_q_squared_veto(df: pandas.DataFrame, strength:str):
+    
     """
     Apply a q^2 veto to a dataframe of B->K*ll events.
 
@@ -1750,18 +1778,22 @@ def apply_q_squared_veto(df: pandas.DataFrame, strength:str):
         Returns a copy.
     """
 
-    tight_lower_bound = 1
-    tight_upper_bound = 8
-    loose_lower_bound = 0
-    loose_upper_bound = 20
+    if strength not in ("tight", "loose"):
+        raise ValueError(
+            "strength must be 'tight' or 'loose'"
+        )
 
-    if strength == "tight":
-        lower_bound = tight_lower_bound
-        upper_bound = tight_upper_bound
-    elif strength == "loose":
-        lower_bound = loose_lower_bound
-        upper_bound = loose_upper_bound
-    else: raise ValueError
+    tight_bounds = (1, 8) 
+    loose_bounds = (0, 20)
+
+    bounds = (
+        tight_bounds if strength == "tight"
+        else loose_bounds if strength == "loose"
+        else None
+    )
+
+    lower_bound = bounds[0]
+    upper_bound = bounds[1]
 
     df_vetoed = df[
         (df["q_squared"]>lower_bound) 
@@ -1774,6 +1806,7 @@ def balance_classes(
     df: pandas.DataFrame, 
     label_column_name: str
 ):
+    
     """
     Reduce the number of events per unique label 
     to the minimum over the labels.
@@ -1814,12 +1847,15 @@ def balance_classes(
 def get_dataset_prescale(
     kind:str, 
     level:str, 
-    q_squared_veto:bool, 
+    q_squared_veto:str, 
     var:str,
 ):
     """
     Get prescale values calculated from the
     first 20 trials (training dataset).
+
+    Prescale values are used for standard scaling
+    the dataset's features.
 
     Parameters
     ----------
@@ -1830,15 +1866,15 @@ def get_dataset_prescale(
         The reconstruction level.
         "gen" or "det".
         Determines which dataset's values to get.
-    q_squared_veto : bool
-        True or False. True gets values computed
+    q_squared_veto : str
+        "tight" or "loose". "tight" gets values computed
         from the dataset with a tight q^2 veto.
-        False gets values computed from the dataset
+        "loose" gets values computed from the dataset
         with a loose q^2 veto.
     var : str
         The variable whose value to get.
-        "q_squared" or "costheta_mu" 
-        or "costheta_K" or "chi"
+        "q_squared", "costheta_mu", "costheta_K" 
+        or "chi"
 
     Returns 
     -------
@@ -1847,7 +1883,7 @@ def get_dataset_prescale(
 
     """
 
-    with_q2_veto = {
+    table_tight_q2_veto = {
         "mean": {
             "gen": {
                 "q_squared": 4.752486,
@@ -1878,7 +1914,7 @@ def get_dataset_prescale(
         }
     }
 
-    without_q2_veto = {
+    table_loose_q2_veto = {
         "mean": {
             "gen": {
                 "q_squared": 9.248781,
@@ -1910,8 +1946,9 @@ def get_dataset_prescale(
     }
 
     table = (
-        with_q2_veto if q_squared_veto 
-        else without_q2_veto
+        table_tight_q2_veto if q_squared_veto == "tight"
+        else table_loose_q2_veto if q_squared_veto == "loose"
+        else None
     )
 
     value = table[kind][level][var]
@@ -1919,6 +1956,7 @@ def get_dataset_prescale(
 
 
 def to_bins(ar):
+
     """
     Translate values in an array to bin numbers.
 
@@ -1936,12 +1974,13 @@ def to_bins(ar):
         A bin number is assigned for each
         value in the original array.
     bin_map : numpy.ndarray
-        Map between original unique values and
+        Map between original values and
         bin numbers.
-        Indices in this array correspond
+        Indices of this array correspond
         to bin numbers.
-        Values are unique original values.
+        Values of this array are original values.
     """
+
     ar = numpy.array(ar)
     bin_map, inverse_indices = numpy.unique(
         ar, 
@@ -1953,10 +1992,12 @@ def to_bins(ar):
 
 
 def make_image(ar_feat, n_bins):
-    """
-    Make an image of a dataset. Like Shawn.
 
-    Order of columns must be:             
+    """
+    Make an image of a B->K*ll dataset. 
+    Like Shawn.
+
+    Order of input features must be:             
         "q_squared", 
         "costheta_mu", 
         "costheta_K", 
@@ -1967,7 +2008,7 @@ def make_image(ar_feat, n_bins):
     ar_feat : array_like
         Array of features.
     n_bins : int
-        Number of bins per dimension
+        Number of bins per dimension.
 
     Returns
     -------
@@ -1976,7 +2017,9 @@ def make_image(ar_feat, n_bins):
         per 3D angular bin.
         Shape of (1, n_bins, n_bins, n_bins).
         A 3D image with 1 color channel.
+        Empty bins set to 0.
     """
+
     angular_features = ar_feat[:,1:]
     q_squared_features = ar_feat[:,0]
     np_image = scipy.stats.binned_statistic_dd(
@@ -1992,16 +2035,17 @@ def make_image(ar_feat, n_bins):
 
 
 def get_num_per_unique_label(labels:torch.Tensor):
+
     """
-    Get the number of examples of each unique label.
+    Get the number of examples with each unique label.
 
     Only works if there is the same number
-    of examples for each unique label.
+    of examples per each unique label.
 
     Parameters
     ----------
     labels : torch.Tensor
-        Array of labels.
+        Array of labels. One label per example.
     
     Returns
     -------
@@ -2026,9 +2070,9 @@ def plot_image_slices(
     note="",
 ):
     """
-    Plot slices of a 3D image.
+    Plot slices of a B->K*ll dataset image.
 
-    Slices are along the z-axis (axis 2) and might
+    Slices are along the chi-axis (axis 2) and might
     not be evenly spaced.
 
     Parameters
