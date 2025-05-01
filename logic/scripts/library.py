@@ -2238,6 +2238,8 @@ class Custom_Dataset(torch.utils.data.Dataset):
     ):
         
         """
+        Initialize.
+
         Parameters
         ----------
         name : str
@@ -2260,6 +2262,11 @@ class Custom_Dataset(torch.utils.data.Dataset):
         extra_description : str
             Any extra information to identify
             the dataset.
+        
+        Side Effects
+        ------------
+        - Create a subdirectory for the dataset
+        (if it doesn't already exist)
         """
 
         self.name = name 
@@ -2291,7 +2298,7 @@ class Custom_Dataset(torch.utils.data.Dataset):
 
     def load(self):
         """
-        Overwrite this with a function that loads some files
+        Overwrite this with a function that loads necessary files
         (at least set self.features and self.labels).
         """
         pass
@@ -2305,7 +2312,7 @@ class Custom_Dataset(torch.utils.data.Dataset):
 
     def generate(self):
         """
-        Overwrite this with a function that saves some files
+        Overwrite this with a function that saves necessary files
         (at least features and labels).
         """
         pass
@@ -2360,6 +2367,10 @@ class Custom_Dataset(torch.utils.data.Dataset):
         kind : str
             The kind of tensor being saved.
             e.g. "labels".
+
+        Returns
+        -------
+        file_path : pathlib.Path
         """
         file_name = (
             f"{self.extra_description}_{self.split}_{kind}.pt" 
@@ -2368,6 +2379,23 @@ class Custom_Dataset(torch.utils.data.Dataset):
         )
         file_path = self.save_sub_dir.joinpath(file_name)
         return file_path
+    
+    def assert_file_does_not_exist(self, path:pathlib.Path):
+        """
+        Assert that file does not exist.
+
+        Parameters
+        ----------
+        path : pathlib.Path
+            The file's path.
+        """
+        path = pathlib.Path(path)
+        if path.is_file():
+            raise ValueError(
+                f"Attempting to generate: {path}, "
+                "but file already exists." 
+                "Delete and rerun to proceed."
+            )
 
     def __len__(self):
         """
@@ -2478,6 +2506,10 @@ class Binned_Signal_Dataset(Custom_Dataset):
                 df_agg = df_agg.sample(frac=1)
             return df_agg
         
+        self.assert_file_does_not_exist(self.features_file_path)
+        self.assert_file_does_not_exist(self.labels_file_path)
+        self.assert_file_does_not_exist(self.bin_values_file_path)
+        
         df_agg = self.get_agg_raw_signal_data()
         df_agg, bin_values = convert_to_binned_df(df_agg)
         df_agg = apply_preprocessing(df_agg)
@@ -2525,24 +2557,29 @@ class Binned_Signal_Dataset(Custom_Dataset):
 
 
 class Signal_Sets_Dataset(Custom_Dataset):
-    """Torch dataset of bootstrapped sets of signal events."""
+    """
+    Torch dataset of bootstrapped sets of signal events.
+    """
 
     def __init__(
-            self, 
-            level, 
-            split, 
-            save_dir, 
-            num_events_per_set,
-            num_sets_per_label,
-            binned=False,
-            q_squared_veto=True,
-            std_scale=True,
-            balanced_classes=True,
-            labels_to_sample=None,
-            extra_description=None,
-            regenerate=False,
+        self, 
+        level, 
+        split, 
+        save_dir, 
+        num_events_per_set,
+        num_sets_per_label,
+        binned=False,
+        q_squared_veto=True,
+        std_scale=True,
+        balanced_classes=True,
+        labels_to_sample=None,
+        extra_description=None,
     ):
         
+        """
+        Initialize.
+        """
+
         name = (
             "signal_sets_binned" if binned
             else "signal_sets_unbinned"
@@ -2562,12 +2599,11 @@ class Signal_Sets_Dataset(Custom_Dataset):
             split, 
             save_dir, 
             extra_description=extra_description,
-            regenerate=regenerate,
         )
 
     def generate(self):
         """
-        Generate and save dataset state.
+        Generate and save dataset files.
         """
         label_column_name = (
             self.binned_label_name if self.binned
