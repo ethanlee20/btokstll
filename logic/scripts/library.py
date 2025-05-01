@@ -6,6 +6,7 @@ B -> K* l l events.
 """
 
 
+
 import pathlib
 import pickle
 
@@ -18,8 +19,9 @@ import pandas
 import uproot
 
 
+
 """
-Datafile handling utilities
+File Handling
 """
 
 
@@ -329,7 +331,192 @@ def get_raw_signal_file_trial(path, verbose=True):
     return trial
 
 
-"""Basic plotting utilities"""
+def make_aggregated_raw_signal_file_save_path(
+    dir:str, 
+    level:str, 
+    trials:range
+):
+    
+    """
+    Make the save path for an aggregated raw signal data file.
+    
+    An aggregated raw signal data file contains data from
+    multiple raw signal data trial files and from multiple
+    delta C9 labels.
+    
+    Parameters
+    ----------
+    dir : str
+        The path of the directory to 
+        save the file to.
+    level : str
+        The level of simulation. ("gen" or "det")
+    trials : range
+        The range of trials included in the
+        aggregated data file.
+
+    Returns
+    -------
+    path : pathlib.Path
+        The path of the aggregated raw signal data file.
+    """
+    
+    dir = pathlib.Path(dir)
+    if not dir.is_dir():
+        raise ValueError(
+            "Must specify the "
+            "path to a directory."
+        )
+
+    if not level in {"gen", "det"}:
+        raise ValueError("Level must be 'gen' or 'det'.")
+    
+    filename = f"agg_sig_{trials[0]}_to_{trials[-1]}_{level}.pkl"
+    path = dir.joinpath(filename)
+    return path
+
+
+def aggregate_raw_signal_data_files(
+    level:str, 
+    trials:range, 
+    columns:list[str], 
+    raw_signal_data_dir:str|pathlib.Path, 
+    save_dir:str|pathlib.Path=None, 
+    dtype:str="float64",
+    verbose:bool=True,
+):
+    
+    """
+    Aggregate data into a single dataframe 
+    from multiple raw signal data files.
+
+    The raw signal data files should be pickled 
+    pandas dataframe files.
+
+    Parameters
+    ----------
+    level : str
+        The simulation level.
+        ("gen" or "det")
+    trials : range
+        The range of trial number to include.
+    columns : list[str]
+        The dataframe columns to include.
+    raw_signal_data_dir : str | pathlib.Path
+        The source raw signal data directory.
+    save_dir : str | pathlib.Path
+        The directory to save the resulting
+        file to.
+        A file will only be saved if this
+        is specified.
+    dtype : str
+        The resulting dataframe's datatype.
+    verbose : bool
+        Whether or not to print info messages.
+    
+    Returns
+    ------
+    df : pandas.DataFrame
+        A dataframe with specified feature columns 
+        and a label column named "dc9".
+
+    Side Effects
+    ------------
+    - Save the aggregated data to a file
+        (if save_dir is specified).
+    """
+
+    raw_signal_data_dir = pathlib.Path(raw_signal_data_dir)
+    all_file_paths = list(raw_signal_data_dir.glob("*.pkl"))
+    
+    selected_file_paths = [
+        path for path in all_file_paths 
+        if get_raw_signal_file_trial(path, verbose=False) 
+        in trials
+    ]
+    num_files = len(selected_file_paths)
+    
+    dfs = []
+    for i, path in enumerate(selected_file_paths, start=1):
+        _df = open_data_file(path, verbose=False).loc[level][columns]
+        if verbose: 
+            print(f"Opened: [{i}/{num_files}] {path}")
+        dfs.append(_df)
+    
+    dc9_values = [
+        get_raw_signal_file_label(path, verbose=False) 
+        for path in selected_file_paths
+    ]
+
+    df = pandas.concat(
+        [_df.assign(dc9=dc9) for _df, dc9 in zip(dfs, dc9_values)]
+    )
+    df = df.astype(dtype)
+
+    if verbose:
+        print(
+            "Created aggregated raw signal data file.\n"
+            f"Trials: {trials[0]} to {trials[-1]}\n"
+            f"Delta C9 values: {set(dc9_values)}"
+        )
+    
+    if save_dir is not None:
+        save_path = make_aggregated_raw_signal_file_save_path(
+            dir=save_dir,
+            level=level,
+            trials=trials,
+        )
+        df.to_pickle(save_path)
+        if verbose:
+            print(f"Saved: {save_path}")
+
+    return df
+
+
+def load_aggregated_raw_signal_data_file(
+    dir:str|pathlib.Path, 
+    level:str, 
+    trials:range, 
+    verbose=True
+):  
+    """
+    Load an aggregated raw signal data file as
+    a pandas dataframe.
+
+    Parameters
+    ----------
+    dir : str | pathlib.Path
+        The path of the directory
+        containing the file.
+    level : str
+        The reconstruction level of the file.
+        ("gen" or "det".)
+    trials : range
+        The range of trials contained in
+        the file.
+    verbose : bool
+        Whether or not to print information.
+    
+    Returns
+    -------
+    df : pandas.DataFrame
+        Dataframe of aggregated raw signal data.
+    """
+    path = make_aggregated_raw_signal_file_save_path(
+        dir=dir, 
+        level=level, 
+        trials=trials
+    )
+    df = open_data_file(path)
+    if verbose:
+        print(f"Loaded aggregated raw signal data file: {path}")
+    return df
+
+
+
+"""
+Plotting
+"""
 
 
 def setup_high_quality_mpl_params():
@@ -403,9 +590,157 @@ def make_plot_note(ax, text:str, fontsize="medium"):
     )
 
 
+def plot_image_slices(
+    image, 
+    n_slices=3, 
+    cmap=plt.cm.magma, 
+    note="",
+    save_path=None,
+):
+    """
+    Plot slices of a B->K*ll dataset image.
+
+    Slices are along the chi-axis (axis 2) and might
+    not be evenly spaced.
+
+    Parameters
+    ----------
+    image : torch.Tensor
+        Tensor created by the make_image function.
+        Dimensions must correspond to 
+        (costheta_mu, costheta_K, chi).
+    n_slices : int
+        The number of slices to show.
+    cmap : matplotlib.colors.Colormap
+        The colormap.
+    note : str
+        Add an annotation to the plot.
+    save_path : str
+        The path to which to save the plot.
+        
+    Side Effects
+    ------------
+    - Creates and shows a plot.
+    - Saves the plot to save_path if specified.
+
+
+    """
+
+    fig = plt.figure()
+    ax_3d = fig.add_subplot(projection="3d")
+
+    var_dim = {
+        0: "costheta_mu",
+        1: "costheta_K",
+        2: "chi",
+    }
+
+    cartesian_dim = {
+        "x": 0,     
+        "y": 1,
+        "z": 2,  
+    }
+
+    norm = mpl.colors.Normalize(vmin=-1.1, vmax=1.1)
+    image = image.squeeze().cpu()
+    colors = cmap(norm(image))
+    
+    cartesian_shape = {
+        "x": image.shape[cartesian_dim["x"]],
+        "y": image.shape[cartesian_dim["y"]],
+        "z": image.shape[cartesian_dim["z"]],
+    }
+
+    def xy_plane(z_pos):
+        x, y = numpy.indices(
+            (
+                cartesian_shape["x"] + 1, 
+                cartesian_shape["y"] + 1
+            )
+        )
+        z = numpy.full(
+            (
+                cartesian_shape["x"] + 1, 
+                cartesian_shape["y"] + 1,
+            ), z_pos
+        )
+        return x, y, z
+    
+    def plot_slice(z_index):
+        x, y, z = xy_plane(z_index) 
+        ax_3d.plot_surface(
+            x, y, z, 
+            rstride=1, cstride=1, 
+            facecolors=colors[:,:,z_index], 
+            shade=False,
+        )
+
+    def plot_outline(z_index, offset=0.3):
+        x, y, z = xy_plane(
+            z_index - offset
+        )
+        
+        ax_3d.plot_surface(
+            x, y, z, 
+            rstride=1, 
+            cstride=1, 
+            shade=False,
+            color="#f2f2f2",
+            edgecolor="#f2f2f2", 
+        )
+
+    z_indices = numpy.linspace( # forces integer indices
+        0, 
+        cartesian_shape["z"]-1, 
+        n_slices, 
+        dtype=int
+    ) 
+    
+    for i in z_indices:
+        plot_outline(i)
+        plot_slice(i)
+
+    cbar = fig.colorbar(
+        mpl.cm.ScalarMappable(norm=norm, cmap=cmap), 
+        ax=ax_3d, 
+        location="left", 
+        shrink=0.5, 
+        pad=-0.05
+    )
+    cbar.set_label(r"${q^2}$ (Avg.)", size=11)
+
+    ax_labels = {
+        "x": r"$\cos\theta_\mu$",
+        "y": r"$\cos\theta_K$",
+        "z": r"$\chi$", 
+    }
+    ax_3d.set_xlabel(ax_labels["x"], labelpad=0)
+    ax_3d.set_ylabel(ax_labels["y"], labelpad=0)
+    ax_3d.set_zlabel(ax_labels["z"], labelpad=-3)
+
+    ticks = {
+        "x": ["-1", "1"],
+        "y": ["-1", "1"],
+        "z": ['0', r"$2\pi$"],
+    }      
+
+    ax_3d.set_xticks([0, cartesian_shape["x"]-1], ticks["x"])
+    ax_3d.set_xticks([0, cartesian_shape["y"]-1], ticks["y"])
+    ax_3d.set_xticks([0, cartesian_shape["z"]-1], ticks["z"])
+    ax_3d.tick_params(pad=0.3)
+    ax_3d.set_box_aspect(None, zoom=0.85)
+    ax_3d.set_title(f"{note}", loc="center", y=1)
+
+    if save_path is not None:
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Saved image plot to file: {save_path}")
+        plt.show()
+        plt.close()
+    
+
+
 """
-Math for preprocessing of data.
-pandas Dataframe matrix multiplication, etc.
+Math
 """
 
 
@@ -630,10 +965,9 @@ def unit_normal(df_3vec1, df_3vec2):
     return df_unit_normal_vec
 
 
+
 """
-Physics calculations for preprocessing data.
-Functions for calculating angular 
-variables and q^2.
+Physics
 """
 
 
@@ -1202,6 +1536,7 @@ def find_chi(
     df_ell_p_4mom,
     df_ell_m_4mom,
 ):
+    
     """
     Find the decay angle chi.
 
@@ -1453,191 +1788,10 @@ def calculate_variables(ell, df):
     return df_result
 
 
+
 """
-Further preprocessing utilities
+Datasets
 """
-
-
-def make_aggregated_raw_signal_file_save_path(
-    dir:str, 
-    level:str, 
-    trials:range
-):
-    
-    """
-    Make the save path for an aggregated raw signal data file.
-    
-    An aggregated raw signal data file contains data from
-    multiple raw signal data trial files and from multiple
-    delta C9 labels.
-    
-    Parameters
-    ----------
-    dir : str
-        The path of the directory to 
-        save the file to.
-    level : str
-        The level of simulation. ("gen" or "det")
-    trials : range
-        The range of trials included in the
-        aggregated data file.
-
-    Returns
-    -------
-    path : pathlib.Path
-        The path of the aggregated raw signal data file.
-    """
-    
-    dir = pathlib.Path(dir)
-    if not dir.is_dir():
-        raise ValueError(
-            "Must specify the "
-            "path to a directory."
-        )
-
-    if not level in {"gen", "det"}:
-        raise ValueError("Level must be 'gen' or 'det'.")
-    
-    filename = f"agg_sig_{trials[0]}_to_{trials[-1]}_{level}.pkl"
-    path = dir.joinpath(filename)
-    return path
-
-
-def aggregate_raw_signal_data_files(
-    level:str, 
-    trials:range, 
-    columns:list[str], 
-    raw_signal_data_dir:str|pathlib.Path, 
-    save_dir:str|pathlib.Path=None, 
-    dtype:str="float64",
-    verbose:bool=True,
-):
-    
-    """
-    Aggregate data into a single dataframe 
-    from multiple raw signal data files.
-
-    The raw signal data files should be pickled 
-    pandas dataframe files.
-
-    Parameters
-    ----------
-    level : str
-        The simulation level.
-        ("gen" or "det")
-    trials : range
-        The range of trial number to include.
-    columns : list[str]
-        The dataframe columns to include.
-    raw_signal_data_dir : str | pathlib.Path
-        The source raw signal data directory.
-    save_dir : str | pathlib.Path
-        The directory to save the resulting
-        file to.
-        A file will only be saved if this
-        is specified.
-    dtype : str
-        The resulting dataframe's datatype.
-    verbose : bool
-        Whether or not to print info messages.
-    
-    Returns
-    ------
-    df : pandas.DataFrame
-        A dataframe with specified feature columns 
-        and a label column named "dc9".
-
-    Side Effects
-    ------------
-    - Save the aggregated data to a file
-        (if save_dir is specified).
-    """
-
-    raw_signal_data_dir = pathlib.Path(raw_signal_data_dir)
-    all_file_paths = list(raw_signal_data_dir.glob("*.pkl"))
-    
-    selected_file_paths = [
-        path for path in all_file_paths 
-        if get_raw_signal_file_trial(path, verbose=False) 
-        in trials
-    ]
-    num_files = len(selected_file_paths)
-    
-    dfs = []
-    for i, path in enumerate(selected_file_paths, start=1):
-        _df = open_data_file(path, verbose=False).loc[level][columns]
-        if verbose: 
-            print(f"Opened: [{i}/{num_files}] {path}")
-        dfs.append(_df)
-    
-    dc9_values = [
-        get_raw_signal_file_label(path, verbose=False) 
-        for path in selected_file_paths
-    ]
-
-    df = pandas.concat(
-        [_df.assign(dc9=dc9) for _df, dc9 in zip(dfs, dc9_values)]
-    )
-    df = df.astype(dtype)
-
-    if verbose:
-        print(
-            "Created aggregated raw signal data file.\n"
-            f"Trials: {trials[0]} to {trials[-1]}\n"
-            f"Delta C9 values: {set(dc9_values)}"
-        )
-    
-    if save_dir is not None:
-        save_path = make_aggregated_raw_signal_file_save_path(
-            dir=save_dir,
-            level=level,
-            trials=trials,
-        )
-        df.to_pickle(save_path)
-        if verbose:
-            print(f"Saved: {save_path}")
-
-    return df
-
-
-def load_aggregated_raw_signal_data_file(
-    dir:str|pathlib.Path, 
-    level:str, 
-    trials:range, 
-    verbose=True
-):  
-    """
-    Load an aggregated raw signal data file as
-    a pandas dataframe.
-
-    Parameters
-    ----------
-    dir : str | pathlib.Path
-        The path of the directory
-        containing the file.
-    level : str
-        The reconstruction level of the file.
-        ("gen" or "det".)
-    trials : range
-        The range of trials contained in
-        the file.
-    verbose : bool
-        Whether or not to print information.
-    
-    Returns
-    -------
-    df : pandas.DataFrame
-        Dataframe of aggregated raw signal data.
-    """
-    path = make_aggregated_raw_signal_file_save_path(
-        dir=dir, 
-        level=level, 
-        trials=trials
-    )
-    df = open_data_file(path)
-    if verbose:
-        print(f"Loaded aggregated raw signal data file: {path}")
-    return df
 
 
 def bootstrap_labeled_sets(
@@ -2063,153 +2217,15 @@ def get_num_per_unique_label(labels:torch.Tensor):
     return num_per_label
 
 
-def plot_image_slices(
-    image, 
-    n_slices=3, 
-    cmap=plt.cm.magma, 
-    note="",
-):
-    """
-    Plot slices of a B->K*ll dataset image.
-
-    Slices are along the chi-axis (axis 2) and might
-    not be evenly spaced.
-
-    Parameters
-    ----------
-    image : torch.Tensor
-        Tensor created by the make_image function.
-        Dimensions must correspond to 
-        (costheta_mu, costheta_K, chi).
-    n_slices : int
-        The number of slices to show.
-    cmap : matplotlib.colors.Colormap
-        The colormap.
-    note : str
-        Add an annotation to the plot.
-    
-    Side Effects
-    ------------
-    - Creates a plot.
-    """
-
-    fig = plt.figure()
-    ax_3d = fig.add_subplot(projection="3d")
-
-    var_dim = {
-        0: "costheta_mu",
-        1: "costheta_K",
-        2: "chi",
-    }
-
-    cartesian_dim = {
-        "x": 0,     
-        "y": 1,
-        "z": 2,  
-    }
-
-    norm = mpl.colors.Normalize(vmin=-1.1, vmax=1.1)
-    image = image.squeeze().cpu()
-    colors = cmap(norm(image))
-    
-    cartesian_shape = {
-        "x": image.shape[cartesian_dim["x"]],
-        "y": image.shape[cartesian_dim["y"]],
-        "z": image.shape[cartesian_dim["z"]],
-    }
-
-    def xy_plane(z_pos):
-        x, y = numpy.indices(
-            (
-                cartesian_shape["x"] + 1, 
-                cartesian_shape["y"] + 1
-            )
-        )
-        z = numpy.full(
-            (
-                cartesian_shape["x"] + 1, 
-                cartesian_shape["y"] + 1,
-            ), z_pos
-        )
-        return x, y, z
-    
-    def plot_slice(z_index):
-        x, y, z = xy_plane(z_index) 
-        ax_3d.plot_surface(
-            x, y, z, 
-            rstride=1, cstride=1, 
-            facecolors=colors[:,:,z_index], 
-            shade=False,
-        )
-
-    def plot_outline(z_index, offset=0.3):
-        x, y, z = xy_plane(
-            z_index - offset
-        )
-        
-        ax_3d.plot_surface(
-            x, y, z, 
-            rstride=1, 
-            cstride=1, 
-            shade=False,
-            color="#f2f2f2",
-            edgecolor="#f2f2f2", 
-        )
-
-    z_indices = numpy.linspace( # forces integer indices
-        0, 
-        cartesian_shape["z"]-1, 
-        n_slices, 
-        dtype=int
-    ) 
-    
-    for i in z_indices:
-        plot_outline(i)
-        plot_slice(i)
-
-    cbar = fig.colorbar(
-        mpl.cm.ScalarMappable(norm=norm, cmap=cmap), 
-        ax=ax_3d, 
-        location="left", 
-        shrink=0.5, 
-        pad=-0.05
-    )
-    cbar.set_label(r"${q^2}$ (Avg.)", size=11)
-
-    ax_labels = {
-        "x": r"$\cos\theta_\mu$",
-        "y": r"$\cos\theta_K$",
-        "z": r"$\chi$", 
-    }
-    ax_3d.set_xlabel(ax_labels["x"], labelpad=0)
-    ax_3d.set_ylabel(ax_labels["y"], labelpad=0)
-    # ax_3d.zaxis.set_rotate_label(False)
-    ax_3d.set_zlabel(ax_labels["z"], labelpad=-3)
-
-    ticks = {
-        "x": ["-1", "1"],
-        "y": ["-1", "1"],
-        "z": ['0', r"$2\pi$"],
-    }      
-
-    ax_3d.set_xticks([0, cartesian_shape["x"]-1], ticks["x"])
-    ax_3d.set_xticks([0, cartesian_shape["y"]-1], ticks["y"])
-    ax_3d.set_xticks([0, cartesian_shape["z"]-1], ticks["z"])
-    ax_3d.tick_params(pad=0.3)
-    ax_3d.set_box_aspect(None, zoom=0.85)
-    ax_3d.set_title(f"{note}", loc="center", y=1)
-
-
-"""
-Datasets.
-pytorch datasets for training / evaluating models.
-"""
-
-
 class Custom_Dataset(torch.utils.data.Dataset):
+    
     """
     Custom dataset base class.
+    
+    All project datasets follow
+    this template.
     """
+    
     def __init__(
         self, 
         name, 
@@ -2217,9 +2233,10 @@ class Custom_Dataset(torch.utils.data.Dataset):
         q_squared_veto, 
         split, 
         save_dir, 
+        raw_signal_data_dir,
         extra_description=None, 
-        regenerate=False
     ):
+        
         """
         Parameters
         ----------
@@ -2229,27 +2246,29 @@ class Custom_Dataset(torch.utils.data.Dataset):
         level : str
             The reconstruction level.
             Either "gen" or "det".
-        q_squared_veto : bool
-            Whether or not to apply a veto
-            in q^2.
+        q_squared_veto : str
+            Whether to apply a tight or loose veto in q^2.
+            Options are "tight" or "loose".
         split : str
             The dataset split.
             Either "train" or "eval".
         save_dir : str | pathlib.Path
             The directory to save the dataset to.
+        raw_signal_data_dir : str | pathlib.Path
+            The path of the directory containing the raw
+            (unaggregated) signal data.
         extra_description : str
             Any extra information to identify
             the dataset.
-        regenerate : bool
-            Whether or not to regenerate (and save)
-            the dataset.
         """
+
         self.name = name 
-        self.extra_description = extra_description
         self.level = level
         self.q_squared_veto = q_squared_veto
         self.split = split
         self.save_dir = pathlib.Path(save_dir)
+        self.raw_signal_data_dir = raw_signal_data_dir
+        self.extra_description = extra_description
 
         save_sub_dir_name = f"{name}_{level}_q2v_{q_squared_veto}"
         self.save_sub_dir = save_dir.joinpath(save_sub_dir_name)
@@ -2268,20 +2287,21 @@ class Custom_Dataset(torch.utils.data.Dataset):
         self.label_name = "dc9"
         self.binned_label_name = "dc9_bin_index"
 
-        if regenerate:
-            self.generate()
+        self.raw_signal_trial_range = self.convert_split_to_raw_signal_trial_range()
 
     def load(self):
         """
         Overwrite this with a function that loads some files
         (at least set self.features and self.labels).
         """
+        pass
 
     def unload(self):
         """
         Overwrite this with a function that unloads the
         loaded data from memory (self.features and self.labels).
         """
+        pass
 
     def generate(self):
         """
@@ -2289,6 +2309,47 @@ class Custom_Dataset(torch.utils.data.Dataset):
         (at least features and labels).
         """
         pass
+
+    def convert_split_to_raw_signal_trial_range(self):
+        """
+        Obtain the raw signal trial range corresponding to
+        the specified data split.
+        """
+        if self.split not in ("train", "eval"):
+            raise ValueError("Split must be 'train' or 'eval'")
+        
+        raw_signal_trial_range = (
+            range(1,21) if self.split=="train"
+            else range(21,41) if self.split=="eval"
+            else None
+        )
+        return raw_signal_trial_range
+    
+    def get_agg_raw_signal_data(self):
+        """
+        Load the aggregated raw signal data.
+        Generate the aggregated raw signal data file
+        if it doesn't already exist.
+        """
+        if not make_aggregated_raw_signal_file_save_path(
+            self.save_dir,
+            self.level,
+            self.raw_signal_trial_range,
+        ).is_file():
+            aggregate_raw_signal_data_files(
+                self.level, 
+                self.raw_signal_trial_range, 
+                self.feature_names,
+                self.raw_signal_data_dir,
+                self.save_dir,
+            )
+
+        df_agg = load_aggregated_raw_signal_data_file(
+            self.save_dir,
+            self.level, 
+            self.raw_signal_trial_range, 
+        )
+        return df_agg
     
     def make_tensor_filepath(self, kind):
         """
@@ -2336,23 +2397,26 @@ class Custom_Dataset(torch.utils.data.Dataset):
 
 
 class Binned_Signal_Dataset(Custom_Dataset):
-    """For event-by-event approach."""
+    
+    """
+    Dataset for the (binned) event-by-event approach.
+    """
+    
     def __init__(
-            self, 
-            level, 
-            split, 
-            save_dir, 
-            q_squared_veto=True,
-            std_scale=True,
-            balanced_classes=True,
-            shuffle=True,
-            extra_description=None,
-            regenerate=False,
+        self, 
+        level, 
+        split, 
+        save_dir, 
+        q_squared_veto="tight",
+        std_scale=True,
+        balanced_classes=True,
+        shuffle=True,
+        extra_description=None,
     ):
-        self.q_squared_veto = q_squared_veto
-        self.std_scale = std_scale
-        self.balanced_classes = balanced_classes
-        self.shuffle = shuffle
+        
+        """
+        Initialize.
+        """
         
         super().__init__(
             "binned_signal", 
@@ -2361,49 +2425,69 @@ class Binned_Signal_Dataset(Custom_Dataset):
             split, 
             save_dir, 
             extra_description=extra_description,
-            regenerate=regenerate,
         )
 
-    def generate(self):    
+        self.std_scale = std_scale
+        self.balanced_classes = balanced_classes
+        self.shuffle = shuffle
 
-        df_agg = load_aggregated_raw_signal(
-            self.level, 
-            self.split, 
-            self.save_dir
-        )
-        
+    def generate(self):
+
+        """
+        Generate the dataset.
+        Create necessary files.
+        """
+
         def convert_to_binned_df(df_agg):
             bins, bin_values = to_bins(df_agg[self.label_name])
             df_agg[self.binned_label_name] = bins
             df_agg = df_agg.drop(columns=self.label_name)
             return df_agg, bin_values
-        df_agg, bin_values = convert_to_binned_df(df_agg)
         
         def apply_preprocessing(df_agg):
             df_agg = df_agg.copy()
-            q2_cut_strength = (
-                "tight" if self.q_squared_veto
-                else "loose"
+            df_agg = apply_q_squared_veto(
+                df_agg, 
+                self.q_squared_veto
             )
-            df_agg = apply_q_squared_veto(df_agg, q2_cut_strength)
             if self.std_scale:
                 for column_name in self.feature_names:
                     df_agg[column_name] = ( 
                         (
                             df_agg[column_name] 
-                            - get_dataset_prescale("mean", self.level, self.q_squared_veto, column_name)
+                            - get_dataset_prescale(
+                                "mean", 
+                                self.level, 
+                                self.q_squared_veto, 
+                                column_name
+                            )
                         ) 
-                        / get_dataset_prescale("std", self.level, self.q_squared_veto, column_name)
+                        / get_dataset_prescale(
+                            "std", 
+                            self.level, 
+                            self.q_squared_veto, 
+                            column_name
+                        )
                     )
             if self.balanced_classes:
-                df_agg = balance_classes(df_agg, self.binned_label_name)
+                df_agg = balance_classes(
+                    df_agg, 
+                    self.binned_label_name
+                )
             if self.shuffle:
                 df_agg = df_agg.sample(frac=1)
             return df_agg
+        
+        df_agg = self.get_agg_raw_signal_data()
+        df_agg, bin_values = convert_to_binned_df(df_agg)
         df_agg = apply_preprocessing(df_agg)
 
-        features = torch.from_numpy(df_agg[self.feature_names].to_numpy())
-        labels = torch.from_numpy(df_agg[self.binned_label_name].to_numpy())
+        features = torch.from_numpy(
+            df_agg[self.feature_names].to_numpy()
+        )
+        labels = torch.from_numpy(
+            df_agg[self.binned_label_name].to_numpy()
+        )
         bin_values = torch.from_numpy(bin_values)
 
         torch.save(features, self.features_file_path)
@@ -2416,6 +2500,11 @@ class Binned_Signal_Dataset(Custom_Dataset):
 
     def load(self):
 
+        """
+        Load the dataset.
+        Load necessary files.
+        """
+
         self.features = torch.load(self.features_file_path, weights_only=True)
         self.labels = torch.load(self.labels_file_path, weights_only=True)
         self.bin_values = torch.load(self.bin_values_file_path, weights_only=True)
@@ -2424,6 +2513,11 @@ class Binned_Signal_Dataset(Custom_Dataset):
         print(f"Loaded bin values of shape: {self.bin_values.shape}.")
 
     def unload(self):
+        
+        """
+        Unload dataset from memory.
+        """
+        
         del self.features
         del self.labels
         del self.bin_values
