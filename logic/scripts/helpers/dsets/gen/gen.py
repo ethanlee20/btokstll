@@ -1,73 +1,163 @@
 
+
+"""
+Dataset generation stuff.
+"""
+
+
 import numpy
+import torch 
 
 from helpers.dsets.config import Config
+from helpers.dsets.gen.preproc import (
+    convert_to_binned,
+    bootstrap_labeled_sets,
+    apply_common_preprocessing
+)
 
 
+def print_done_status(kind, shape, path, verbose=True):
+    if verbose: 
+        print(
+            f"Generated {kind} of shape: "
+            f"{shape}."
+            f"\nSaved as: {path}"
+        )
 
+def save_torch_file(verbose=True)
 
-
-
-def _generate_binned_signal(df_agg):
+def generate_binned_signal(
+    df_agg,
+    config:Config,
+    verbose:bool=True,
+):
+    """
+    Generate files for the binned signal dataset.
+    """
     
+    df_agg = apply_common_preprocessing(df_agg, config)
         
-        def apply_preprocessing(df_agg):
-            df_agg = df_agg.copy()
-            df_agg = apply_q_squared_veto(
-                df_agg, 
-                self.q_squared_veto
-            )
-            if self.std_scale:
-                for column_name in self.feature_names:
-                    df_agg[column_name] = ( 
-                        (
-                            df_agg[column_name] 
-                            - get_dataset_prescale(
-                                "mean", 
-                                self.level, 
-                                self.q_squared_veto, 
-                                column_name
-                            )
-                        ) 
-                        / get_dataset_prescale(
-                            "std", 
-                            self.level, 
-                            self.q_squared_veto, 
-                            column_name
-                        )
-                    )
-            if self.balanced_classes:
-                df_agg = balance_classes(
-                    df_agg, 
-                    self.binned_label_name
-                )
-            if self.shuffle:
-                df_agg = df_agg.sample(frac=1)
-            return df_agg
-        
-        df_agg, bin_values = convert_to_binned(self.df_agg)
-        df_agg = apply_preprocessing(df_agg)
+    df_agg, bin_values = convert_to_binned(
+        df_agg, 
+        config.label_name, 
+        config.binned_label_name
+    )
 
-        features = torch.from_numpy(
-            df_agg[self.feature_names].to_numpy()
+    features = torch.from_numpy(
+        df_agg[config.feature_names].to_numpy()
+    )
+    labels = torch.from_numpy(
+        df_agg[config.binned_label_name].to_numpy()
+    )
+    bin_values = torch.from_numpy(bin_values)
+
+    torch.save(features, config.features_path)
+    print_done_status(
+        "features", 
+        features.shape, 
+        config.features_path,
+        verbose=verbose,
+    )
+
+    torch.save(labels, config.labels_path)
+    print_done_status(
+        "labels", 
+        labels.shape, 
+        config.labels_path
+        verbose=verbose,
+    )
+
+    torch.save(bin_values, config.bin_values_path)
+    print_done_status(
+        "bin values", 
+        bin_values.shape, 
+        config.bin_values_path
+        verbose=verbose,
+    )
+
+    
+def generate_binned_signal_sets(
+    df_agg, 
+    config:Config, 
+    verbose:bool=True,
+):
+    """
+    Generate files for the 
+    binned signal sets dataset.
+    """    
+    df_agg = df_agg.copy() 
+
+    df_agg = apply_q_squared_veto(
+        df_agg, 
+        config.q_squared_veto
+    )
+    if config.std_scale:
+        df_agg = apply_standard_scale(
+            df_agg, 
+            config.level, 
+            config.q_squared_veto, 
+            config.feature_names,
+        )  
+    if config.balanced_classes:
+        df_agg = apply_balance_classes(
+            df_agg, 
+            config.label_name,
         )
-        labels = torch.from_numpy(
-            df_agg[self.binned_label_name].to_numpy()
+    if config.label_subset:
+        df_agg = apply_label_subset(
+            df_agg,
+            config.label_name,
+            config.label_subset,
         )
-        bin_values = torch.from_numpy(bin_values)
+    if config.shuffle:
+        df_agg = df_agg.sample(frac=1)
 
-        torch.save(features, self.features_path)
-        torch.save(labels, self.labels_path)
-        torch.save(bin_values, self.bin_values_path)
-        
-        print(f"Generated features of shape: {features.shape}.")
-        print(f"Generated labels of shape: {labels.shape}.")
-        print(f"Generated bin values of shape: {bin_values.shape}.")
+    df_agg, bin_values = convert_to_binned(
+        df_agg, 
+        config.label_name, 
+        config.binned_label_name,
+    )
+    
+    bin_values = torch.from_numpy(bin_values)
+    source_features = torch.from_numpy(
+        df_agg[config.feature_names]
+        .to_numpy()
+    )
+    source_labels = torch.from_numpy(
+        df_agg[config.label_column_name]
+        .to_numpy()
+    )
 
-def _generate_binned_signal_sets(df_agg):
-    pass
+    features, labels = bootstrap_labeled_sets(
+        source_features,
+        source_labels,
+        n=config.num_events_per_set, 
+        m=config.num_sets_per_label,
+        reduce_labels=True,
+    )
 
-def _generate_unbinned_signal_sets(df_agg):
+    torch.save(features, config.features_path)
+    torch.save(labels, config.labels_path)
+    torch.save(bin_values, config.bin_values_path)
+
+    if verbose:
+        print(
+            "Generated features of shape: "
+            f"{features.shape}."
+            f"\nSaved as: {config.features_path}"
+        )
+        print(
+            "Generated labels of shape: "
+            f"{labels.shape}."
+            f"\nSaved as: {config.labels_path}"
+        )
+        print(
+            "Generated bin values of shape: "
+            f"{bin_values.shape}."
+            f"\nSaved as: {config.bin_values_path}"
+        )
+
+def generate_unbinned_signal_sets(df_agg):
     pass
 
 def _generate_signal_images(df_agg):

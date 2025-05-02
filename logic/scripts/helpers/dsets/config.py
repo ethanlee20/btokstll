@@ -1,4 +1,9 @@
 
+"""
+Configuration for datasets.
+"""
+
+
 import pathlib
 
 
@@ -53,17 +58,39 @@ def _convert_split_to_raw_signal_trial_range(split):
 class Config:
     def __init__(
         self,
-        name,
-        level,
-        q_squared_veto,
-        balanced_classes,
-        std_scale,
-        split,
-        dir_path,
-        raw_signal_dir_path,
-        shuffle=None,
-        extra_description=None,
+        name:str,
+        level:str,
+        q_squared_veto:str,
+        balanced_classes:bool,
+        std_scale:bool,
+        split:str,
+        dir_path:str|pathlib.Path,
+        raw_signal_dir_path:str|pathlib.Path,
+        shuffle:bool,
+        label_subset:list=None, # original labels (not bin values)
+        num_events_per_set:int=None,
+        num_sets_per_label:int=None,
+        extra_description:str=None,
     ):
+        """
+        Dataset configuration.
+        """
+
+        if name not in ("images", ...):
+            raise ValueError(f"Name not recognized: {name}")
+        if level not in ("gen", "det"):
+            raise ValueError(f"Level not recognized: {level}")
+        if q_squared_veto not in ("loose", "tight"):
+            raise ValueError(f"q^2 veto not recognized: {q_squared_veto}")
+        if balanced_classes not in (True, False):
+            raise ValueError("Balanced classes option not recognized.")
+        if std_scale not in (True, False):
+            raise ValueError("Standard scale option not recognized.")
+        if split not in ("train", "eval"):
+            raise ValueError(f"Split not recognized: {split}")
+        if shuffle not in (True, False):
+            raise ValueError("Shuffle option not recognized.")
+
         self.name = name
         self.level = level
         self.q_squared_veto = q_squared_veto
@@ -73,7 +100,11 @@ class Config:
         self.dir_path = pathlib.Path(dir_path)
         self.raw_signal_dir_path = raw_signal_dir_path
         self.shuffle = shuffle
+        self.label_subset = label_subset
+        self.num_events_per_set = num_events_per_set
+        self.num_sets_per_label = num_sets_per_label
         self.extra_description = extra_description
+
         self.feature_names = [
             "q_squared", 
             "costheta_mu", 
@@ -82,6 +113,7 @@ class Config:
         ]
         self.label_name = "dc9"
         self.binned_label_name = "dc9_bin_index"
+
         self.sub_dir_path = _make_sub_dir_path(
             name, 
             level, 
@@ -106,6 +138,7 @@ class Config:
             split, 
             self.sub_dir_path,
         )
+
         self.raw_signal_trial_range = (
             _convert_split_to_raw_signal_trial_range(split)
         )
