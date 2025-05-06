@@ -1,5 +1,7 @@
 
-"""Preprocessing utilities for dataset generation."""
+"""
+Dataset preprocessing utilities
+"""
 
 
 import numpy
@@ -7,8 +9,7 @@ import torch
 import pandas
 import scipy
 
-from ...config.config import Config
-
+from .config import Config
 
 
 def get_dataset_prescale(
@@ -163,7 +164,7 @@ def apply_standard_scale(df, level, q_squared_veto, columns):
 
 def apply_balance_classes(
     df: pandas.DataFrame, 
-    label_column_name: str
+    name_label: str
 ):
     """
     Reduce the number of events per unique label 
@@ -175,7 +176,7 @@ def apply_balance_classes(
     ----------
     df : pandas.DataFrame
         The original dataframe.
-    label_column_name : str
+    name_label : str
         The name of the column containing labels.
 
     Returns
@@ -187,7 +188,7 @@ def apply_balance_classes(
 
     df_shuffled = df.sample(frac=1)
     group_by_label = df_shuffled.groupby(
-        label_column_name
+        name_label
     )
     num_events = [
         len(df_label) 
@@ -225,7 +226,10 @@ def apply_drop_na(df, verbose=True):
     return df_out
 
 
-def apply_q_squared_veto(df: pandas.DataFrame, strength:str):
+def apply_q_squared_veto(
+    df: pandas.DataFrame, 
+    strength:str
+):
     """
     Apply a q^2 veto to a dataframe of B->K*ll events.
 
@@ -269,24 +273,28 @@ def apply_q_squared_veto(df: pandas.DataFrame, strength:str):
     return df_vetoed
 
 
-def apply_label_subset(df, label_name, label_subset:list,):
+def apply_label_subset(df, name_label, label_subset:list,):
     """
     Reduce a dataframe to data from specified labels.
     """
 
-    df = df[df[label_name].isin(label_subset)]
+    df = df[df[name_label].isin(label_subset)]
     return df
 
 
-def apply_shuffle(df):
-    df = df.sample(frac=1)
-    print("Shuffled dataframe.")
-    return df
-
-
-def apply_common_cleaning(df, config:Config):
+def apply_shuffle(df, verbose=True):
     """
-    Apply cleaning common to all datasets.
+    Shuffle rows of a dataframe.
+    """
+    df = df.sample(frac=1)
+    if verbose:
+        print("Shuffled dataframe.")
+    return df
+
+
+def apply_cleaning(df, config:Config, verbose=True):
+    """
+    Apply cleaning to aggregated signal dataframe.
     Includes q^2 veto, standard scaling, 
     balancing classes, label subset, 
     dropping NA rows, and shuffling.
@@ -300,11 +308,11 @@ def apply_common_cleaning(df, config:Config):
     )
     if config.std_scale:
         features_to_scale = (
-            config.feature_names if (
-                config.name != config.name_images_signal_dset
+            config.names_features if (
+                config.name != config.name_dset_images_signal
             )
-            else ["q_squared"] if (
-                config.name == config.name_images_signal_dset
+            else [config.name_var_q_squared] if (
+                config.name == config.name_dset_images_signal
             )
             else None
         )
@@ -317,24 +325,27 @@ def apply_common_cleaning(df, config:Config):
     if config.balanced_classes:
         df = apply_balance_classes(
             df, 
-            config.label_name,
+            config.name_label_unbinned,
         )
     if config.label_subset:
         df = apply_label_subset(
             df,
-            config.label_name,
+            config.name_label_unbinned,
             config.label_subset,
         )
     df = apply_drop_na(df)
     if config.shuffle:
         df = apply_shuffle
+
+    if verbose:
+        print("Applied cleaning.")
     
     return df
 
 
-def convert_to_binned(df, label_name, binned_label_name):
+def convert_to_binned(df, name_label_unbinned, name_label_binned):
     """
-    Convert dataframe labels to binned labels.
+    Convert dataframe unbinned labels to binned labels.
     """
 
     def to_bins(ar):
@@ -371,9 +382,9 @@ def convert_to_binned(df, label_name, binned_label_name):
         bins = bin_indices[inverse_indices]
         return bins, bin_map
     
-    bins, bin_map = to_bins(df[label_name])
-    df[binned_label_name] = bins
-    df = df.drop(columns=label_name)
+    bins, bin_map = to_bins(df[name_label_unbinned])
+    df[name_label_binned] = bins
+    df = df.drop(columns=name_label_unbinned)
     return df, bin_map
 
 
@@ -463,11 +474,11 @@ def make_image(ar_feat, n_bins):
     Make an image of a B->K*ll dataset. 
     Like Shawn.
 
-    Order of input features must be:             
-        "q_squared", 
-        "costheta_mu", 
-        "costheta_K", 
-        "chi"
+    Order of input features in array must be:             
+        q^2, 
+        cos theta mu, 
+        cos theta K, 
+        chi
 
     Parameters
     ----------
@@ -499,3 +510,12 @@ def make_image(ar_feat, n_bins):
     torch_image = torch_image.unsqueeze(0)
     return torch_image
 
+
+def pandas_to_torch(obj):
+    """
+    Convert a pandas object to a torch tensor.
+
+    (Object can be a dataframe or series).
+    """
+    obj = torch.from_numpy(obj.to_numpy())
+    return obj

@@ -1,9 +1,9 @@
 
-
 import pathlib
 
 import uproot
 import pandas
+import torch
 
 
 def open_tree(path, tree_name, verbose=True):
@@ -495,4 +495,18 @@ def load_aggregated_raw_signal_data_file(
     return df
 
 
+def save_file_torch_tensor(
+    tensor:torch.Tensor, 
+    path:str|pathlib.Path, 
+    verbose:bool=True,
+):
+    def print_done_status(shape, path):
+        print(
+            f"Generated tensor of shape: "
+            f"{shape}."
+            f"\nSaved as: {path}"
+        )
+    torch.save(tensor, path)    
+    if verbose:
+        print_done_status(tensor.shape, path)
 
