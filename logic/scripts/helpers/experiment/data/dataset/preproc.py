@@ -7,166 +7,11 @@ import torch
 import pandas
 import scipy
 
-from helpers.dsets.config import Config
-
-def _to_bins(ar):
-
-    """
-    Translate values in an array to bin numbers.
-
-    Each unique value in the array corresponds to
-    a unique bin number.
-
-    Parameters
-    ----------
-    ar : list | numpy.ndarray | pandas.Series
-
-    Returns
-    -------
-    bins : numpy.ndarray
-        Array of bin numbers.
-        A bin number is assigned for each
-        value in the original array.
-    bin_map : numpy.ndarray
-        Map between original values and
-        bin numbers.
-        Indices of this array correspond
-        to bin numbers.
-        Values of this array are original values.
-    """
-
-    ar = numpy.array(ar)
-    bin_map, inverse_indices = numpy.unique(
-        ar, 
-        return_inverse=True
-    )
-    bin_indices = numpy.arange(len(bin_map))
-    bins = bin_indices[inverse_indices]
-    return bins, bin_map
+from ...config.config import Config
 
 
-def convert_to_binned(df, label_name, binned_label_name):
-    """
-    Convert dataframe labels to binned labels.
-    """
-    bins, bin_values = _to_bins(df[label_name])
-    df[binned_label_name] = bins
-    df = df.drop(columns=label_name)
-    return df, bin_values
 
-
-def apply_balance_classes(
-    df: pandas.DataFrame, 
-    label_column_name: str
-):
-    
-    """
-    Reduce the number of events per unique label 
-    to the minimum over the labels.
-
-    Shuffles dataframe.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        The original dataframe.
-    label_column_name : str
-        The name of the column containing labels.
-
-    Returns
-    -------
-    df_balanced : pandas.DataFrame
-        The balanced dataframe. 
-        All data is copied.
-
-    """
-    df_shuffled = df.sample(frac=1)
-    group_by_label = df_shuffled.groupby(
-        label_column_name
-    )
-    num_events = [
-        len(df_label) 
-        for _, df_label in group_by_label
-    ]
-    min_num_events = min(num_events)
-    list_df_balanced = [
-        df_label[:min_num_events] 
-        for _, df_label in group_by_label
-    ]
-    df_balanced = pandas.concat(list_df_balanced)
-    return df_balanced
-
-
-def apply_drop_na(df, verbose=True):
-
-    """
-    Drop rows of a dataframe that contain a NaN.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        The original dataframe.
-
-    Returns
-    -------
-    df_out : pandas.DataFrame
-        A modified copy of the dataframe.
-    """
-
-    if verbose:
-        print("Number of NA values: ", df.isna().sum())
-    df_out = df.dropna()
-    if verbose:
-        print("Removed NA rows.")
-    return df_out
-
-
-def apply_q_squared_veto(df: pandas.DataFrame, strength:str):
-    
-    """
-    Apply a q^2 veto to a dataframe of B->K*ll events.
-
-    Parameters
-    ---------- 
-    df : pandas.DataFrame
-        The dataframe of events.
-    strength : str
-        The strength of the veto. ('tight' or 'loose') 
-        Tight keeps  1 < q^2 < 8.
-        Loose keeps 0 < q^2 < 20.
-
-    Returns
-    -------
-    df_vetoed : pandas.DataFrame
-        The reduced dataframe.
-        Returns a copy.
-    """
-
-    if strength not in ("tight", "loose"):
-        raise ValueError(
-            "strength must be 'tight' or 'loose'"
-        )
-
-    tight_bounds = (1, 8) 
-    loose_bounds = (0, 20)
-
-    bounds = (
-        tight_bounds if strength == "tight"
-        else loose_bounds if strength == "loose"
-        else None
-    )
-
-    lower_bound = bounds[0]
-    upper_bound = bounds[1]
-
-    df_vetoed = df[
-        (df["q_squared"]>lower_bound) 
-        & (df["q_squared"]<upper_bound)
-    ].copy()
-    return df_vetoed
-
-
-def _get_dataset_prescale(
+def get_dataset_prescale(
     kind:str, 
     level:str, 
     q_squared_veto:str, 
@@ -202,7 +47,6 @@ def _get_dataset_prescale(
     -------
     value : float
         The requested prescale value.
-
     """
 
     table_tight_q2_veto = {
@@ -285,6 +129,7 @@ def apply_standard_scale(df, level, q_squared_veto, columns):
     Outputs are given as:
     (original_value - mean) / standard_deviation
     """
+
     for column in columns:
         if column not in (
             "q_squared", 
@@ -299,14 +144,14 @@ def apply_standard_scale(df, level, q_squared_veto, columns):
         df[column] = ( 
             (
                 df[column] 
-                - _get_dataset_prescale(
+                - get_dataset_prescale(
                     "mean", 
                     level, 
                     q_squared_veto, 
                     column,
                 )
             ) 
-            / _get_dataset_prescale(
+            / get_dataset_prescale(
                 "std", 
                 level, 
                 q_squared_veto, 
@@ -316,12 +161,220 @@ def apply_standard_scale(df, level, q_squared_veto, columns):
     return df
 
 
+def apply_balance_classes(
+    df: pandas.DataFrame, 
+    label_column_name: str
+):
+    """
+    Reduce the number of events per unique label 
+    to the minimum over the labels.
+
+    Shuffles dataframe.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The original dataframe.
+    label_column_name : str
+        The name of the column containing labels.
+
+    Returns
+    -------
+    df_balanced : pandas.DataFrame
+        The balanced dataframe. 
+        All data is copied.
+    """
+
+    df_shuffled = df.sample(frac=1)
+    group_by_label = df_shuffled.groupby(
+        label_column_name
+    )
+    num_events = [
+        len(df_label) 
+        for _, df_label in group_by_label
+    ]
+    min_num_events = min(num_events)
+    list_df_balanced = [
+        df_label[:min_num_events] 
+        for _, df_label in group_by_label
+    ]
+    df_balanced = pandas.concat(list_df_balanced)
+    return df_balanced
+
+
+def apply_drop_na(df, verbose=True):
+    """
+    Drop rows of a dataframe that contain a NaN.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The original dataframe.
+
+    Returns
+    -------
+    df_out : pandas.DataFrame
+        A modified copy of the dataframe.
+    """
+
+    if verbose:
+        print("Number of NA values: ", df.isna().sum())
+    df_out = df.dropna()
+    if verbose:
+        print("Removed NA rows.")
+    return df_out
+
+
+def apply_q_squared_veto(df: pandas.DataFrame, strength:str):
+    """
+    Apply a q^2 veto to a dataframe of B->K*ll events.
+
+    Parameters
+    ---------- 
+    df : pandas.DataFrame
+        The dataframe of events.
+    strength : str
+        The strength of the veto. ('tight' or 'loose') 
+        Tight keeps  1 < q^2 < 8.
+        Loose keeps 0 < q^2 < 20.
+
+    Returns
+    -------
+    df_vetoed : pandas.DataFrame
+        The reduced dataframe.
+        Returns a copy.
+    """
+
+    if strength not in ("tight", "loose"):
+        raise ValueError(
+            "strength must be 'tight' or 'loose'"
+        )
+
+    tight_bounds = (1, 8) 
+    loose_bounds = (0, 20)
+
+    bounds = (
+        tight_bounds if strength == "tight"
+        else loose_bounds if strength == "loose"
+        else None
+    )
+
+    lower_bound = bounds[0]
+    upper_bound = bounds[1]
+
+    df_vetoed = df[
+        (df["q_squared"]>lower_bound) 
+        & (df["q_squared"]<upper_bound)
+    ].copy()
+    return df_vetoed
+
+
 def apply_label_subset(df, label_name, label_subset:list,):
     """
     Reduce a dataframe to data from specified labels.
     """
+
     df = df[df[label_name].isin(label_subset)]
     return df
+
+
+def apply_shuffle(df):
+    df = df.sample(frac=1)
+    print("Shuffled dataframe.")
+    return df
+
+
+def apply_common_cleaning(df, config:Config):
+    """
+    Apply cleaning common to all datasets.
+    Includes q^2 veto, standard scaling, 
+    balancing classes, label subset, 
+    dropping NA rows, and shuffling.
+    """
+
+    df = df.copy()
+
+    df = apply_q_squared_veto(
+        df, 
+        config.q_squared_veto,
+    )
+    if config.std_scale:
+        features_to_scale = (
+            config.feature_names if (
+                config.name != config.name_images_signal_dset
+            )
+            else ["q_squared"] if (
+                config.name == config.name_images_signal_dset
+            )
+            else None
+        )
+        df = apply_standard_scale(
+            df, 
+            config.level, 
+            config.q_squared_veto,
+            features_to_scale,
+        )
+    if config.balanced_classes:
+        df = apply_balance_classes(
+            df, 
+            config.label_name,
+        )
+    if config.label_subset:
+        df = apply_label_subset(
+            df,
+            config.label_name,
+            config.label_subset,
+        )
+    df = apply_drop_na(df)
+    if config.shuffle:
+        df = apply_shuffle
+    
+    return df
+
+
+def convert_to_binned(df, label_name, binned_label_name):
+    """
+    Convert dataframe labels to binned labels.
+    """
+
+    def to_bins(ar):
+        """
+        Translate values in an array to bin numbers.
+
+        Each unique value in the array corresponds to
+        a unique bin number.
+
+        Parameters
+        ----------
+        ar : list | numpy.ndarray | pandas.Series
+
+        Returns
+        -------
+        bins : numpy.ndarray
+            Array of bin numbers.
+            A bin number is assigned for each
+            value in the original array.
+        bin_map : numpy.ndarray
+            Map between original values and
+            bin numbers.
+            Indices of this array correspond
+            to bin numbers.
+            Values of this array are original values.
+        """
+
+        ar = numpy.array(ar)
+        bin_map, inverse_indices = numpy.unique(
+            ar, 
+            return_inverse=True
+        )
+        bin_indices = numpy.arange(len(bin_map))
+        bins = bin_indices[inverse_indices]
+        return bins, bin_map
+    
+    bins, bin_map = to_bins(df[label_name])
+    df[binned_label_name] = bins
+    df = df.drop(columns=label_name)
+    return df, bin_map
 
 
 def bootstrap_labeled_sets(
@@ -330,8 +383,7 @@ def bootstrap_labeled_sets(
     n:int, 
     m:int, 
     reduce_labels:bool=True, 
-):
-    
+):  
     """
     Bootstrap m sets of n examples for each unique label.
 
@@ -407,7 +459,6 @@ def bootstrap_labeled_sets(
 
 
 def make_image(ar_feat, n_bins):
-
     """
     Make an image of a B->K*ll dataset. 
     Like Shawn.
@@ -448,44 +499,3 @@ def make_image(ar_feat, n_bins):
     torch_image = torch_image.unsqueeze(0)
     return torch_image
 
-
-
-
-
-def apply_common_preprocessing(df, config:Config):
-    """
-    Apply preprocessing common to all datasets.
-    """
-    df = df.copy()
-
-    df = apply_q_squared_veto(
-        df, 
-        config.q_squared_veto,
-    )    
-    if config.std_scale:
-        features_to_scale = (
-            config.feature_names if config.name != "images"
-            else ["q_squared"] if config.name == "images"
-            else None
-        )
-        df = apply_standard_scale(
-            df, 
-            config.level, 
-            config.q_squared_veto,
-            features_to_scale,
-        )
-    if config.balanced_classes:
-        df = apply_balance_classes(
-            df, 
-            config.label_name,
-        )
-    if config.label_subset:
-        df = apply_label_subset(
-            df,
-            config.label_name,
-            config.label_subset,
-        )
-    if config.shuffle:
-        df = df.sample(frac=1)    
-    
-    return df
