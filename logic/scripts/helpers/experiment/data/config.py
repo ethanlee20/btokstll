@@ -8,6 +8,10 @@ import pathlib
 
 
 class Config:
+    """
+    Dataset configuration.
+    """
+
     def __init__(
         self,
         name:str,
@@ -16,16 +20,17 @@ class Config:
         balanced_classes:bool,
         std_scale:bool,
         split:str,
-        dir_path_dataset:str|pathlib.Path,
-        dir_path_raw_signal:str|pathlib.Path,
+        path_dir_datasets:str|pathlib.Path,
+        path_dir_raw_signal:str|pathlib.Path,
         shuffle:bool,
         label_subset:list=None, # original labels (not bin values)
         num_events_per_set:int=None,
         num_sets_per_label:int=None,
+        num_bins_image:int=None,
         extra_description:str=None,
     ):
         """
-        Dataset configuration.
+        Initialization.
         """
 
         self._define_constants()
@@ -45,19 +50,20 @@ class Config:
         self.balanced_classes = balanced_classes
         self.std_scale = std_scale
         self.split = split
-        self.dir_path_dataset = pathlib.Path(dir_path_dataset)
-        self.dir_path_raw_signal = pathlib.Path(dir_path_raw_signal)
+        self.path_dir_datasets = pathlib.Path(path_dir_datasets)
+        self.path_dir_raw_signal = pathlib.Path(path_dir_raw_signal)
         self.shuffle = shuffle
         self.label_subset = label_subset
         self.num_events_per_set = num_events_per_set
         self.num_sets_per_label = num_sets_per_label
+        self.num_bins_image = num_bins_image
         self.extra_description = extra_description
 
         self.path_sub_dir = self._make_path_sub_dir(
             name, 
             level, 
             q_squared_veto, 
-            dir_path_dataset,
+            path_dir_datasets,
         )
         self.path_features = self._make_path_file_tensor(
             "features", 
@@ -172,8 +178,8 @@ class Config:
         """
         Create the dataset's subdirectory path.
         """
-        file_name = f"{self.name}_{self.level}_q2v_{self.q_squared_veto}"
-        path = self.dir_path_dataset.joinpath(file_name)
+        sub_dir_name = f"{self.name}_{self.level}_q2v_{self.q_squared_veto}"
+        path = self.path_dir_datasets.joinpath(sub_dir_name)
         return path
 
     def _make_path_file_tensor(self):

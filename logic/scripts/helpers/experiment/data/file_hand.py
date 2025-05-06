@@ -312,8 +312,7 @@ def get_raw_signal_file_trial(path, verbose=True):
     return trial
 
 
-
-def make_aggregated_raw_signal_file_save_path(
+def make_agg_raw_signal_file_save_path(
     dir:str, 
     level:str, 
     trials:range
@@ -358,7 +357,7 @@ def make_aggregated_raw_signal_file_save_path(
     return path
 
 
-def aggregate_raw_signal_data_files(
+def agg_raw_signal_data_files(
     level:str, 
     trials:range, 
     columns:list[str], 
@@ -443,7 +442,7 @@ def aggregate_raw_signal_data_files(
         )
     
     if save_dir is not None:
-        save_path = make_aggregated_raw_signal_file_save_path(
+        save_path = make_agg_raw_signal_file_save_path(
             dir=save_dir,
             level=level,
             trials=trials,
@@ -455,7 +454,7 @@ def aggregate_raw_signal_data_files(
     return df
 
 
-def load_aggregated_raw_signal_data_file(
+def load_agg_raw_signal_data_file(
     dir:str|pathlib.Path, 
     level:str, 
     trials:range, 
@@ -484,7 +483,7 @@ def load_aggregated_raw_signal_data_file(
     df : pandas.DataFrame
         Dataframe of aggregated raw signal data.
     """
-    path = make_aggregated_raw_signal_file_save_path(
+    path = make_agg_raw_signal_file_save_path(
         dir=dir, 
         level=level, 
         trials=trials
@@ -509,4 +508,3 @@ def save_file_torch_tensor(
     torch.save(tensor, path)    
     if verbose:
         print_done_status(tensor.shape, path)
-

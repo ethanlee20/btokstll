@@ -8,12 +8,13 @@ from .preproc import (
     convert_to_binned, 
     apply_cleaning, 
     bootstrap_labeled_sets,
-    pandas_to_torch
+    pandas_to_torch,
+    make_image
 )
-from ..file_hand import (
-    load_aggregated_raw_signal_data_file, 
-    make_aggregated_raw_signal_file_save_path,
-    aggregate_raw_signal_data_files,
+from .file_hand import (
+    load_agg_raw_signal_data_file, 
+    make_agg_raw_signal_file_save_path,
+    agg_raw_signal_data_files,
     save_file_torch_tensor
 )
 
@@ -34,34 +35,50 @@ class Dataset_Generator:
         self._check_files_do_not_exist()
         self._load_agg_signal_data()
 
+
+    def generate(self):
+        config = self.config
+        if config.name == config.name_dset_binned_signal:
+            self._generate_binned_signal()
+        elif config.name == config.name_dset_sets_binned_signal:
+            self._generate_sets_binned_signal()
+        elif config.name == config.name_dset_sets_unbinned_signal:
+            self._generate_sets_unbinned_signal()
+        elif config.name == config.name_dset_images_signal:
+            self._generate_images_signal()
+        else:
+            raise ValueError(f"Name not recognized: {config.name}")
+
     def _load_agg_signal_data(self):
         """
         Load the aggregated raw signal data.
-        Generate the aggregated raw signal data file
-        if it doesn't already exist.
+        Generate the aggregated raw signal 
+        data file if it doesn't already exist.
         """
 
-        if not make_aggregated_raw_signal_file_save_path(
-            self.config.dir_path_dataset,
-            self.config.level,
-            self.config.trial_range_raw_signal,
+        config = self.config
+
+        if not make_agg_raw_signal_file_save_path(
+            config.path_dir_datasets,
+            config.level,
+            config.trial_range_raw_signal,
         ).is_file():
             print(
-                "Aggregated raw signal file not found, "
-                "generating..."
+                "Aggregated raw signal file "
+                "not found, generating..."
             )
-            aggregate_raw_signal_data_files(
-                self.config.level, 
-                self.config.trial_range_raw_signal, 
-                self.config.names_features,
-                self.config.dir_path_raw_signal,
-                self.config.dir_path_dataset,
+            agg_raw_signal_data_files(
+                config.level, 
+                config.trial_range_raw_signal, 
+                config.names_features,
+                config.path_dir_raw_signal,
+                config.path_dir_datasets,
             )
 
-        df_agg = load_aggregated_raw_signal_data_file(
-            self.save_dir,
-            self.level, 
-            self.raw_signal_trial_range, 
+        df_agg = load_agg_raw_signal_data_file(
+            config.path_dir_datasets,
+            config.level, 
+            config.trial_range_raw_signal, 
         )
 
         self.df_agg = apply_cleaning(
@@ -84,12 +101,15 @@ class Dataset_Generator:
                     f"File: {path} already exists. " 
                     "Delete the file to proceed."
                 ) 
+            
+        config = self.config
+
         [
             assert_file_does_not_exist(path)
             for path in [
-                self.config.path_features, 
-                self.config.path_labels,
-                self.config.path_bin_map,
+                config.path_features, 
+                config.path_labels,
+                config.path_bin_map,
             ]
         ]
 
@@ -188,7 +208,7 @@ class Dataset_Generator:
         source_labels = pandas_to_torch(
             df_agg[config.name_label_unbinned]
         )
-        
+
         features, labels = bootstrap_labeled_sets(
             source_features,
             source_labels,
@@ -206,9 +226,55 @@ class Dataset_Generator:
             config.path_labels
         )
 
+    def _generate_images_signal(self):
+        """
+        Generate files for the 
+        images signal dataset.
+        """
 
-    def generate_signal_images():
-        pass
+        config = self.config
+        df_agg = self.df_agg.copy()
+
+        features_source = pandas_to_torch(
+            df_agg[config.names_features]
+        )
+        labels_source = pandas_to_torch(
+            df_agg[config.name_label_unbinned]
+        )
+
+        features_sets_source, labels = (
+            bootstrap_labeled_sets(
+                features_source,
+                labels_source,
+                n=config.num_events_per_set,
+                m=config.num_sets_per_label,
+                reduce_labels=True,
+            )
+        )
+
+        features = torch.cat(
+            [
+                make_image(
+                    features_set,
+                    n_bins=config.num_bins_image
+                ).unsqueeze(dim=0)
+                for features_set 
+                in features_sets_source
+            ]
+        )
+
+        save_file_torch_tensor(
+            features, 
+            config.path_features
+        )
+        save_file_torch_tensor(
+            labels, 
+            config.path_labels
+        )
+
+
+
+
 
 
 

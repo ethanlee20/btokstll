@@ -482,7 +482,7 @@ def make_image(ar_feat, n_bins):
 
     Parameters
     ----------
-    ar_feat : array_like
+    ar_feat : torch.Tensor
         Array of features.
     n_bins : int
         Number of bins per dimension.
@@ -497,6 +497,7 @@ def make_image(ar_feat, n_bins):
         Empty bins set to 0.
     """
 
+    ar_feat = ar_feat.detach().numpy()
     angular_features = ar_feat[:,1:]
     q_squared_features = ar_feat[:,0]
     np_image = scipy.stats.binned_statistic_dd(
