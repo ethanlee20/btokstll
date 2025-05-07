@@ -5,83 +5,24 @@ import pickle
 import torch
 
 from .train import train_and_eval
-from ..data.dset.config import Dataset_Config
+        
+
+from.config import Model_Config
 
 
-class Model_Config:
+class Custom_Model(torch.nn.Module):
     """
-    Model configuration.
+    Custom model.
     """
 
     def __init__(
         self,
-        name,
-        path_dir_parent,
-        dset_config:Dataset_Config,
-        extra_description=None,
+        config:Model_Config,
     ):
-        """
-        Initialize.
-
-        path_dir_parent : str
-            Path to the parent directory.
-            Model will be saved in a sub-directory
-            of the parent directory.
-        """        
-
-        self.name = name
-        self.path_dir_parent = pathlib.Path(
-            path_dir_parent
-        )
-        self.dset_config = dset_config
-        self.extra_description = extra_description
-
-        self._load_constants()
-        self._check_inputs()
-        self._make_path_dir()
-
-    def _make_path_dir(self):
-        """
-        Make the path of the model's directory.
-        """
-
-        self.path_dir = pathlib.Path(
-            self.path_dir_parent
-        ).joinpath(
-            f"{self.name}_{self.extra_description}" 
-            if self.extra_description
-            else self.name
-        )
+        super().__init__()
+        self.config = config
     
-    def _load_constants(self):
-        """
-        Load constants.
-        """
-
-        self.name_model_deep_sets = "deep_sets"
-        self.name_model_cnn = "cnn"
-        self.name_model_ebe = "ebe"
-
-        self.names_models = (
-            self.name_model_deep_sets,
-            self.name_model_cnn,
-            self.name_model_ebe,
-        )
-    
-    def _check_inputs(self,):
-        """
-        Check that inputs make sense.
-        """
-        
-        if self.name not in self.names_models:
-            raise ValueError(
-                f"Name not recognized: {self.name}"
-            )
-        if not self.path_dir_parent.is_dir():
-            raise ValueError(
-                "Parent directory is not a directory."
-            )
-        
+    def make_fina
 
 
 
@@ -95,7 +36,6 @@ class Custom_Model(torch.nn.Module):
         config:Model_Config
     ):
 
-
         super().__init__()
 
         self.config = config
@@ -104,66 +44,14 @@ class Custom_Model(torch.nn.Module):
         
         self.loss_table = self.make_empty_loss_table()
         
-    def make_final_save_path(self):
-        file_name = "final.pt"
-        file_path = self.save_sub_dir.joinpath(file_name)
-        return file_path 
-    
-    def save_final(self):
-        file_path = self.make_final_save_path()
-        torch.save(self.state_dict(), file_path)
-
     def load_final(self):
         model_file_path = self.make_final_save_path()
         self.load_state_dict(torch.load(model_file_path, weights_only=True))
         self.loss_table = self.load_loss_table()
     
-    def make_checkpoint_save_path(self, epoch:int):
-        file_name = f"epoch_{epoch}.pt"
-        file_path = self.save_sub_dir.joinpath(file_name)
-        return file_path
-        
-    def save_checkpoint(self, epoch):
-        file_path = self.make_checkpoint_save_path(epoch)
-        torch.save(self.state_dict(), file_path)
-
     def load_checkpoint(self, epoch):
         file_path = self.make_checkpoint_save_path(epoch)
         self.load_state_dict(torch.load(file_path, weights_only=True))
-
-    def make_loss_table_file_path(self):
-        file_name = "loss_table.pkl"
-        file_path = self.save_sub_dir.joinpath(file_name)
-        return file_path
-    
-    def save_loss_table(self):
-        file_path = self.make_loss_table_file_path()
-        with open(file_path, "wb") as handle:
-            pickle.dump(self.loss_table, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    def load_loss_table(self):
-        file_path = self.make_loss_table_file_path()
-        with open(file_path, "rb") as handle:
-            loss_table = pickle.load(handle)
-        return loss_table
-    
-    def append_to_loss_table(self, epoch, train_loss, eval_loss):
-        self.loss_table["epoch"].append(epoch)
-        self.loss_table["train_loss"].append(train_loss)
-        self.loss_table["eval_loss"].append(eval_loss)
-        assert (
-            len(self.loss_table["epoch"]) 
-            == len(self.loss_table["train_loss"]) 
-            == len(self.loss_table["eval_loss"])
-        )
-
-    def make_empty_loss_table(self):
-        """Create an empty loss table."""
-        empty_loss_table = {"epoch":[], "train_loss":[], "eval_loss":[]}
-        return empty_loss_table
-    
-    def clear_loss_table(self):
-        self.loss_table = self.make_empty_loss_table()
 
     def retrain(
         self,
