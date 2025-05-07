@@ -1,5 +1,4 @@
 
-import pickle
 
 import torch
 
@@ -7,80 +6,165 @@ from .util import print_gpu_memory_info
 from .config import Model_Config
 from ..data.dset.dataset import Custom_Dataset
 from .models import Custom_Model
+from .loss_table import Loss_Table
 
 
 class Model_Trainer:
+    """
+    Trains a model.
+    """
+
     def __init__(
         self,
         model:Custom_Model, 
-        dset:Custom_Dataset,
+        dset_train:Custom_Dataset,
+        dset_eval:Custom_Dataset,
     ):
         self.model = model
-        self.dset = dset
+        self.dset_train = dset_train
+        self.dset_eval = dset_eval
+        self.loss_table = Loss_Table()
 
-    def save_final(self):
+    def train(self):
         """
-        Save final model.
+        Train model.
         """
+
+        device = self.model.config.device
+        size_batch_train = (
+            self.model.config.size_batch_train
+        )
+        size_batch_eval = (
+            self.model.config.size_batch_eval
+        )
+        loss_fn = self.model.config.loss_fn
+        optimizer = self.model.config.optimizer
+        lr_scheduler = self.model.config.lr_scheduler
+        num_epochs = self.model.config.num_epochs
+        num_epochs_checkpoint = (
+            self.model.config.num_epochs_checkpoint
+        )
+
+        train_dataloader = (
+            torch.utils.data.DataLoader(
+                self.dset_train, 
+                batch_size=size_batch_train, 
+                drop_last=True, 
+                shuffle=True
+            )
+        )
+        eval_dataloader = (
+            torch.utils.data.DataLoader(
+                self.dset_eval, 
+                batch_size=size_batch_eval, 
+                drop_last=True, 
+                shuffle=True
+            )
+        )
+
+        model = model.to(
+            self.model.config.device
+        )
+
+        for ep in range(num_epochs):
+
+            loss_train = _train_epoch(
+                train_dataloader, 
+                model, 
+                loss_fn, 
+                optimizer, 
+                device=device
+            ).item()
+            
+            loss_eval = _evaluate_epoch(
+                eval_dataloader, 
+                model, 
+                loss_fn, 
+                device=device, 
+                scheduler=lr_scheduler
+            ).item()
+            
+            self.loss_table.append(
+                ep, 
+                loss_train, 
+                loss_eval
+            )
+
+            _print_epoch_loss(
+                ep, 
+                loss_train, 
+                loss_eval
+            )
+            
+            if lr_scheduler:
+                _print_prev_learn_rate(
+                    lr_scheduler
+                )
+            
+            print_gpu_memory_info()
+
+            if (ep % num_epochs_checkpoint) == 0:
+                self._save_checkpoint(ep)
+
+        self._save_final()
+
+    def _save_final(self):
+        """
+        Save final.
+        """
+
+        path_file_model = (
+            self.model.config
+            .path_file_final
+        )
         
         torch.save(
             self.model.state_dict(), 
-            self.model.config.path_file_final
+            path_file_model,
         )
 
-    def save_checkpoint(self, epoch):
+        self._save_loss_table()
+
+        print("Saved final.")
+
+    def _save_checkpoint(self, epoch):
         """
-        Save checkpoint model.
+        Save checkpoint.
         """
 
-        path = (
-            self.config
+        path_file_model = (
+            self.model.config
             .make_path_file_checkpoint(
                 epoch
             )
         )
+
         torch.save(
-            self.model.config.state_dict(), 
+            self.model.state_dict(), 
+            path_file_model,
+        )
+
+        self._save_loss_table()
+
+        print("Saved checkpoint.")
+
+    def _save_loss_table(self):
+        """
+        Save the loss table to a file.
+
+        Overwrites file.
+        """
+
+        path = (
+            self.model.config
+            .path_file_loss_table
+        )
+
+        self.loss_table.save(
             path
         )
-    
 
-
-
-class Loss_Table:
-    def __init__(self):
-        self.epochs = []
-        self.losses_train = []
-        self.losses_eval = []
-
-    def append(
-        self, 
-        epoch, 
-        loss_train, 
-        loss_eval
-    ):
-        self.epochs.append(epoch)
-        self.losses_train.append(loss_train)
-        self.losses_eval.append(loss_eval)
-    
-    def save(self, path):
-        with open(path, "wb") as handle:
-            pickle.dump(
-                self, 
-                handle, 
-                protocol=pickle.HIGHEST_PROTOCOL
-            )
-
-    def load(self, path):
-        with open(path, "rb") as handle:
-            data = pickle.load(handle)
-            self.epochs = data.epochs
-            self.losses_train = data.losses_train
-            self.losses_eval = data.losses_eval
-            
-
-
-    
+        print("Saved loss table.")
 
 
 def _train_batch(
@@ -226,75 +310,9 @@ def _print_prev_learn_rate(scheduler):
     print(message)
 
 
-def train_and_eval(
-    model, 
-    train_dataset, 
-    eval_dataset,
-    loss_fn, 
-    optimizer, 
-    num_epochs, 
-    train_batch_size, 
-    eval_batch_size, 
-    loss_table:Loss_Table,
-    device,
-    scheduler=None,
-):
-    """
-    Train and evaluate a model.
-    """
 
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, 
-        batch_size=train_batch_size, 
-        drop_last=True, 
-        shuffle=True
-    )
 
-    eval_dataloader = torch.utils.data.DataLoader(
-        eval_dataset, 
-        batch_size=eval_batch_size, 
-        drop_last=True, 
-        shuffle=True
-    )
     
-    model = model.to(device)
-
-    for ep in range(num_epochs):
-
-        train_loss = _train_epoch(
-            train_dataloader, 
-            model, 
-            loss_fn, 
-            optimizer, 
-            device=device
-        ).item()
-        
-        eval_loss = _evaluate_epoch(
-            eval_dataloader, 
-            model, 
-            loss_fn, 
-            device=device, 
-            scheduler=scheduler
-        ).item()
-        
-        loss_table.append(
-            ep, 
-            train_loss, 
-            eval_loss
-        )
-        
-        _print_epoch_loss(
-            ep, 
-            train_loss, 
-            eval_loss
-        )
-        
-        if scheduler:
-            _print_prev_learn_rate(
-                scheduler
-            )
-        
-        print_gpu_memory_info()
 
 
         

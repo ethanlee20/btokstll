@@ -18,10 +18,16 @@ class Model_Config:
         loss_fn=None,
         optimizer=None,
         lr_scheduler=None,
+        size_batch_train=None,
+        size_batch_eval=None,
+        num_epochs=None,
+        num_epochs_checkpoint=None,
     ):
         """
         Initialize.
 
+        Parameters
+        ----------
         path_dir_models_main : str
             Path to the main models directory.
         dset_config : Dataset_Config
@@ -39,6 +45,10 @@ class Model_Config:
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
+        self.size_batch_train = size_batch_train
+        self.size_batch_eval = size_batch_eval
+        self.num_epochs = num_epochs
+        self.num_epochs_checkpoint = num_epochs_checkpoint
         self.device = select_device()
 
         self._load_constants()

@@ -1,11 +1,6 @@
 
-import pathlib
-import pickle
 
 import torch
-
-from .train import train_and_eval
-        
 
 from.config import Model_Config
 
@@ -22,7 +17,6 @@ class Custom_Model(torch.nn.Module):
         super().__init__()
         self.config = config
     
-    def make_fina
 
 
 
