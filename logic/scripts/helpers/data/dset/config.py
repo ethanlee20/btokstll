@@ -7,7 +7,7 @@ Configuration for datasets.
 import pathlib
 
 
-class Config:
+class Dataset_Config:
     """
     Dataset configuration.
     """
@@ -65,23 +65,15 @@ class Config:
             q_squared_veto, 
             path_dir_parent,
         )
+
         self.path_features = self._make_path_file_tensor(
             "features", 
-            extra_description, 
-            split, 
-            self.path_dir,
         )
         self.path_labels = self._make_path_file_tensor(
             "labels",
-            extra_description, 
-            split, 
-            self.path_dir,
         )            
         self.path_bin_map = self._make_path_file_tensor(
             "bin_map",       
-            extra_description, 
-            split, 
-            self.path_dir,
         )
 
         self.trial_range_raw_signal = (
@@ -178,11 +170,12 @@ class Config:
         """
         Create the dataset's subdirectory path.
         """
+
         name_dir = f"{self.name}_{self.level}_q2v_{self.q_squared_veto}"
         path = self.path_dir_parent.joinpath(name_dir)
         return path
 
-    def _make_path_file_tensor(self):
+    def _make_path_file_tensor(self, kind):
         """
         Make a filepath for a torch tensor file.
 
@@ -196,10 +189,11 @@ class Config:
         -------
         path : pathlib.Path
         """
+
         name_file = (
-            f"{self.extra_description}_{self.split}_{self.kind}.pt" 
+            f"{self.extra_description}_{self.split}_{kind}.pt" 
             if self.extra_description
-            else f"{self.split}_{self.kind}.pt"
+            else f"{self.split}_{kind}.pt"
         )
         path = self.path_dir.joinpath(name_file)
         return path
@@ -209,6 +203,7 @@ class Config:
         Obtain the raw signal trial range corresponding to
         the data split.
         """
+        
         if self.split not in self.names_dset_splits:
             raise ValueError(
                 f"Split must be in {self.names_dset_splits}"

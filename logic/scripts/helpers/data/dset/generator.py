@@ -3,7 +3,7 @@ import pathlib
 
 import torch 
 
-from .config import Config
+from .config import Dataset_Config
 from .preproc import (
     convert_to_binned, 
     apply_cleaning, 
@@ -25,7 +25,7 @@ class Dataset_Generator:
     """
     def __init__(
         self, 
-        config:Config,
+        config:Dataset_Config,
     ):
         """
         Initialize.

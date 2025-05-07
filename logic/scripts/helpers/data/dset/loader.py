@@ -1,5 +1,5 @@
 
-from .config import Config
+from .config import Dataset_Config
 from ..file_hand import load_file_torch_tensor
 
 
@@ -9,7 +9,7 @@ class Dataset_Loader:
     """
     def __init__(
         self, 
-        config:Config
+        config:Dataset_Config
     ):
         self.config = config
     

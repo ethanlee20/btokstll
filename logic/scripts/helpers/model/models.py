@@ -4,27 +4,103 @@ import pickle
 
 import torch
 
-from helpers.model.train import train_and_eval
+from .train import train_and_eval
+from ..data.dset.config import Dataset_Config
+
+
+class Model_Config:
+    """
+    Model configuration.
+    """
+
+    def __init__(
+        self,
+        name,
+        path_dir_parent,
+        dset_config:Dataset_Config,
+        extra_description=None,
+    ):
+        """
+        Initialize.
+
+        path_dir_parent : str
+            Path to the parent directory.
+            Model will be saved in a sub-directory
+            of the parent directory.
+        """        
+
+        self.name = name
+        self.path_dir_parent = pathlib.Path(
+            path_dir_parent
+        )
+        self.dset_config = dset_config
+        self.extra_description = extra_description
+
+        self._load_constants()
+        self._check_inputs()
+        self._make_path_dir()
+
+    def _make_path_dir(self):
+        """
+        Make the path of the model's directory.
+        """
+
+        self.path_dir = pathlib.Path(
+            self.path_dir_parent
+        ).joinpath(
+            f"{self.name}_{self.extra_description}" 
+            if self.extra_description
+            else self.name
+        )
+    
+    def _load_constants(self):
+        """
+        Load constants.
+        """
+
+        self.name_model_deep_sets = "deep_sets"
+        self.name_model_cnn = "cnn"
+        self.name_model_ebe = "ebe"
+
+        self.names_models = (
+            self.name_model_deep_sets,
+            self.name_model_cnn,
+            self.name_model_ebe,
+        )
+    
+    def _check_inputs(self,):
+        """
+        Check that inputs make sense.
+        """
+        
+        if self.name not in self.names_models:
+            raise ValueError(
+                f"Name not recognized: {self.name}"
+            )
+        if not self.path_dir_parent.is_dir():
+            raise ValueError(
+                "Parent directory is not a directory."
+            )
+        
+
 
 
 class Custom_Model(torch.nn.Module):
-    """Custom model."""
-    def __init__(self, kind, save_dir, extra_description=None):
-        """
-        save_dir : str
-            Directory where all models are saved.
-            Model will be saved in a subdirectory of
-            the save_dir directory.
-        """
+    """
+    Custom model.
+    """
+
+    def __init__(
+        self, 
+        config:Model_Config
+    ):
+
+
         super().__init__()
 
-        self.kind = kind
-        self.extra_description = extra_description
+        self.config = config
 
-        self.save_sub_dir = pathlib.Path(save_dir).joinpath(
-            f"{self.kind}_{self.extra_description}" if extra_description
-            else self.kind
-        )
+        self.save_sub_dir = 
         
         self.loss_table = self.make_empty_loss_table()
         

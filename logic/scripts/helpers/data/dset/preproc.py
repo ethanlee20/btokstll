@@ -9,7 +9,7 @@ import torch
 import pandas
 import scipy
 
-from .config import Config
+from .config import Dataset_Config
 
 
 def get_dataset_prescale(
@@ -292,7 +292,7 @@ def apply_shuffle(df, verbose=True):
     return df
 
 
-def apply_cleaning(df, config:Config, verbose=True):
+def apply_cleaning(df, config:Dataset_Config, verbose=True):
     """
     Apply cleaning to aggregated signal dataframe.
     Includes q^2 veto, standard scaling, 
