@@ -244,7 +244,7 @@ def open_data(path, verbose=True):
     return df
 
 
-def get_raw_signal_file_label(path, verbose=True):
+def get_label_file_raw_signal(path, verbose=True):
 
     """
     Get the label (delta C9 value) 
@@ -278,7 +278,7 @@ def get_raw_signal_file_label(path, verbose=True):
     return dc9
 
 
-def get_raw_signal_file_trial(path, verbose=True):
+def get_trial_file_raw_signal(path, verbose=True):
 
     """
     Get the trial number of a 
@@ -312,7 +312,7 @@ def get_raw_signal_file_trial(path, verbose=True):
     return trial
 
 
-def make_agg_raw_signal_file_save_path(
+def make_path_file_agg_raw_signal(
     dir:str, 
     level:str, 
     trials:range
@@ -357,7 +357,7 @@ def make_agg_raw_signal_file_save_path(
     return path
 
 
-def agg_raw_signal_data_files(
+def agg_data_raw_signal(
     level:str, 
     trials:range, 
     columns:list[str], 
@@ -412,7 +412,7 @@ def agg_raw_signal_data_files(
     
     selected_file_paths = [
         path for path in all_file_paths 
-        if get_raw_signal_file_trial(path, verbose=False) 
+        if get_trial_file_raw_signal(path, verbose=False) 
         in trials
     ]
     num_files = len(selected_file_paths)
@@ -425,7 +425,7 @@ def agg_raw_signal_data_files(
         dfs.append(_df)
     
     dc9_values = [
-        get_raw_signal_file_label(path, verbose=False) 
+        get_label_file_raw_signal(path, verbose=False) 
         for path in selected_file_paths
     ]
 
@@ -442,7 +442,7 @@ def agg_raw_signal_data_files(
         )
     
     if save_dir is not None:
-        save_path = make_agg_raw_signal_file_save_path(
+        save_path = make_path_file_agg_raw_signal(
             dir=save_dir,
             level=level,
             trials=trials,
@@ -454,7 +454,7 @@ def agg_raw_signal_data_files(
     return df
 
 
-def load_agg_raw_signal_data_file(
+def load_file_agg_raw_signal(
     dir:str|pathlib.Path, 
     level:str, 
     trials:range, 
@@ -483,7 +483,7 @@ def load_agg_raw_signal_data_file(
     df : pandas.DataFrame
         Dataframe of aggregated raw signal data.
     """
-    path = make_agg_raw_signal_file_save_path(
+    path = make_path_file_agg_raw_signal(
         dir=dir, 
         level=level, 
         trials=trials
@@ -499,12 +499,45 @@ def save_file_torch_tensor(
     path:str|pathlib.Path, 
     verbose:bool=True,
 ):
-    def print_done_status(shape, path):
+    """
+    Save a torch tensor to a file.
+    """
+
+    def print_done_message(tensor, path):
         print(
             f"Generated tensor of shape: "
-            f"{shape}."
+            f"{tensor.shape}."
             f"\nSaved as: {path}"
         )
+
     torch.save(tensor, path)    
     if verbose:
-        print_done_status(tensor.shape, path)
+        print_done_message(tensor, path)
+
+
+def load_file_torch_tensor(
+    path:str|pathlib.Path,
+    verbose:bool=True,  
+):
+    """
+    Load a torch tensor from a file.
+    """
+    
+    def check_file_exists(path):
+        if not path.is_file():
+            raise ValueError(
+                f"File doesn't exist: {path}"
+            )
+    
+    def print_done_message(tensor, path):
+        print(
+            "Loaded tensor of shape: "
+            f"{tensor.shape} "
+            f"from: {path}"
+        )
+    
+    check_file_exists(path)
+    tensor = torch.load(path, weights_only=True)
+    if verbose: 
+        print_done_message(tensor, path)
+    return tensor

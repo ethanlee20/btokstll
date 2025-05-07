@@ -20,7 +20,7 @@ class Config:
         balanced_classes:bool,
         std_scale:bool,
         split:str,
-        path_dir_datasets:str|pathlib.Path,
+        path_dir_parent:str|pathlib.Path,
         path_dir_raw_signal:str|pathlib.Path,
         shuffle:bool,
         label_subset:list=None, # original labels (not bin values)
@@ -50,7 +50,7 @@ class Config:
         self.balanced_classes = balanced_classes
         self.std_scale = std_scale
         self.split = split
-        self.path_dir_datasets = pathlib.Path(path_dir_datasets)
+        self.path_dir_parent = pathlib.Path(path_dir_parent)
         self.path_dir_raw_signal = pathlib.Path(path_dir_raw_signal)
         self.shuffle = shuffle
         self.label_subset = label_subset
@@ -59,29 +59,29 @@ class Config:
         self.num_bins_image = num_bins_image
         self.extra_description = extra_description
 
-        self.path_sub_dir = self._make_path_sub_dir(
+        self.path_dir = self._make_path_dir(
             name, 
             level, 
             q_squared_veto, 
-            path_dir_datasets,
+            path_dir_parent,
         )
         self.path_features = self._make_path_file_tensor(
             "features", 
             extra_description, 
             split, 
-            self.path_sub_dir,
+            self.path_dir,
         )
         self.path_labels = self._make_path_file_tensor(
             "labels",
             extra_description, 
             split, 
-            self.path_sub_dir,
+            self.path_dir,
         )            
         self.path_bin_map = self._make_path_file_tensor(
             "bin_map",       
             extra_description, 
             split, 
-            self.path_sub_dir,
+            self.path_dir,
         )
 
         self.trial_range_raw_signal = (
@@ -174,12 +174,12 @@ class Config:
         if shuffle not in (True, False):
             raise ValueError("Shuffle option not recognized.")
 
-    def _make_path_sub_dir(self):
+    def _make_path_dir(self):
         """
         Create the dataset's subdirectory path.
         """
-        sub_dir_name = f"{self.name}_{self.level}_q2v_{self.q_squared_veto}"
-        path = self.path_dir_datasets.joinpath(sub_dir_name)
+        name_dir = f"{self.name}_{self.level}_q2v_{self.q_squared_veto}"
+        path = self.path_dir_parent.joinpath(name_dir)
         return path
 
     def _make_path_file_tensor(self):
@@ -196,12 +196,12 @@ class Config:
         -------
         path : pathlib.Path
         """
-        file_name = (
+        name_file = (
             f"{self.extra_description}_{self.split}_{self.kind}.pt" 
             if self.extra_description
             else f"{self.split}_{self.kind}.pt"
         )
-        path = self.path_sub_dir.joinpath(file_name)
+        path = self.path_dir.joinpath(name_file)
         return path
 
     def _convert_split_to_trial_range_raw_signal(self):

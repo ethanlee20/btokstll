@@ -11,10 +11,10 @@ from .preproc import (
     pandas_to_torch,
     make_image
 )
-from .file_hand import (
-    load_agg_raw_signal_data_file, 
-    make_agg_raw_signal_file_save_path,
-    agg_raw_signal_data_files,
+from ..file_hand import (
+    load_file_agg_raw_signal, 
+    make_path_file_agg_raw_signal,
+    agg_data_raw_signal,
     save_file_torch_tensor
 )
 
@@ -34,9 +34,13 @@ class Dataset_Generator:
         self.config = config
         self._check_files_do_not_exist()
         self._load_agg_signal_data()
-
+        self._make_dir()
 
     def generate(self):
+        """
+        Generate dataset.
+        """
+        
         config = self.config
         if config.name == config.name_dset_binned_signal:
             self._generate_binned_signal()
@@ -48,70 +52,8 @@ class Dataset_Generator:
             self._generate_images_signal()
         else:
             raise ValueError(f"Name not recognized: {config.name}")
-
-    def _load_agg_signal_data(self):
-        """
-        Load the aggregated raw signal data.
-        Generate the aggregated raw signal 
-        data file if it doesn't already exist.
-        """
-
-        config = self.config
-
-        if not make_agg_raw_signal_file_save_path(
-            config.path_dir_datasets,
-            config.level,
-            config.trial_range_raw_signal,
-        ).is_file():
-            print(
-                "Aggregated raw signal file "
-                "not found, generating..."
-            )
-            agg_raw_signal_data_files(
-                config.level, 
-                config.trial_range_raw_signal, 
-                config.names_features,
-                config.path_dir_raw_signal,
-                config.path_dir_datasets,
-            )
-
-        df_agg = load_agg_raw_signal_data_file(
-            config.path_dir_datasets,
-            config.level, 
-            config.trial_range_raw_signal, 
-        )
-
-        self.df_agg = apply_cleaning(
-            df_agg, 
-            self.config,
-        )
-
-    def _check_files_do_not_exist(self):
-        """
-        Check labels, features, and bin map files
-        do not exist.
-        """
-
-        def assert_file_does_not_exist(
-            path:pathlib.Path|str
-        ):
-            path = pathlib.Path(path)
-            if path.is_file():
-                raise ValueError(
-                    f"File: {path} already exists. " 
-                    "Delete the file to proceed."
-                ) 
-            
-        config = self.config
-
-        [
-            assert_file_does_not_exist(path)
-            for path in [
-                config.path_features, 
-                config.path_labels,
-                config.path_bin_map,
-            ]
-        ]
+        
+        print(f"Generated dataset: {config.name}")
 
     def _generate_binned_signal(self):
         """
@@ -272,9 +214,74 @@ class Dataset_Generator:
             config.path_labels
         )
 
+    def _load_agg_signal_data(self):
+        """
+        Load the aggregated raw signal data.
+        Generate the aggregated raw signal 
+        data file if it doesn't already exist.
+        """
 
+        config = self.config
 
+        if not make_path_file_agg_raw_signal(
+            config.path_dir_parent,
+            config.level,
+            config.trial_range_raw_signal,
+        ).is_file():
+            print(
+                "Aggregated raw signal file "
+                "not found, generating..."
+            )
+            agg_data_raw_signal(
+                config.level, 
+                config.trial_range_raw_signal, 
+                config.names_features,
+                config.path_dir_raw_signal,
+                config.path_dir_parent,
+            )
 
+        df_agg = load_file_agg_raw_signal(
+            config.path_dir_parent,
+            config.level, 
+            config.trial_range_raw_signal, 
+        )
 
+        self.df_agg = apply_cleaning(
+            df_agg, 
+            self.config,
+        )
 
+    def _check_files_do_not_exist(self):
+        """
+        Check labels, features, and bin map files
+        do not exist.
+        """
+
+        def assert_file_does_not_exist(
+            path:pathlib.Path|str
+        ):
+            path = pathlib.Path(path)
+            if path.is_file():
+                raise ValueError(
+                    f"File: {path} already exists. " 
+                    "Delete the file to proceed."
+                ) 
+            
+        config = self.config
+
+        [
+            assert_file_does_not_exist(path)
+            for path in [
+                config.path_features, 
+                config.path_labels,
+                config.path_bin_map,
+            ]
+        ]
+
+    def _make_dir(self):
+        """
+        Make the dataset's directory.
+        """
+        config = self.config
+        config.path_dir.mkdir(exist_ok=True)
 
