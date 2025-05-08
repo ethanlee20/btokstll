@@ -1,52 +1,10 @@
 
-class Summary_Table:
-    def __init__(self):
-        self.table = self.make_empty()
 
-    def add_item(
-        self, 
-        level,
-        q_squared_veto:bool,
-        method_name, 
-        item_name, 
-        num_events_per_set, 
-        item,
-    ):
-        if type(item) is torch.Tensor:
-            item = item.item()
-        self.table.loc[
-            (level, q_squared_veto, method_name, num_events_per_set), 
-            item_name,
-        ] = item
-    
-    def reset_table(self):
-        self.table = self.make_empty()
-    
-    def make_empty(self):
-        index = pandas.MultiIndex.from_product(
-            [
-                ["gen", "det"],
-                [True, False],
-                [
-                    "Images", 
-                    "Deep Sets", 
-                    "Event by event"    
-                ],
-                [70_000, 24_000, 6_000],
-            ],
-            names=["Level", "q2_veto", "Method", "Events/set"]
-        )
-        table = pandas.DataFrame(
-            index=index, 
-            columns=[
-                "MSE",
-                "MAE", 
-                "Std. at NP", 
-                "Mean at NP", 
-                "Bias at NP"
-            ]
-        )
-        return table
+import pandas
+import torch
+
+
+
 
 
 def make_predictions(
@@ -130,3 +88,32 @@ def calculate_mse_mae(predictions, labels):
         mse = torch.nn.functional.mse_loss(predictions, labels)
         mae = torch.nn.functional.l1_loss(predictions, labels)
     return mse, mae
+
+
+def predict_log_probabilities(self, x):
+    """
+    Predict the log probability of each class, given a set of events.
+
+    x : A torch tensor of features of events. (a set)
+    """
+    with torch.no_grad():
+        event_logits = self.forward(x)
+        event_log_probabilities = torch.nn.functional.log_softmax(event_logits, dim=1)
+        set_logits = torch.sum(event_log_probabilities, dim=0)
+        set_log_probabilities = torch.nn.functional.log_softmax(set_logits, dim=0)
+    return set_log_probabilities
+
+def calculate_expected_value(self, x, bin_values):
+    """
+    Calculate the prediction expectation value, given a set of events.
+
+    x : A torch tensor of features of events. (a set)
+    """
+    with torch.no_grad():
+        bin_shift = 5
+        bin_values = bin_values + bin_shift
+        log_bin_values = torch.log(bin_values)
+        log_probs = self.predict_log_probabilities(x)
+        lse = torch.logsumexp(log_bin_values + log_probs, dim=0)
+        yhat = torch.exp(lse) - bin_shift
+    return yhat

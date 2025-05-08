@@ -5,7 +5,7 @@ import torch
 from .util import print_gpu_memory_info
 from .config import Model_Config
 from ..data.dset.dataset import Custom_Dataset
-from .models import Custom_Model
+from .model import Custom_Model
 from .loss_table import Loss_Table
 
 
@@ -24,6 +24,9 @@ class Model_Trainer:
         self.dset_train = dset_train
         self.dset_eval = dset_eval
         self.loss_table = Loss_Table()
+
+        self._make_dir_model()
+
 
     def train(self):
         """
@@ -165,6 +168,23 @@ class Model_Trainer:
         )
 
         print("Saved loss table.")
+
+    def _make_dir_model(self): 
+
+        def check_dir_model_not_exist(path):
+            
+            if path.is_dir():
+                raise ValueError(
+                    "Model directory already exists. "
+                    "Delete directory to retrain."
+                )
+            
+        path = self.model.config.path_dir    
+        check_dir_model_not_exist(path)
+        path.mkdir(
+            parents=True, 
+            exist_ok=False,
+        )
 
 
 def _train_batch(
