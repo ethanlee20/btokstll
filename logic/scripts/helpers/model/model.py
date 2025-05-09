@@ -2,7 +2,7 @@
 
 import torch
 
-from.config import Model_Config
+from.config import Config_Model
 
 
 class Custom_Model(torch.nn.Module):
@@ -12,7 +12,7 @@ class Custom_Model(torch.nn.Module):
 
     def __init__(
         self,
-        config:Model_Config,
+        config:Config_Model,
     ):
         super().__init__()
         self.config = config

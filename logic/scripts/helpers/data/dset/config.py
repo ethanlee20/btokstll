@@ -6,8 +6,17 @@ Configuration for datasets.
 
 import pathlib
 
+from .constants import (
+    Names_Datasets,
+    Names_Levels,
+    Names_q_Squared_Vetos,
+    Names_Splits,
+    Trials_Splits,
+    Names_Kind_File_Tensor
+)
 
-class Dataset_Config:
+
+class Config_Dataset:
     """
     Dataset configuration.
     """
@@ -20,7 +29,7 @@ class Dataset_Config:
         balanced_classes:bool,
         std_scale:bool,
         split:str,
-        path_dir_parent:str|pathlib.Path,
+        path_dir_dsets_main:str|pathlib.Path,
         path_dir_raw_signal:str|pathlib.Path,
         shuffle:bool,
         label_subset:list=None, # original labels (not bin values)
@@ -33,147 +42,73 @@ class Dataset_Config:
         Initialization.
         """
 
-        self._define_constants()
-        self._check_inputs(
-            name,
-            level,
-            q_squared_veto,
-            balanced_classes,
-            std_scale,
-            split,
-            shuffle,
-        )
-        
         self.name = name
         self.level = level
         self.q_squared_veto = q_squared_veto
         self.balanced_classes = balanced_classes
         self.std_scale = std_scale
         self.split = split
-        self.path_dir_parent = pathlib.Path(path_dir_parent)
-        self.path_dir_raw_signal = pathlib.Path(path_dir_raw_signal)
+        self.path_dir_dsets_main = pathlib.Path(
+            path_dir_dsets_main
+        )
+        self.path_dir_raw_signal = pathlib.Path(
+            path_dir_raw_signal
+        )
         self.shuffle = shuffle
         self.label_subset = label_subset
         self.num_events_per_set = num_events_per_set
         self.num_sets_per_label = num_sets_per_label
         self.num_bins_image = num_bins_image
         self.extra_description = extra_description
-
-        self.path_dir = self._make_path_dir(
-            name, 
-            level, 
-            q_squared_veto, 
-            path_dir_parent,
-        )
-
-        self.path_features = self._make_path_file_tensor(
-            "features", 
-        )
-        self.path_labels = self._make_path_file_tensor(
-            "labels",
-        )            
-        self.path_bin_map = self._make_path_file_tensor(
-            "bin_map",       
-        )
-
-        self.trial_range_raw_signal = (
-            self._convert_split_to_trial_range_raw_signal(split)
-        )
-
-    def _define_constants(self):
-
-        self.name_dset_images_signal = "images_signal"
-        self.name_dset_binned_signal = "binned_signal"
-        self.name_dset_sets_binned_signal = "sets_binned_signal"
-        self.name_dset_sets_unbinned_signal = "sets_unbinned_signal"
-
-        self.names_datasets = [
-            self.name_dset_images_signal,
-            self.name_dset_binned_signal,
-            self.name_dset_sets_binned_signal,
-            self.name_dset_sets_unbinned_signal,
-        ]
-
-        self.name_level_generator = "gen"
-        self.name_level_detector = "det"
-
-        self.names_levels = (
-            self.name_level_generator, 
-            self.name_level_detector
-        )
-
-        self.name_q_squared_veto_tight = "tight"
-        self.name_q_squared_veto_loose = "loose"
-        
-        self.names_q_squared_vetos = (
-            self.name_q_squared_veto_tight, 
-            self.name_q_squared_veto_loose
-        )
-
-        self.name_var_q_squared = "q_squared"
-        self.name_var_cos_theta_mu = "costheta_mu"
-        self.name_var_cos_k = "costheta_K"
-        self.name_var_chi = "chi"
-
-        self.names_features = (
-            self.name_var_q_squared,
-            self.name_var_cos_theta_mu,
-            self.name_var_cos_k,
-            self.name_var_chi,
-        )
-
-        self.name_label_unbinned = "dc9"
-        self.name_label_binned = "dc9_bin_index"
-
-        self.names_labels = (
-            self.name_label_unbinned,
-            self.name_label_binned,
-        )
                 
-        self.name_split_train = "train"
-        self.name_split_eval = "eval"
+        self._check_inputs()
+        self._set_range_trials_raw_signal()
+        self._set_path_dir()
+        self._set_paths_files()
 
-        self.names_dset_splits = (
-            self.name_split_train,
-            self.name_split_eval,
-        )
+    def _check_inputs(self):
 
-        self.trials_split_train = range(1,21)
-        self.trials_split_eval = range(21,41)
+        names_dsets = Names_Datasets()
+        names_levels = Names_Levels()
+        names_q2_vetos = Names_q_Squared_Vetos()
+        names_splits = Names_Splits()
 
-    def _check_inputs(
-        self,
-        name, 
-        level, 
-        q_squared_veto, 
-        balanced_classes, 
-        std_scale, 
-        split, 
-        shuffle,
-    ):
-        if name not in self.names_datasets:
-            raise ValueError(f"Name not recognized: {name}")
-        if level not in self.names_levels:
-            raise ValueError(f"Level not recognized: {level}")
-        if q_squared_veto not in self.names_q_squared_vetos:
-            raise ValueError(f"q^2 veto not recognized: {q_squared_veto}")
-        if balanced_classes not in (True, False):
-            raise ValueError("Balanced classes option not recognized.")
-        if std_scale not in (True, False):
-            raise ValueError("Standard scale option not recognized.")
-        if split not in self.names_dset_splits:
-            raise ValueError(f"Split not recognized: {split}")
-        if shuffle not in (True, False):
-            raise ValueError("Shuffle option not recognized.")
+        if self.name not in names_dsets.tuple_:
+            raise ValueError(
+                f"Name not recognized: {self.name}"
+            )
+        if self.level not in names_levels.tuple_:
+            raise ValueError(
+                f"Level not recognized: {self.level}"
+            )
+        if self.q_squared_veto not in names_q2_vetos.tuple_:
+            raise ValueError(
+                f"q^2 veto not recognized: {self.q_squared_veto}"
+            )
+        if self.balanced_classes not in (True, False):
+            raise ValueError(
+                "Balanced classes option not recognized."
+            )
+        if self.std_scale not in (True, False):
+            raise ValueError(
+                "Standard scale option not recognized."
+            )
+        if self.split not in names_splits.tuple_:
+            raise ValueError(
+                f"Split not recognized: {self.split}"
+            )
+        if self.shuffle not in (True, False):
+            raise ValueError(
+                "Shuffle option not recognized."
+            )
 
-    def _make_path_dir(self):
+    def _set_path_dir(self):
         """
         Create the dataset's subdirectory path.
         """
 
         name_dir = f"{self.name}_{self.level}_q2v_{self.q_squared_veto}"
-        path = self.path_dir_parent.joinpath(name_dir)
-        return path
+        self.path_dir = self.path_dir_dsets_main.joinpath(name_dir)
 
     def _make_path_file_tensor(self, kind):
         """
@@ -189,32 +124,66 @@ class Dataset_Config:
         -------
         path : pathlib.Path
         """
+        
+        names_kinds = Names_Kind_File_Tensor()
 
-        name_file = (
-            f"{self.extra_description}_{self.split}_{kind}.pt" 
-            if self.extra_description
-            else f"{self.split}_{kind}.pt"
-        )
+        if kind not in names_kinds.tuple_:
+            raise ValueError(
+                "Kind not recognized. "
+                f"Must be in {names_kinds.tuple_}"
+            )
+
+        name_file = f"{self.split}_{kind}.pt"
+        
+        if self.num_events_per_set:
+            name_file = (
+                f"{self.num_events_per_set}_" 
+                + name_file
+            )
+
+        if self.extra_description:
+            name_file = (
+                f"{self.extra_description}_"
+                + name_file
+            )
+
         path = self.path_dir.joinpath(name_file)
         return path
 
-    def _convert_split_to_trial_range_raw_signal(self):
+    def _set_paths_files(self):
+
+        names_kinds = Names_Kind_File_Tensor()
+        
+        self.path_file_features = self._make_path_file_tensor(
+            names_kinds.features, 
+        )
+        self.path_file_labels = self._make_path_file_tensor(
+            names_kinds.labels,
+        )            
+        self.path_file_bin_map = self._make_path_file_tensor(
+            names_kinds.bin_map,       
+        )
+
+    def _set_range_trials_raw_signal(self):
         """
         Obtain the raw signal trial range corresponding to
         the data split.
         """
+
+        names_splits = Names_Splits()
+        trials_splits = Trials_Splits()
         
-        if self.split not in self.names_dset_splits:
+        if self.split not in names_splits.tuple_:
             raise ValueError(
-                f"Split must be in {self.names_dset_splits}"
+                f"Split must be in {names_splits.tuple_}"
             )
-        trial_range = (
-            self.trials_split_train if (
-                self.split==self.name_split_train
+        
+        self.range_trials_raw_signal = (
+            trials_splits.train if (
+                self.split==names_splits.train
             )
-            else self.trials_split_eval if (
-                self.split==self.name_split_eval
+            else trials_splits.eval_ if (
+                self.split==names_splits.eval_
             )
             else None
         )
-        return trial_range

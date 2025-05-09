@@ -1,5 +1,5 @@
 
-from .config import Dataset_Config
+from .config import Config_Dataset
 from ..file_hand import load_file_torch_tensor
 
 
@@ -9,7 +9,7 @@ class Dataset_Loader:
     """
     def __init__(
         self, 
-        config:Dataset_Config
+        config:Config_Dataset
     ):
         self.config = config
     
@@ -35,24 +35,24 @@ class Dataset_Loader:
 
     def _load_binned_signal(self):
         config = self.config
-        self.features = load_file_torch_tensor(config.path_features)
-        self.labels = load_file_torch_tensor(config.path_labels)
-        self.bin_map = load_file_torch_tensor(config.path_bin_map)
+        self.features = load_file_torch_tensor(config.path_file_features)
+        self.labels = load_file_torch_tensor(config.path_file_labels)
+        self.bin_map = load_file_torch_tensor(config.path_file_bin_map)
 
     def _load_sets_binned_signal(self):
         config = self.config
-        self.features = load_file_torch_tensor(config.path_features)
-        self.labels = load_file_torch_tensor(config.path_labels)
-        self.bin_map = load_file_torch_tensor(config.path_bin_map)
+        self.features = load_file_torch_tensor(config.path_file_features)
+        self.labels = load_file_torch_tensor(config.path_file_labels)
+        self.bin_map = load_file_torch_tensor(config.path_file_bin_map)
 
     def _load_sets_unbinned_signal(self):
         config = self.config
-        self.features = load_file_torch_tensor(config.path_features)
-        self.labels = load_file_torch_tensor(config.path_labels)
+        self.features = load_file_torch_tensor(config.path_file_features)
+        self.labels = load_file_torch_tensor(config.path_file_labels)
         self.bin_map = None
 
     def _load_images_signal(self):
         config = self.config
-        self.features = load_file_torch_tensor(config.path_features)
-        self.labels = load_file_torch_tensor(config.path_labels)
+        self.features = load_file_torch_tensor(config.path_file_features)
+        self.labels = load_file_torch_tensor(config.path_file_labels)
         self.bin_map = None

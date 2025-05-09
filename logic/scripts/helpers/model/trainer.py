@@ -3,7 +3,7 @@
 import torch
 
 from .util import print_gpu_memory_info
-from .config import Model_Config
+from .config import Config_Model
 from ..data.dset.dataset import Custom_Dataset
 from .model import Custom_Model
 from .loss_table import Loss_Table
@@ -40,9 +40,9 @@ class Model_Trainer:
         size_batch_eval = (
             self.model.config.size_batch_eval
         )
-        loss_fn = self.model.config.loss_fn
+        loss_fn = self.model.config.fn_loss
         optimizer = self.model.config.optimizer
-        lr_scheduler = self.model.config.lr_scheduler
+        lr_scheduler = self.model.config.scheduler_lr
         num_epochs = self.model.config.num_epochs
         num_epochs_checkpoint = (
             self.model.config.num_epochs_checkpoint

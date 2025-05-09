@@ -1,11 +1,12 @@
 
 import pathlib
 
-from.util import select_device
-from ..data.dset.config import Dataset_Config
+from .util import select_device
+from .constants import Names_Models
+from ..data.dset.config import Config_Dataset
 
 
-class Model_Config:
+class Config_Model:
     """
     Model configuration.
     """
@@ -14,7 +15,7 @@ class Model_Config:
         self,
         name,
         path_dir_models_main,
-        dset_config:Dataset_Config,
+        config_dset:Config_Dataset,
         loss_fn=None,
         optimizer=None,
         lr_scheduler=None,
@@ -41,21 +42,20 @@ class Model_Config:
                 path_dir_models_main
             )
         )
-        self.dset_config = dset_config
-        self.loss_fn = loss_fn
+        self.config_dset = config_dset
+        self.fn_loss = loss_fn
         self.optimizer = optimizer
-        self.lr_scheduler = lr_scheduler
+        self.scheduler_lr = lr_scheduler
         self.size_batch_train = size_batch_train
         self.size_batch_eval = size_batch_eval
         self.num_epochs = num_epochs
         self.num_epochs_checkpoint = num_epochs_checkpoint
         self.device = select_device()
 
-        self._load_constants()
         self._check_inputs()
-        self._make_path_dir()
-        self._make_path_file_final()
-        self._make_path_file_loss_table()
+        self._set_path_dir()
+        self._set_path_file_final()
+        self._set_path_file_loss_table()
 
     def make_path_file_checkpoint(self, epoch:int):
         """
@@ -66,7 +66,7 @@ class Model_Config:
         path = self.path_dir.joinpath(name)
         return path
 
-    def _make_path_file_final(self):
+    def _set_path_file_final(self):
         """
         Make the path of the final model file.
         """
@@ -78,7 +78,7 @@ class Model_Config:
             )
         )
 
-    def _make_path_file_loss_table(self):
+    def _set_path_file_loss_table(self):
         """
         Make the path of the loss table.
         """
@@ -90,7 +90,7 @@ class Model_Config:
             )
         )
 
-    def _make_path_dir(self):
+    def _set_path_dir(self):
         """
         Make the path of the model's directory.
         """
@@ -102,9 +102,9 @@ class Model_Config:
         )
 
         name_dir = (
-            f"{self.dset_config.num_events_per_set}_"
-            f"{self.dset_config.level}_"
-            f"q2v_{self.dset_config.q_squared_veto}"
+            f"{self.config_dset.num_events_per_set}_"
+            f"{self.config_dset.level}_"
+            f"q2v_{self.config_dset.q_squared_veto}"
         )
 
         self.path_dir = (
@@ -113,27 +113,16 @@ class Model_Config:
             )
         )
     
-    def _load_constants(self):
-        """
-        Load constants.
-        """
-
-        self.name_model_deep_sets = "deep_sets"
-        self.name_model_cnn = "cnn"
-        self.name_model_ebe = "ebe"
-
-        self.names_models = (
-            self.name_model_deep_sets,
-            self.name_model_cnn,
-            self.name_model_ebe,
-        )
-    
     def _check_inputs(self,):
         """
         Check that inputs make sense.
         """
-        
-        if self.name not in self.names_models:
+
+        names_models = Names_Models()
+
+        if self.name not in (
+            names_models.tuple_
+        ):
             raise ValueError(
                 f"Name not recognized: {self.name}"
             )
@@ -143,3 +132,6 @@ class Model_Config:
                 "Main models directory "
                 "is not a directory."
             )
+
+
+

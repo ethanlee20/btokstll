@@ -1,7 +1,7 @@
 
 import torch
 
-from .config import Dataset_Config
+from .config import Config_Dataset
 from .generator import Dataset_Generator
 from .loader import Dataset_Loader
 
@@ -13,7 +13,7 @@ class Custom_Dataset(torch.utils.data.Dataset):
     
     def __init__(
         self, 
-        config:Dataset_Config,
+        config:Config_Dataset,
     ):
         """
         Initialize.

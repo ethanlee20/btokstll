@@ -3,9 +3,47 @@
 import pandas
 import torch
 
+from .model import Custom_Model
+from ..data.dset.dataset import Custom_Dataset
+from .constants import Names_Models
 
 
+# fix device stuff
 
+class Evaluator:
+
+    def __init__(
+        self,
+        model:Custom_Model,
+        dataset:Custom_Dataset,
+    ):
+
+        self.model = model
+        self.dataset = dataset
+        self.device = model.config.device
+
+    def predict(self, x):
+
+        with torch.no_grad():
+
+            preds = []
+            
+            for x_ in x:
+                
+                if (
+                    self.model.config.name 
+                    == Names_Models().ebe
+                ):
+                    log_probs = predict_log_probs_ebe(
+                        self.model, 
+                        x_
+                    )
+                    pred = calculate_expected_value_ebe(
+                        log_probs, 
+                        self.dataset.bin_map,
+                    )
+
+        
 
 def make_predictions(
     model, 
@@ -90,30 +128,69 @@ def calculate_mse_mae(predictions, labels):
     return mse, mae
 
 
-def predict_log_probabilities(self, x):
+def predict_log_probs_ebe(model_ebe, x):
     """
-    Predict the log probability of each class, given a set of events.
+    Predict the log probability 
+    of each class, given a set of events.
 
-    x : A torch tensor of features of events. (a set)
+    x : torch.Tensor 
+        Features of events. (a set)
     """
+
     with torch.no_grad():
-        event_logits = self.forward(x)
-        event_log_probabilities = torch.nn.functional.log_softmax(event_logits, dim=1)
-        set_logits = torch.sum(event_log_probabilities, dim=0)
-        set_log_probabilities = torch.nn.functional.log_softmax(set_logits, dim=0)
-    return set_log_probabilities
+        
+        event_logits = model_ebe.forward(x)
+       
+        event_log_probs = (
+            torch.nn.functional
+            .log_softmax(
+                event_logits, 
+                dim=1,
+            )
+        )
 
-def calculate_expected_value(self, x, bin_values):
-    """
-    Calculate the prediction expectation value, given a set of events.
+        set_logits = torch.sum(
+            event_log_probs, 
+            dim=0,
+        )
+        
+        set_log_probs = (
+            torch.nn.functional
+            .log_softmax(
+                set_logits, 
+                dim=0
+            )
+        )
 
-    x : A torch tensor of features of events. (a set)
+    return set_log_probs
+
+
+def calculate_expected_value_ebe(
+    log_probs,
+    bin_map
+):
     """
+    Calculate the prediction expectation 
+    value, given log probabilities.
+
+    log_probs : torch.Tensor 
+        Log probabilities.
+        Output of predict_log_proba_ebe.
+    """
+
     with torch.no_grad():
+    
         bin_shift = 5
-        bin_values = bin_values + bin_shift
-        log_bin_values = torch.log(bin_values)
-        log_probs = self.predict_log_probabilities(x)
-        lse = torch.logsumexp(log_bin_values + log_probs, dim=0)
+    
+        bin_map = bin_map + bin_shift
+    
+        log_bin_map = torch.log(bin_map)
+    
+        lse = torch.logsumexp(
+            log_bin_map + log_probs, 
+            dim=0
+        )
+    
         yhat = torch.exp(lse) - bin_shift
+    
     return yhat
