@@ -16,11 +16,54 @@ class Evaluator:
         self,
         model:Custom_Model,
         dataset:Custom_Dataset,
+        device:str,
     ):
 
         self.model = model
         self.dataset = dataset
-        self.device = model.config.device
+        self.device = device
+
+        self._send_model_to_device()
+
+        if (
+            model.config.name 
+            == Names_Models().ebe
+        ):
+            self._send_bin_map_to_device()
+
+    def run_test_lin(self, preds):
+
+        with torch.no_grad():
+
+            preds, labels = self._sort(
+                preds
+            )
+
+            preds = preds.reshape(
+                -1,
+                self.dataset
+                .config
+                .num_sets_per_label
+            )
+
+            labels_unique = torch.unique(
+                labels
+            )
+
+            avgs = preds.mean(dim=1)
+            stds = preds.std(dim=1)
+
+            return labels_unique, avgs, stds
+
+    def _sort(self, preds):
+
+        labels_sorted, ind_sorted = torch.sort(
+            self.dataset.labels
+        )
+
+        preds_sorted = preds[ind_sorted]
+
+        return preds_sorted, labels_sorted
 
     def predict(self, x):
 
@@ -29,20 +72,56 @@ class Evaluator:
             preds = []
             
             for x_ in x:
+
+                x_ = x_.to(self.device)
                 
                 if (
                     self.model.config.name 
                     == Names_Models().ebe
                 ):
-                    log_probs = predict_log_probs_ebe(
-                        self.model, 
-                        x_
-                    )
-                    pred = calculate_expected_value_ebe(
-                        log_probs, 
-                        self.dataset.bin_map,
-                    )
 
+                    pred = self._predict_ebe(x_)
+                
+                else:
+                    pred = self.model(
+                        x_
+                        .unsqueeze(0)
+                    )
+                
+                preds.append(pred)
+            
+            preds = torch.tensor(preds)
+
+        return preds
+    
+    def _predict_ebe(self, x):
+
+        log_probs = predict_log_probs_ebe(
+            self.model, 
+            x
+        )
+        pred = calculate_expected_value_ebe(
+            log_probs, 
+            self.dataset.bin_map,
+        )
+
+        return pred
+
+    def _send_model_to_device(self):
+
+        self.model = self.model.to(
+            self.device
+        )
+
+    def _send_bin_map_to_device(self):
+
+        self.dataset.bin_map = (
+            self.dataset
+            .bin_map
+            .to(
+                self.device
+            )
+        )
         
 
 def make_predictions(

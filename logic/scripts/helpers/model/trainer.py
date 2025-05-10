@@ -19,21 +19,21 @@ class Model_Trainer:
         model:Custom_Model, 
         dset_train:Custom_Dataset,
         dset_eval:Custom_Dataset,
+        device:str,
     ):
         self.model = model
         self.dset_train = dset_train
         self.dset_eval = dset_eval
+        self.device = device
+
         self.loss_table = Loss_Table()
-
         self._make_dir_model()
-
 
     def train(self):
         """
         Train model.
         """
 
-        device = self.model.config.device
         size_batch_train = (
             self.model.config.size_batch_train
         )
@@ -66,7 +66,7 @@ class Model_Trainer:
         )
 
         model = model.to(
-            self.model.config.device
+            self.device
         )
 
         for ep in range(num_epochs):
@@ -76,14 +76,14 @@ class Model_Trainer:
                 model, 
                 loss_fn, 
                 optimizer, 
-                device=device
+                device=self.device
             ).item()
             
             loss_eval = _evaluate_epoch(
                 eval_dataloader, 
                 model, 
                 loss_fn, 
-                device=device, 
+                device=self.device, 
                 scheduler=lr_scheduler
             ).item()
             

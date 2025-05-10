@@ -50,7 +50,6 @@ class Config_Model:
         self.size_batch_eval = size_batch_eval
         self.num_epochs = num_epochs
         self.num_epochs_checkpoint = num_epochs_checkpoint
-        self.device = select_device()
 
         self._check_inputs()
         self._set_path_dir()

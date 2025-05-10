@@ -2,7 +2,9 @@
 
 import torch
 
-from.config import Config_Model
+from .config import Config_Model
+
+from .constants import Names_Models
 
 
 class Custom_Model(torch.nn.Module):
@@ -17,20 +19,16 @@ class Custom_Model(torch.nn.Module):
         super().__init__()
         self.config = config
 
-        name_model = self.config.name
-        name_deep_sets = self.config.name_model_deep_sets
-        name_cnn = self.config.name_model_cnn
-        name_ebe = self.config.name_model_ebe
-
-        if name_model == name_deep_sets:
+        if self.config.name == Names_Models().deep_sets:
             self.model = Model_Deep_Sets()
-        elif name_model == name_cnn:
+        elif self.config.name == Names_Models().cnn:
             self.model = Model_CNN()
-        elif name_model == name_ebe:
+        elif self.config.name == Names_Models().ebe:
             self.model = Model_EBE()
         else:
             raise ValueError(
-                f"Name not recognized: {name_model}"
+                f"Name not recognized: "
+                f"{self.config.name}"
             )
         
         self.double()
