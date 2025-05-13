@@ -11,33 +11,257 @@ import matplotlib.pyplot as plt
 
 from ..model.config import Config_Model
 from ..model.loss_table import Loss_Table
+from ..data.dset.constants import Names_Datasets
 from .util import make_plot_note
 
 
+class Plotter:
+    
+    def __init__(
+        self,
+        path_dir,
+        config_model=None,
+        config_dset=None,
+    ):
 
-def plot_image_slices(
+        """
+        Specify config_model xor config_dset.
+        """
+ 
+        if (
+            (config_dset is not None) 
+            and (config_model is not None)
+        ):
+            
+            raise ValueError(
+                "Specify config_dset xor config_model."
+            )
+
+        self.path_dir = pathlib.Path(
+            path_dir
+        )
+
+        self.config_model = config_model
+
+        if config_model:
+
+            self.config_dset = config_model.config_dset
+
+        else:
+
+            self.config_dset = config_dset
+
+        if self.config_dset is None:
+
+            raise ValueError(
+                "Specify config_dset xor config_model."
+            )
+
+    def plot_image_slices(
+        self, 
+        image, 
+    ):
+        
+        fig = plt.figure()
+
+        ax_3d = fig.add_subplot(
+            projection="3d"
+        )
+
+        note = (
+            "Events per set: "
+            f"{self.config_dset.num_events_per_set}\n"
+            "Bins per dim.: "
+            f"{self.config_dset.num_bins_image}"
+        )
+
+        _plot_image_slices(
+            fig, 
+            ax_3d, 
+            image, 
+            note=note
+        )
+
+        self._save_plot_and_close(
+            "slices_image"
+        )
+
+    def plot_loss_curves(
+        self,
+        start_epoch=0, 
+        log_scale=True,
+    ):
+
+        self._check_config_model_specified()
+
+        _, ax = plt.subplots()
+
+        note = self._make_note_model()
+
+        loss_table = Loss_Table(
+            self.config_model
+            .path_file_loss_table
+        )
+
+        _plot_loss_curves(
+            ax, 
+            loss_table,
+            start_epoch=start_epoch, 
+            log_scale=log_scale,
+            note=note
+        )
+
+        self._save_plot_and_close(
+            "loss_curves"
+        )
+
+    def plot_sensitivity(
+        self,
+        preds,
+        avg,
+        std,
+        label,
+        bins=50, 
+        xbounds=(-1.5, 0), 
+        ybounds=(0, 200), 
+    ):
+        
+        self._check_config_model_specified()
+        
+        _, ax = plt.subplots()
+
+        note = self._make_note_model()
+
+        _plot_sensitivity(
+            ax,
+            preds,
+            avg,
+            std,
+            label,
+            bins=bins,
+            xbounds=xbounds,
+            ybounds=ybounds,
+            note=note,
+        )
+
+        self._save_plot_and_close(
+            "sens"
+        )
+
+    def plot_linearity(
+        self,
+        labels,
+        avgs,
+        stds,
+    ):
+
+        self._check_config_model_specified()
+
+        _, ax = plt.subplots()
+
+        note = self._make_note_model()
+
+        _plot_linearity(
+            ax,
+            labels, 
+            avgs, 
+            stds, 
+            note=note,
+        )
+
+        self._save_plot_and_close(
+            "lin"
+        )
+
+    def _save_plot_and_close(self, kind):
+
+        name_file = self._make_name_file_plot(
+            kind
+        )
+
+        path_file = self.path_dir.joinpath(
+            name_file
+        )
+        
+        plt.savefig(
+            path_file, 
+            bbox_inches="tight"
+        )
+
+        plt.close()
+    
+    def _make_name_file_plot(self, kind):
+        
+        if self.config_model is None:
+
+            name = self._make_name_file_plot_dset(kind)
+
+        else:
+            
+            name = self._make_name_file_plot_model(kind)
+
+        return name
+
+    def _make_name_file_plot_model(self, kind):
+
+        name = (
+            f"{self.config_model.name}_"
+            f"{self.config_dset.num_events_per_set}_"
+            f"{self.config_dset.level}_"
+            f"q2v_{self.config_dset.q_squared_veto}_"
+            f"{kind}"
+            ".png"
+        )
+
+        return name
+    
+    def _make_name_file_plot_dset(self, kind):
+
+        name = (
+            f"{self.config_dset.name}_"
+            f"{self.config_dset.num_events_per_set}_"
+            f"{self.config_dset.split}_"
+            f"{kind}"
+            ".png"
+        )
+
+        return name
+    
+    def _make_note_model(self):
+        
+        note = (
+            f"{self.config_model.name}, "
+            f"{self.config_dset.level}., "
+            f"{self.config_dset.num_sets_per_label} boots., "
+            f"{self.config_dset.num_events_per_set} events/boots."
+        )
+
+        return note
+    
+    def _check_config_model_specified(self):
+        
+        if self.config_model is None:
+
+            raise ValueError(
+                "config_model must be specified."
+            )
+
+
+def _plot_image_slices(
+    fig,
+    ax_3d,
     image, 
-    config_dset,
     n_slices=3, 
     cmap=plt.cm.magma, 
+    note=None,
 ):
     
     """
     Plot slices of a B->K*ll dataset image.
 
-    Slices are along the chi-axis (axis 2) and might
-    not be evenly spaced.
+    Slices are along the chi-axis (axis 2) 
+    and might not be evenly spaced.
     """
-
-    fig = plt.figure()
-
-    ax_3d = fig.add_subplot(projection="3d")
-
-    var_dim = {
-        0: "costheta_mu",
-        1: "costheta_K",
-        2: "chi",
-    }
 
     cartesian_dim = {
         "x": 0,     
@@ -45,7 +269,10 @@ def plot_image_slices(
         "z": 2,  
     }
 
-    norm = mpl.colors.Normalize(vmin=-1.1, vmax=1.1)
+    norm = mpl.colors.Normalize(
+        vmin=-1.1, 
+        vmax=1.1,
+    )
 
     image = image.squeeze().cpu()
 
@@ -101,7 +328,8 @@ def plot_image_slices(
             edgecolor="#f2f2f2", 
         )
 
-    z_indices = numpy.linspace( # forces integer indices
+    # forces integer indices
+    z_indices = numpy.linspace( 
         0, 
         cartesian_shape["z"]-1, 
         n_slices, 
@@ -188,35 +416,19 @@ def plot_image_slices(
         zoom=0.85
     )
 
-    note = (
-        "Events per set: "
-        f"{config_dset.num_events_per_set}\n"
-        "Bins per dim.: "
-        f"{config_dset.num_bins_image}"
-    )
-
     ax_3d.set_title(
         f"{note}", 
         loc="center", 
         y=1
     )
 
-    name_file = (
-        f"{config_dset.num_events_per_set}_"
-        f"{config_dset.split}_"
-        "image_slices.png"
-    )
 
-    save_plot(
-        config_dset.path_dir,
-        name_file
-    )
-
-
-def plot_loss_curves(
-    config_model,
+def _plot_loss_curves(
+    ax,
+    loss_table,
     start_epoch=0, 
     log_scale=False,
+    note=None,
 ):
 
     """
@@ -230,11 +442,6 @@ def plot_loss_curves(
     ax : matplotlib.Axes
         PLot on this axes.
     """
-
-    loss_table = Loss_Table(
-        config_model
-        .path_file_loss_table
-    )
 
     epochs_to_plot = (
         loss_table
@@ -251,8 +458,6 @@ def plot_loss_curves(
         .losses_eval[start_epoch:]
     )
 
-    _, ax = plt.subplots()
-    
     ax.plot(
         epochs_to_plot, 
         losses_train_to_plot, 
@@ -273,35 +478,28 @@ def plot_loss_curves(
 
     ax.set_xlabel("Epoch")
 
-    name_file = (
-        "loss_curves.png"
-    )
-
-    save_plot(
-        config_model.path_dir,
-        name_file,
+    make_plot_note(
+        ax, 
+        note, 
     )
 
 
-def plot_sensitivity(
+def _plot_sensitivity(
+    ax,
     preds,
     avg,
     std,
     label,
-    config_model:Config_Model,
     bins=50, 
     xbounds=(-1.5, 0), 
     ybounds=(0, 200), 
-    std_marker_height=20,
     note=None,
 ):
-    
-    _, ax = plt.subplots()
     
     ax.hist(
         preds, 
         bins=bins, 
-        range=xbounds
+        range=xbounds,
     )
 
     ax.vlines(
@@ -318,19 +516,32 @@ def plot_sensitivity(
         ybounds[1],
         color="red",
         linestyles="--",
-        label=r"$\mu = $ " + f"{avg.round(decimals=3)}"
+        label=(
+            r"$\mu = $ " 
+            + f"{avg.round(decimals=3)}"
+        ),
+    )
+
+    height_marker_std = (
+        ybounds[1] 
+        / 10
     )
 
     ax.hlines(
-        std_marker_height,
+        height_marker_std,
         avg,
         avg+std,
         color="orange",
         linestyles="dashdot",
-        label=r"$\sigma = $ " + f"{std.round(decimals=3)}"
+        label=(
+            r"$\sigma = $ " 
+            + f"{std.round(decimals=3)}"
+        ),
     )
 
-    ax.set_xlabel(r"Predicted $\delta C_9$")
+    ax.set_xlabel(
+        r"Predicted $\delta C_9$"
+    )
 
     ax.set_xbound(*xbounds)
     
@@ -344,94 +555,33 @@ def plot_sensitivity(
         fontsize="medium"
     )
 
-    name_file = (
-        f"sens_"
-        f"{
-            config_model.config_dset
-            .num_sets_per_label
-        }"
-        ".png"
-    )
 
-    save_plot(
-        config_model.path_dir,
-        name_file,
-    )
-
-
-def save_plot(path_dir, name_file):
-
-    path = path_dir.join(
-        name_file
-    )
-
-    plt.savefig(path, bbox_inches="tight")
-
-    print(
-        f"Saved plot to file: {path}"
-    )
-
-    plt.show()
-    
-    plt.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-def plot_prediction_linearity(
+def _plot_linearity(
     ax,
-    input_values, 
-    avg_pred, 
-    stdev_pred, 
-    ref_line_buffer=0.05, 
+    labels, 
+    avgs, 
+    stds, 
+    buffer_line_ref=0.05, 
     xlim=(-2.25, 1.35), 
     ylim=(-2.25, 1.35), 
     xlabel=r"Actual $\delta C_9$", 
     ylabel=r"Predicted $\delta C_9$",
     note=None,
 ):
-    """
-    input_values : array 
-        value corresponding to each bin index
-    avg_pred : array
-        ndarray of average prediction per input bin
-    stdev_pred : array
-        ndarray of standard deviation of prediction per input bin 
-    ref_line_buffer : float 
-        extra amount to extend reference line
-    xlim : tuple
-        x limits
-    ylim : tuple
-        y limits
-    xlabel : str
-        x axis label
-    ylabel : str
-        y axis label
-    note : str
-        note to add
-    """
         
     ax.scatter(
-        input_values, 
-        avg_pred, 
+        labels, 
+        avgs, 
         label="Avg.", 
         color="firebrick", 
         s=16, 
         zorder=5
     )
+
     ax.errorbar(
-        input_values, 
-        avg_pred, 
-        yerr=stdev_pred, 
+        labels, 
+        avgs, 
+        yerr=stds, 
         fmt="none", 
         elinewidth=0.5, 
         capsize=0.5, 
@@ -441,30 +591,46 @@ def plot_prediction_linearity(
     )
 
     ref_ticks = numpy.linspace(
-        numpy.min(input_values)-ref_line_buffer, 
-        numpy.max(input_values)+ref_line_buffer, 
+        (
+            numpy.min(labels)
+            - buffer_line_ref
+        ), 
+        (
+            numpy.max(labels)
+            + buffer_line_ref
+        ), 
         2,
     )
+
     ax.plot(
         ref_ticks, 
         ref_ticks,
-        label="Ref. Line (Slope = 1)",
+        label="Ref. Line",
         color="grey",
         linewidth=0.5,
         zorder=0,
     )
 
     if xlim is not None:
+
         ax.set_xlim(xlim)
+
     if ylim is not None:
+
         ax.set_ylim(ylim)
 
     ax.legend()
 
     if xlabel is not None:
+
         ax.set_xlabel(xlabel)
+
     if ylabel is not None:
+
         ax.set_ylabel(ylabel)
     
-    make_plot_note(ax, note)
+    make_plot_note(
+        ax, 
+        note,
+    )
 
