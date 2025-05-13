@@ -32,8 +32,11 @@ class Dataset_Generator:
         """
 
         self.config = config
+
         self._check_files_do_not_exist()
+
         self._load_agg_signal_data()
+
         self._make_dir()
 
     def generate(self):
@@ -42,26 +45,38 @@ class Dataset_Generator:
         """
         
         config = self.config
+
         if config.name == config.name_dset_binned_signal:
+
             self._generate_binned_signal()
+
         elif config.name == config.name_dset_sets_binned_signal:
+
             self._generate_sets_binned_signal()
+
         elif config.name == config.name_dset_sets_unbinned_signal:
+            
             self._generate_sets_unbinned_signal()
+
         elif config.name == config.name_dset_images_signal:
+
             self._generate_images_signal()
+
         else:
+
             raise ValueError(f"Name not recognized: {config.name}")
         
         print(f"Generated dataset: {config.name}")
 
     def _generate_binned_signal(self):
+
         """
         Generate files for the 
         binned signal dataset.
         """
 
         config = self.config
+
         df_agg = self.df_agg.copy()
             
         df_agg, bin_map = convert_to_binned(
@@ -73,31 +88,37 @@ class Dataset_Generator:
         features = pandas_to_torch(
             df_agg[config.names_features]
         )
+
         labels = pandas_to_torch(
             df_agg[config.name_label_binned]
         )
+
         bin_map = torch.from_numpy(bin_map)
 
         save_file_torch_tensor(
             features, 
             config.path_file_features,
         )
+
         save_file_torch_tensor(
             labels, 
             config.path_file_labels,
         )
+
         save_file_torch_tensor(
             bin_map, 
             config.path_file_bin_map,
         )
 
     def _generate_sets_binned_signal(self):
+
         """
         Generate files for the 
         sets binned signal dataset.
         """    
 
         config = self.config
+
         df_agg = self.df_agg.copy()
 
         df_agg, bin_map = convert_to_binned(
@@ -109,9 +130,11 @@ class Dataset_Generator:
         source_features = pandas_to_torch(
             df_agg[config.names_features]
         )
+
         source_labels = pandas_to_torch(
             df_agg[config.name_label_binned]
         )
+
         bin_map = torch.from_numpy(bin_map)
 
         features, labels = bootstrap_labeled_sets(
@@ -126,27 +149,32 @@ class Dataset_Generator:
             features, 
             config.path_file_features
         )
+
         save_file_torch_tensor(
             labels, 
             config.path_file_labels
         )
+
         save_file_torch_tensor(
             bin_map, 
             config.path_file_bin_map
         )
 
     def _generate_sets_unbinned_signal(self):
+
         """
         Generate files for the
         sets unbinned signal dataset.
         """
 
         config = self.config
+
         df_agg = self.df_agg.copy()
 
         source_features = pandas_to_torch(
             df_agg[config.names_features]
         )
+
         source_labels = pandas_to_torch(
             df_agg[config.name_label_unbinned]
         )
@@ -163,23 +191,27 @@ class Dataset_Generator:
             features, 
             config.path_file_features
         )
+
         save_file_torch_tensor(
             labels, 
             config.path_file_labels
         )
 
     def _generate_images_signal(self):
+
         """
         Generate files for the 
         images signal dataset.
         """
 
         config = self.config
+
         df_agg = self.df_agg.copy()
 
         features_source = pandas_to_torch(
             df_agg[config.names_features]
         )
+
         labels_source = pandas_to_torch(
             df_agg[config.name_label_unbinned]
         )
@@ -209,12 +241,14 @@ class Dataset_Generator:
             features, 
             config.path_file_features
         )
+
         save_file_torch_tensor(
             labels, 
             config.path_file_labels
         )
 
     def _load_agg_signal_data(self):
+
         """
         Load the aggregated raw signal data.
         Generate the aggregated raw signal 
@@ -228,10 +262,12 @@ class Dataset_Generator:
             config.level,
             config.range_trials_raw_signal,
         ).is_file():
+            
             print(
                 "Aggregated raw signal file "
                 "not found, generating..."
             )
+
             agg_data_raw_signal(
                 config.level, 
                 config.range_trials_raw_signal, 
@@ -252,6 +288,7 @@ class Dataset_Generator:
         )
 
     def _check_files_do_not_exist(self):
+
         """
         Check labels, features, and bin map files
         do not exist.
@@ -260,8 +297,11 @@ class Dataset_Generator:
         def assert_file_does_not_exist(
             path:pathlib.Path|str
         ):
+            
             path = pathlib.Path(path)
+
             if path.is_file():
+
                 raise ValueError(
                     f"File: {path} already exists. " 
                     "Delete the file to proceed."
@@ -279,9 +319,12 @@ class Dataset_Generator:
         ]
 
     def _make_dir(self):
+
         """
         Make the dataset's directory.
         """
+
         config = self.config
+        
         config.path_dir.mkdir(exist_ok=True)
 

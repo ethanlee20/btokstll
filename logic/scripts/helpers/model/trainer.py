@@ -10,6 +10,7 @@ from .loss_table import Loss_Table
 
 
 class Model_Trainer:
+
     """
     Trains a model.
     """
@@ -21,15 +22,21 @@ class Model_Trainer:
         dset_eval:Custom_Dataset,
         device:str,
     ):
+        
         self.model = model
+
         self.dset_train = dset_train
+
         self.dset_eval = dset_eval
+
         self.device = device
 
         self.loss_table = Loss_Table()
+
         self._make_dir_model()
 
     def train(self):
+
         """
         Train model.
         """
@@ -37,13 +44,19 @@ class Model_Trainer:
         size_batch_train = (
             self.model.config.size_batch_train
         )
+        
         size_batch_eval = (
             self.model.config.size_batch_eval
         )
+
         loss_fn = self.model.config.fn_loss
+
         optimizer = self.model.config.optimizer
+
         lr_scheduler = self.model.config.scheduler_lr
+
         num_epochs = self.model.config.num_epochs
+
         num_epochs_checkpoint = (
             self.model.config.num_epochs_checkpoint
         )
@@ -56,6 +69,7 @@ class Model_Trainer:
                 shuffle=True
             )
         )
+
         eval_dataloader = (
             torch.utils.data.DataLoader(
                 self.dset_eval, 
@@ -112,6 +126,7 @@ class Model_Trainer:
         self._save_final()
 
     def _save_final(self):
+
         """
         Save final.
         """
@@ -131,6 +146,7 @@ class Model_Trainer:
         print("Saved final.")
 
     def _save_checkpoint(self, epoch):
+
         """
         Save checkpoint.
         """
@@ -152,6 +168,7 @@ class Model_Trainer:
         print("Saved checkpoint.")
 
     def _save_loss_table(self):
+
         """
         Save the loss table to a file.
 
@@ -179,8 +196,10 @@ class Model_Trainer:
                     "Delete directory to retrain."
                 )
             
-        path = self.model.config.path_dir    
+        path = self.model.config.path_dir  
+
         check_dir_model_not_exist(path)
+
         path.mkdir(
             parents=True, 
             exist_ok=False,
@@ -194,6 +213,7 @@ def _train_batch(
     loss_fn, 
     optimizer
 ):
+    
     """
     Train a model on a single batch 
     given by x, y.
@@ -206,11 +226,13 @@ def _train_batch(
     model.train()
     
     yhat = model(x)    
+
     train_loss = loss_fn(yhat, y)
 
     train_loss.backward()
 
     optimizer.step()
+
     optimizer.zero_grad()
 
     return train_loss
@@ -222,11 +244,13 @@ def _evaluate_batch(
     model, 
     loss_fn
 ):
+    
     """
     Evaluate model on a mini-batch of data.
     """
 
     model.eval()
+
     with torch.no_grad():
         yhat = model(x)
         eval_loss = loss_fn(yhat, y)
@@ -240,6 +264,7 @@ def _train_epoch(
     optimizer, 
     device=None
 ):
+    
     """
     Train a model on a dataset.
     """
@@ -247,10 +272,15 @@ def _train_epoch(
     num_batches = len(dataloader)
     
     total_batch_loss = 0
+
     for x, y in dataloader:
+
         if device is not None:
+
             x = x.to(device)
+
             y = y.to(device)
+
         batch_loss = _train_batch(
             x, 
             y,
@@ -258,6 +288,7 @@ def _train_epoch(
             loss_fn, 
             optimizer
         )
+
         total_batch_loss += batch_loss
 
     avg_batch_loss = (
@@ -275,6 +306,7 @@ def _evaluate_epoch(
     device=None, 
     scheduler=None
 ):
+    
     """
     Evaluate a model on a the dataset.
     """
@@ -282,16 +314,22 @@ def _evaluate_epoch(
     num_batches = len(dataloader)
     
     total_batch_loss = 0
+
     for x, y in dataloader:
+
         if device is not None:
+
             x = x.to(device)
+
             y = y.to(device)
+
         batch_loss = _evaluate_batch(
             x, 
             y, 
             model, 
             loss_fn
         )
+
         total_batch_loss += batch_loss
     
     avg_batch_loss = (
@@ -300,6 +338,7 @@ def _evaluate_epoch(
     )
 
     if scheduler:
+
         scheduler.step(avg_batch_loss)
     
     return avg_batch_loss
@@ -310,23 +349,29 @@ def _print_epoch_loss(
     train_loss, 
     eval_loss
 ):
+    
     """
     Print a summary of loss values for an epoch.
     """
 
     print(f"\nEpoch {epoch} complete:")
+
     print(f"    Train loss: {train_loss}")
+
     print(f"    Eval loss: {eval_loss}\n")
 
 
 def _print_prev_learn_rate(scheduler):
+
     """
     Print the previous learning rate
     given a learning rate scheduler. 
     """
 
     last_learning_rate = scheduler.get_last_lr()
+
     message = f"Learning rate: {last_learning_rate}"
+    
     print(message)
 
 

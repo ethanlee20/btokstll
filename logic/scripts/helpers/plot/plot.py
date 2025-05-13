@@ -1,52 +1,36 @@
+
 """
 Plotting
 """
+
+import pathlib
 
 import numpy
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-
+from ..model.config import Config_Model
+from ..model.loss_table import Loss_Table
+from .util import make_plot_note
 
 
 
 def plot_image_slices(
     image, 
+    config_dset,
     n_slices=3, 
     cmap=plt.cm.magma, 
-    note="",
-    save_path=None,
 ):
+    
     """
     Plot slices of a B->K*ll dataset image.
 
     Slices are along the chi-axis (axis 2) and might
     not be evenly spaced.
-
-    Parameters
-    ----------
-    image : torch.Tensor
-        Tensor created by the make_image function.
-        Dimensions must correspond to 
-        (costheta_mu, costheta_K, chi).
-    n_slices : int
-        The number of slices to show.
-    cmap : matplotlib.colors.Colormap
-        The colormap.
-    note : str
-        Add an annotation to the plot.
-    save_path : str
-        The path to which to save the plot.
-        
-    Side Effects
-    ------------
-    - Creates and shows a plot.
-    - Saves the plot to save_path if specified.
-
-
     """
 
     fig = plt.figure()
+
     ax_3d = fig.add_subplot(projection="3d")
 
     var_dim = {
@@ -62,7 +46,9 @@ def plot_image_slices(
     }
 
     norm = mpl.colors.Normalize(vmin=-1.1, vmax=1.1)
+
     image = image.squeeze().cpu()
+
     colors = cmap(norm(image))
     
     cartesian_shape = {
@@ -72,22 +58,27 @@ def plot_image_slices(
     }
 
     def xy_plane(z_pos):
+
         x, y = numpy.indices(
             (
                 cartesian_shape["x"] + 1, 
                 cartesian_shape["y"] + 1
             )
         )
+
         z = numpy.full(
             (
                 cartesian_shape["x"] + 1, 
                 cartesian_shape["y"] + 1,
             ), z_pos
         )
+
         return x, y, z
     
     def plot_slice(z_index):
+
         x, y, z = xy_plane(z_index) 
+
         ax_3d.plot_surface(
             x, y, z, 
             rstride=1, cstride=1, 
@@ -96,6 +87,7 @@ def plot_image_slices(
         )
 
     def plot_outline(z_index, offset=0.3):
+
         x, y, z = xy_plane(
             z_index - offset
         )
@@ -117,26 +109,47 @@ def plot_image_slices(
     ) 
     
     for i in z_indices:
+
         plot_outline(i)
+
         plot_slice(i)
 
     cbar = fig.colorbar(
-        mpl.cm.ScalarMappable(norm=norm, cmap=cmap), 
+        mpl.cm.ScalarMappable(
+            norm=norm, 
+            cmap=cmap
+        ), 
         ax=ax_3d, 
         location="left", 
         shrink=0.5, 
         pad=-0.05
     )
-    cbar.set_label(r"${q^2}$ (Avg.)", size=11)
+
+    cbar.set_label(
+        r"${q^2}$ (Avg.)", 
+        size=11
+    )
 
     ax_labels = {
         "x": r"$\cos\theta_\mu$",
         "y": r"$\cos\theta_K$",
         "z": r"$\chi$", 
     }
-    ax_3d.set_xlabel(ax_labels["x"], labelpad=0)
-    ax_3d.set_ylabel(ax_labels["y"], labelpad=0)
-    ax_3d.set_zlabel(ax_labels["z"], labelpad=-3)
+
+    ax_3d.set_xlabel(
+        ax_labels["x"], 
+        labelpad=0
+    )
+
+    ax_3d.set_ylabel(
+        ax_labels["y"], 
+        labelpad=0
+    )
+
+    ax_3d.set_zlabel(
+        ax_labels["z"], 
+        labelpad=-3
+    )
 
     ticks = {
         "x": ["-1", "1"],
@@ -144,62 +157,138 @@ def plot_image_slices(
         "z": ['0', r"$2\pi$"],
     }      
 
-    ax_3d.set_xticks([0, cartesian_shape["x"]-1], ticks["x"])
-    ax_3d.set_xticks([0, cartesian_shape["y"]-1], ticks["y"])
-    ax_3d.set_xticks([0, cartesian_shape["z"]-1], ticks["z"])
-    ax_3d.tick_params(pad=0.3)
-    ax_3d.set_box_aspect(None, zoom=0.85)
-    ax_3d.set_title(f"{note}", loc="center", y=1)
-
-    if save_path is not None:
-        plt.savefig(save_path, bbox_inches="tight")
-        print(f"Saved image plot to file: {save_path}")
-        plt.show()
-        plt.close()
+    ax_3d.set_xticks(
+        [
+            0, 
+            cartesian_shape["x"]-1
+        ], 
+        ticks["x"]
+    )
     
+    ax_3d.set_xticks(
+        [
+            0, 
+            cartesian_shape["y"]-1
+        ], 
+        ticks["y"]
+    )
+    
+    ax_3d.set_xticks(
+        [
+            0, 
+            cartesian_shape["z"]-1
+        ], 
+        ticks["z"]
+    )
+    
+    ax_3d.tick_params(pad=0.3)
+    
+    ax_3d.set_box_aspect(
+        None, 
+        zoom=0.85
+    )
+
+    note = (
+        "Events per set: "
+        f"{config_dset.num_events_per_set}\n"
+        "Bins per dim.: "
+        f"{config_dset.num_bins_image}"
+    )
+
+    ax_3d.set_title(
+        f"{note}", 
+        loc="center", 
+        y=1
+    )
+
+    name_file = (
+        f"{config_dset.num_events_per_set}_"
+        f"{config_dset.split}_"
+        "image_slices.png"
+    )
+
+    save_plot(
+        config_dset.path_dir,
+        name_file
+    )
 
 
+def plot_loss_curves(
+    config_model,
+    start_epoch=0, 
+    log_scale=False,
+):
 
-def plot_loss_curves(loss_table, ax, start_epoch=0, log_scale=False):
     """
-    Plot loss curves given a loss table.
+    Plot loss curves.
 
     Parameters
     ----------
-    loss_table : dict
-        Dictionary with keys "epoch", "train_loss", and "eval_loss".
+    loss_table : Loss_Table
     start_epoch : int
-        First epoch to plot. (Previous epochs are not plotted.)
-    ax : matplotlib axes
-        Axes on which to plot.
+        Start plotting from here. 
+    ax : matplotlib.Axes
+        PLot on this axes.
     """
 
-    epochs_to_plot = loss_table["epoch"][start_epoch:]
-    train_losses_to_plot = loss_table["train_loss"][start_epoch:]
-    eval_losses_to_plot = loss_table["eval_loss"][start_epoch:]
+    loss_table = Loss_Table(
+        config_model
+        .path_file_loss_table
+    )
+
+    epochs_to_plot = (
+        loss_table
+        .epochs[start_epoch:]
+    )
+
+    losses_train_to_plot = (
+        loss_table
+        .losses_train[start_epoch:]
+    )
+
+    losses_eval_to_plot = (
+        loss_table
+        .losses_eval[start_epoch:]
+    )
+
+    _, ax = plt.subplots()
     
     ax.plot(
         epochs_to_plot, 
-        train_losses_to_plot, 
+        losses_train_to_plot, 
         label="Training Loss"
     )
+
     ax.plot(
         epochs_to_plot, 
-        eval_losses_to_plot, 
+        losses_eval_to_plot, 
         label="Eval. Loss"
     )
+
     if log_scale:
+    
         ax.set_yscale("log")
+
     ax.legend()
+
     ax.set_xlabel("Epoch")
 
+    name_file = (
+        "loss_curves.png"
+    )
 
+    save_plot(
+        config_model.path_dir,
+        name_file,
+    )
 
 
 def plot_sensitivity(
-    ax, 
-    predictions,
+    preds,
+    avg,
+    std,
     label,
+    config_model:Config_Model,
     bins=50, 
     xbounds=(-1.5, 0), 
     ybounds=(0, 200), 
@@ -207,20 +296,14 @@ def plot_sensitivity(
     note=None,
 ):
     
-    (
-        mean, 
-        std, 
-        bias
-    ) = run_sensitivity_test(
-        predictions, 
-        label
-    )
-
+    _, ax = plt.subplots()
+    
     ax.hist(
-        predictions, 
+        preds, 
         bins=bins, 
         range=xbounds
     )
+
     ax.vlines(
         label,
         0,
@@ -228,31 +311,77 @@ def plot_sensitivity(
         color="red",
         label=f"Target ({label})",
     )
+
     ax.vlines(
-        mean,
+        avg,
         0,
         ybounds[1],
         color="red",
         linestyles="--",
-        label=r"$\mu = $ " + f"{mean.round(decimals=3)}"
+        label=r"$\mu = $ " + f"{avg.round(decimals=3)}"
     )
+
     ax.hlines(
         std_marker_height,
-        mean,
-        mean+std,
+        avg,
+        avg+std,
         color="orange",
         linestyles="dashdot",
         label=r"$\sigma = $ " + f"{std.round(decimals=3)}"
     )
+
     ax.set_xlabel(r"Predicted $\delta C_9$")
+
     ax.set_xbound(*xbounds)
+    
     ax.set_ybound(*ybounds)
+    
     ax.legend()
+    
     make_plot_note(
         ax, 
         note, 
         fontsize="medium"
     )
+
+    name_file = (
+        f"sens_"
+        f"{
+            config_model.config_dset
+            .num_sets_per_label
+        }"
+        ".png"
+    )
+
+    save_plot(
+        config_model.path_dir,
+        name_file,
+    )
+
+
+def save_plot(path_dir, name_file):
+
+    path = path_dir.join(
+        name_file
+    )
+
+    plt.savefig(path, bbox_inches="tight")
+
+    print(
+        f"Saved plot to file: {path}"
+    )
+
+    plt.show()
+    
+    plt.close()
+
+
+
+
+
+
+
+
 
 
 

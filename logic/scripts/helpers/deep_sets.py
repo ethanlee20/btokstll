@@ -1,4 +1,40 @@
 
+
+from model.config import Config_Model
+from data.dset.config import Config_Dataset
+from model.model import Custom_Model
+from data.dset.dataset import Custom_Dataset
+
+
+class Approach_Deep_Sets:
+
+    def __init__(
+        self,
+        name_model,
+        level,
+        q_squared_veto,
+        balanced_classes,
+        std_scale,
+        shuffle,
+        label_subset,
+        num_events_per_set,
+        num_sets_per_label,
+        num_bins_image,
+        loss_fn,
+        optimizer,
+        lr_scheduler,
+        size_batch_train,
+        size_batch_eval,
+        num_epochs,
+        num_epochs_checkpoint,
+        path_dir_dsets_main,
+        path_dir_raw_signal,
+        path_dir_models_main,
+        device,
+        extra_description=None,
+    ):
+
+
 class Deep_Sets_Approach:
     def __init__(
         self,

@@ -7,6 +7,7 @@ from ..data.dset.config import Config_Dataset
 
 
 class Config_Model:
+
     """
     Model configuration.
     """
@@ -24,6 +25,7 @@ class Config_Model:
         num_epochs=None,
         num_epochs_checkpoint=None,
     ):
+        
         """
         Initialize.
 
@@ -37,40 +39,57 @@ class Config_Model:
         """        
 
         self.name = name
+
         self.path_dir_models_main = (
             pathlib.Path(
                 path_dir_models_main
             )
         )
+
         self.config_dset = config_dset
+
         self.fn_loss = loss_fn
+
         self.optimizer = optimizer
+
         self.scheduler_lr = lr_scheduler
+
         self.size_batch_train = size_batch_train
+
         self.size_batch_eval = size_batch_eval
+
         self.num_epochs = num_epochs
+
         self.num_epochs_checkpoint = num_epochs_checkpoint
 
         self._check_inputs()
+
         self._set_path_dir()
+
         self._set_path_file_final()
+
         self._set_path_file_loss_table()
 
     def make_path_file_checkpoint(self, epoch:int):
+
         """
         Make the path of a checkpoint model file.
         """
 
         name = f"epoch_{epoch}.pt"
+
         path = self.path_dir.joinpath(name)
+
         return path
 
     def _set_path_file_final(self):
+
         """
         Make the path of the final model file.
         """
 
         name = "final.pt"
+
         self.path_file_final = (
             self.path_dir.joinpath(
                 name
@@ -78,11 +97,13 @@ class Config_Model:
         )
 
     def _set_path_file_loss_table(self):
+
         """
         Make the path of the loss table.
         """
 
         name = "loss_table.pkl"
+
         self.path_file_loss_table = (
             self.path_dir.joinpath(
                 name
@@ -90,6 +111,7 @@ class Config_Model:
         )
 
     def _set_path_dir(self):
+
         """
         Make the path of the model's directory.
         """
@@ -113,6 +135,7 @@ class Config_Model:
         )
     
     def _check_inputs(self,):
+
         """
         Check that inputs make sense.
         """
@@ -122,11 +145,13 @@ class Config_Model:
         if self.name not in (
             names_models.tuple_
         ):
+            
             raise ValueError(
                 f"Name not recognized: {self.name}"
             )
         
         if not self.path_dir_models_main.is_dir():
+            
             raise ValueError(
                 "Main models directory "
                 "is not a directory."

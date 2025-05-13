@@ -7,10 +7,17 @@ class Loss_Table:
     Loss table.
     """
     
-    def __init__(self):
+    def __init__(self, path=None):
+
         self.epochs = []
+
         self.losses_train = []
+
         self.losses_eval = []
+
+        if path:
+            
+            self.load(path)
 
     def append(
         self, 
@@ -18,12 +25,17 @@ class Loss_Table:
         loss_train, 
         loss_eval
     ):
+        
         self.epochs.append(epoch)
+
         self.losses_train.append(loss_train)
+
         self.losses_eval.append(loss_eval)
     
     def save(self, path):
+
         with open(path, "wb") as handle:
+
             pickle.dump(
                 self, 
                 handle, 
@@ -31,10 +43,15 @@ class Loss_Table:
             )
 
     def load(self, path):
+
         with open(path, "rb") as handle:
+
             data = pickle.load(handle)
+
             self.epochs = data.epochs
+
             self.losses_train = data.losses_train
+
             self.losses_eval = data.losses_eval
             
 
