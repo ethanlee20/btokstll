@@ -3,7 +3,6 @@
 Configuration for datasets.
 """
 
-
 import pathlib
 
 from .constants import (
@@ -17,6 +16,7 @@ from .constants import (
 
 
 class Config_Dataset:
+
     """
     Dataset configuration.
     """
@@ -82,27 +82,19 @@ class Config_Dataset:
 
     def _check_inputs(self):
 
-        names_dsets = Names_Datasets()
-
-        names_levels = Names_Levels()
-
-        names_q2_vetos = Names_q_Squared_Vetos()
-
-        names_splits = Names_Splits()
-
-        if self.name not in names_dsets.tuple_:
+        if self.name not in Names_Datasets().tuple_:
 
             raise ValueError(
                 f"Name not recognized: {self.name}"
             )
         
-        if self.level not in names_levels.tuple_:
+        if self.level not in Names_Levels().tuple_:
 
             raise ValueError(
                 f"Level not recognized: {self.level}"
             )
         
-        if self.q_squared_veto not in names_q2_vetos.tuple_:
+        if self.q_squared_veto not in Names_q_Squared_Vetos().tuple_:
 
             raise ValueError(
                 f"q^2 veto not recognized: {self.q_squared_veto}"
@@ -120,7 +112,7 @@ class Config_Dataset:
                 "Standard scale option not recognized."
             )
         
-        if self.split not in names_splits.tuple_:
+        if self.split not in Names_Splits().tuple_:
 
             raise ValueError(
                 f"Split not recognized: {self.split}"
@@ -138,9 +130,16 @@ class Config_Dataset:
         Create the dataset's subdirectory path.
         """
 
-        name_dir = f"{self.name}_{self.level}_q2v_{self.q_squared_veto}"
+        name_dir = (
+            f"{self.name}_"
+            "{self.level}_"
+            "q2v_{self.q_squared_veto}"
+        )
 
-        self.path_dir = self.path_dir_dsets_main.joinpath(name_dir)
+        self.path_dir = (
+            self.path_dir_dsets_main
+            .joinpath(name_dir)
+        )
 
     def _make_path_file_tensor(self, kind):
 
@@ -150,7 +149,8 @@ class Config_Dataset:
         Parameters
         ----------
         kind : str
-            The kind of tensor being saved. e.g. "labels".
+            The kind of tensor being saved. 
+            e.g. "labels".
             This determines the file name.
         
         Returns

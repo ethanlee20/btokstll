@@ -13,7 +13,7 @@ from .config import Config_Dataset
 
 
 def get_dataset_prescale(
-    kind:str, 
+    kind:str,  
     level:str, 
     q_squared_veto:str, 
     var:str,
@@ -113,8 +113,10 @@ def get_dataset_prescale(
     }
 
     table = (
-        table_tight_q2_veto if q_squared_veto == "tight"
-        else table_loose_q2_veto if q_squared_veto == "loose"
+        table_tight_q2_veto 
+        if q_squared_veto == "tight"
+        else table_loose_q2_veto 
+        if q_squared_veto == "loose"
         else None
     )
 
@@ -122,7 +124,12 @@ def get_dataset_prescale(
     return value
 
 
-def apply_standard_scale(df, level, q_squared_veto, columns):
+def apply_standard_scale(
+    df, 
+    level, 
+    q_squared_veto, 
+    columns
+):
     """
     Standard scale columns of a dataframe.
     Mean and standard deviation are precalculated.
@@ -132,6 +139,7 @@ def apply_standard_scale(df, level, q_squared_veto, columns):
     """
 
     for column in columns:
+
         if column not in (
             "q_squared", 
             "costheta_mu", 
@@ -139,9 +147,12 @@ def apply_standard_scale(df, level, q_squared_veto, columns):
             "chi"
         ):
             raise ValueError(
-                f"Column name not recognized: {column}"
+                "Column name not recognized: "
+                f"{column}"
             )
+        
     for column in columns:
+        
         df[column] = ( 
             (
                 df[column] 
@@ -159,6 +170,7 @@ def apply_standard_scale(df, level, q_squared_veto, columns):
                 column,
             )
         )
+
     return df
 
 
@@ -187,23 +199,32 @@ def apply_balance_classes(
     """
 
     df_shuffled = df.sample(frac=1)
+    
     group_by_label = df_shuffled.groupby(
         name_label
     )
+
     num_events = [
         len(df_label) 
         for _, df_label in group_by_label
     ]
+
     min_num_events = min(num_events)
+    
     list_df_balanced = [
         df_label[:min_num_events] 
         for _, df_label in group_by_label
     ]
+
     df_balanced = pandas.concat(list_df_balanced)
+    
     return df_balanced
 
 
-def apply_drop_na(df, verbose=True):
+def apply_drop_na(
+    df, 
+    verbose=True
+):
     """
     Drop rows of a dataframe that contain a NaN.
 
@@ -220,9 +241,12 @@ def apply_drop_na(df, verbose=True):
 
     if verbose:
         print("Number of NA values: ", df.isna().sum())
+
     df_out = df.dropna()
+    
     if verbose:
         print("Removed NA rows.")
+    
     return df_out
 
 
@@ -250,6 +274,7 @@ def apply_q_squared_veto(
     """
 
     if strength not in ("tight", "loose"):
+
         raise ValueError(
             "strength must be 'tight' or 'loose'"
         )
@@ -270,29 +295,45 @@ def apply_q_squared_veto(
         (df["q_squared"]>lower_bound) 
         & (df["q_squared"]<upper_bound)
     ].copy()
+    
     return df_vetoed
 
 
-def apply_label_subset(df, name_label, label_subset:list,):
+def apply_label_subset(
+    df, 
+    name_label, 
+    label_subset:list,
+):
     """
     Reduce a dataframe to data from specified labels.
     """
 
     df = df[df[name_label].isin(label_subset)]
+
     return df
 
 
-def apply_shuffle(df, verbose=True):
+def apply_shuffle(
+    df, 
+    verbose=True
+):
     """
     Shuffle rows of a dataframe.
     """
+
     df = df.sample(frac=1)
+
     if verbose:
         print("Shuffled dataframe.")
+
     return df
 
 
-def apply_cleaning(df, config:Config_Dataset, verbose=True):
+def apply_cleaning(
+    df, 
+    config:Config_Dataset, 
+    verbose=True
+):
     """
     Apply cleaning to aggregated signal dataframe.
     Includes q^2 veto, standard scaling, 
@@ -306,7 +347,9 @@ def apply_cleaning(df, config:Config_Dataset, verbose=True):
         df, 
         config.q_squared_veto,
     )
+
     if config.std_scale:
+
         features_to_scale = (
             config.names_features if (
                 config.name != config.name_dset_images_signal
@@ -316,24 +359,31 @@ def apply_cleaning(df, config:Config_Dataset, verbose=True):
             )
             else None
         )
+
         df = apply_standard_scale(
             df, 
             config.level, 
             config.q_squared_veto,
             features_to_scale,
         )
+
     if config.balanced_classes:
+
         df = apply_balance_classes(
             df, 
             config.name_label_unbinned,
         )
+
     if config.label_subset:
+
         df = apply_label_subset(
             df,
             config.name_label_unbinned,
             config.label_subset,
         )
+
     df = apply_drop_na(df)
+
     if config.shuffle:
         df = apply_shuffle
 
@@ -343,12 +393,19 @@ def apply_cleaning(df, config:Config_Dataset, verbose=True):
     return df
 
 
-def convert_to_binned(df, name_label_unbinned, name_label_binned):
+def convert_to_binned(
+    df, 
+    name_label_unbinned, 
+    name_label_binned
+):
     """
-    Convert dataframe unbinned labels to binned labels.
+    Convert dataframe unbinned labels 
+    to binned labels.
     """
 
-    def to_bins(ar):
+    def to_bins(
+        ar
+    ):
         """
         Translate values in an array to bin numbers.
 
@@ -374,17 +431,28 @@ def convert_to_binned(df, name_label_unbinned, name_label_binned):
         """
 
         ar = numpy.array(ar)
+
         bin_map, inverse_indices = numpy.unique(
             ar, 
             return_inverse=True
         )
+
         bin_indices = numpy.arange(len(bin_map))
+
         bins = bin_indices[inverse_indices]
+
         return bins, bin_map
     
-    bins, bin_map = to_bins(df[name_label_unbinned])
+    bins, bin_map = to_bins(
+        df[name_label_unbinned]
+    )
+
     df[name_label_binned] = bins
-    df = df.drop(columns=name_label_unbinned)
+
+    df = df.drop(
+        columns=name_label_unbinned
+    )
+
     return df, bin_map
 
 
@@ -456,11 +524,13 @@ def bootstrap_labeled_sets(
     bootstrap_y = torch.concatenate(bootstrap_y)
 
     if reduce_labels:
+
         bootstrap_y = (
             torch.unique_consecutive(
                 bootstrap_y, dim=1
             ).squeeze()
         )
+
         assert (
             bootstrap_y.shape[0] 
             == bootstrap_x.shape[0]
@@ -469,7 +539,10 @@ def bootstrap_labeled_sets(
     return bootstrap_x, bootstrap_y
 
 
-def make_image(ar_feat, n_bins):
+def make_image(
+    ar_feat,
+    n_bins,
+):
     """
     Make an image of a B->K*ll dataset. 
     Like Shawn.
@@ -498,25 +571,35 @@ def make_image(ar_feat, n_bins):
     """
 
     ar_feat = ar_feat.detach().numpy()
+
     angular_features = ar_feat[:,1:]
     q_squared_features = ar_feat[:,0]
+
     np_image = scipy.stats.binned_statistic_dd(
         sample=angular_features,
         values=q_squared_features, 
         bins=n_bins,
         range=[(-1, 1), (-1, 1), (0, 2*numpy.pi)]
     ).statistic
+
     torch_image = torch.from_numpy(np_image)
     torch_image = torch.nan_to_num(torch_image)
     torch_image = torch_image.unsqueeze(0)
+
     return torch_image
 
 
-def pandas_to_torch(obj):
+def pandas_to_torch(
+    obj,
+):
     """
     Convert a pandas object to a torch tensor.
 
     (Object can be a dataframe or series).
     """
-    obj = torch.from_numpy(obj.to_numpy())
+
+    obj = torch.from_numpy(
+        obj.to_numpy()
+    )
+
     return obj

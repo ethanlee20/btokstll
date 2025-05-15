@@ -1,6 +1,10 @@
+
 """
 Pandas dataframe / series math
 """
+
+import numpy
+import pandas
 
 
 def square_matrix_transform(df_matrix, df_vec):

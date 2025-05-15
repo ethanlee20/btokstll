@@ -2,7 +2,8 @@
 import torch
 
 
-def select_device():
+def select_device(
+):
     """
     Select a device to compute with.
 
@@ -24,7 +25,10 @@ def select_device():
     return device
 
 
-def print_gpu_memory_info(summary=False, peak=True):
+def print_gpu_memory_info(
+    summary=False, 
+    peak=True
+):
     """
     Print GPU memory summary.
     """

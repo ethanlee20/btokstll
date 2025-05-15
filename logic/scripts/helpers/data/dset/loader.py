@@ -40,7 +40,9 @@ class Dataset_Loader:
 
         else:
 
-            raise ValueError(f"Name not recognized: {config.name}")
+            raise ValueError(
+                f"Name not recognized: {config.name}"
+            )
         
         print(f"Loaded dataset: {config.name}")
 
@@ -48,29 +50,45 @@ class Dataset_Loader:
 
         config = self.config
 
-        self.features = load_file_torch_tensor(config.path_file_features)
+        self.features = load_file_torch_tensor(
+            config.path_file_features
+        )
 
-        self.labels = load_file_torch_tensor(config.path_file_labels)
+        self.labels = load_file_torch_tensor(
+            config.path_file_labels
+        )
 
-        self.bin_map = load_file_torch_tensor(config.path_file_bin_map)
+        self.bin_map = load_file_torch_tensor(
+            config.path_file_bin_map
+        )
 
     def _load_sets_binned_signal(self):
 
         config = self.config
 
-        self.features = load_file_torch_tensor(config.path_file_features)
+        self.features = load_file_torch_tensor(
+            config.path_file_features
+        )
 
-        self.labels = load_file_torch_tensor(config.path_file_labels)
+        self.labels = load_file_torch_tensor(
+            config.path_file_labels
+        )
 
-        self.bin_map = load_file_torch_tensor(config.path_file_bin_map)
+        self.bin_map = load_file_torch_tensor(
+            config.path_file_bin_map
+        )
 
     def _load_sets_unbinned_signal(self):
 
         config = self.config
 
-        self.features = load_file_torch_tensor(config.path_file_features)
+        self.features = load_file_torch_tensor(
+            config.path_file_features
+        )
 
-        self.labels = load_file_torch_tensor(config.path_file_labels)
+        self.labels = load_file_torch_tensor(
+            config.path_file_labels
+        )
 
         self.bin_map = None
 
@@ -78,8 +96,12 @@ class Dataset_Loader:
 
         config = self.config
 
-        self.features = load_file_torch_tensor(config.path_file_features)
+        self.features = load_file_torch_tensor(
+            config.path_file_features
+        )
         
-        self.labels = load_file_torch_tensor(config.path_file_labels)
+        self.labels = load_file_torch_tensor(
+            config.path_file_labels
+        )
         
         self.bin_map = None

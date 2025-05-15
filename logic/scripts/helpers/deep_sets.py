@@ -1,10 +1,92 @@
 
+import torch
 
 from model.config import Config_Model
 from data.dset.config import Config_Dataset
+from data.dset.constants import (
+    Names_Datasets,
+    Names_Splits
+)
 from model.model import Custom_Model
 from data.dset.dataset import Custom_Dataset
+ 
 
+class Deep_Sets:
+
+    def __init__(
+        self,
+        level,
+        num_events_per_set,
+        num_sets_per_label,
+        num_sets_sens,
+        learn_rate,
+        size_batch_train,
+        size_batch_eval,
+        num_epochs,
+        path_dir_dsets_main,
+        path_dir_raw_signal,
+        path_dir_models_main,
+        device,
+        loss_fn=torch.nn.MSELoss(),
+        lr_scheduler=None,
+        num_epochs_checkpoint=5,
+        q_squared_veto="loose",
+        balanced_classes=True,
+        std_scale=True,
+        shuffle=True,
+        label_subset=None,
+    ):
+        
+        dataset_train = Config_Dataset(
+            name=(
+                Names_Datasets()
+                .sets_unbinned_signal
+            ),
+            level=level,
+            q_squared_veto=q_squared_veto,
+            balanced_classes=balanced_classes,
+            std_scale=std_scale,
+            split=Names_Splits().train,
+            path_dir_dsets_main=path_dir_dsets_main,
+            path_dir_raw_signal=path_dir_raw_signal,
+            label_subset=label_subset,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label,
+        )
+
+        dataset_eval = Config_Dataset(
+            name=(
+                Names_Datasets()
+                .sets_unbinned_signal
+            ),
+            level=level,
+            q_squared_veto=q_squared_veto,
+            balanced_classes=balanced_classes,
+            std_scale=std_scale,
+            split=Names_Splits().eval_,
+            path_dir_dsets_main=path_dir_dsets_main,
+            path_dir_raw_signal=path_dir_raw_signal,
+            label_subset=label_subset,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label,
+        )
+
+        dataset_eval_sens = Config_Dataset(
+            name=(
+                Names_Datasets()
+                .sets_unbinned_signal
+            ),
+            level=level,
+            q_squared_veto=q_squared_veto,
+            balanced_classes=balanced_classes,
+            std_scale=std_scale,
+            split=Names_Splits().eval_, ## fix ?
+            path_dir_dsets_main=path_dir_dsets_main,
+            path_dir_raw_signal=path_dir_raw_signal,
+            label_subset=,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label,
+        )
 
 class Approach_Deep_Sets:
 

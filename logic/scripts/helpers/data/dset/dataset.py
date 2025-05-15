@@ -70,7 +70,8 @@ class Custom_Dataset(torch.utils.data.Dataset):
         Parameters
         ----------
         index : int
-            The index of the pair within the dataset.
+            The index of the pair 
+            within the dataset.
 
         Returns
         -------

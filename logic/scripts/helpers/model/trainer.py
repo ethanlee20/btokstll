@@ -9,7 +9,7 @@ from .model import Custom_Model
 from .loss_table import Loss_Table
 
 
-class Model_Trainer:
+class Trainer:
 
     """
     Trains a model.
@@ -121,51 +121,24 @@ class Model_Trainer:
             print_gpu_memory_info()
 
             if (ep % num_epochs_checkpoint) == 0:
-                self._save_checkpoint(ep)
 
-        self._save_final()
+                self.model.save(ep)
 
-    def _save_final(self):
+                self._save_loss_table()
 
-        """
-        Save final.
-        """
+                print(
+                    "Saved checkpoint at " 
+                    f"epoch: {ep}"
+                )
 
-        path_file_model = (
-            self.model.config
-            .path_file_final
-        )
-        
-        torch.save(
-            self.model.state_dict(), 
-            path_file_model,
-        )
+        self.model.save()
 
         self._save_loss_table()
 
-        print("Saved final.")
-
-    def _save_checkpoint(self, epoch):
-
-        """
-        Save checkpoint.
-        """
-
-        path_file_model = (
-            self.model.config
-            .make_path_file_checkpoint(
-                epoch
-            )
+        print(
+            "Saved final at "
+            f"epoch: {num_epochs-1}"
         )
-
-        torch.save(
-            self.model.state_dict(), 
-            path_file_model,
-        )
-
-        self._save_loss_table()
-
-        print("Saved checkpoint.")
 
     def _save_loss_table(self):
 

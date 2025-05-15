@@ -69,7 +69,30 @@ class Custom_Model(torch.nn.Module):
         )
 
         self.model.load_state_dict(state_dict)
-    
+
+    def save(self, epoch=None):
+
+        if epoch is None:
+
+            torch.save(
+                self.model.state_dict(), 
+                self.config.path_file_final,
+            )
+
+        else: 
+
+            path = (
+                self.config
+                .make_path_file_checkpoint(
+                    epoch
+                )
+            )
+
+            torch.save(
+                self.model.state_dict(),
+                path,
+            )
+
 
 class Model_Deep_Sets(torch.nn.Module):
     
@@ -105,14 +128,14 @@ class Model_Deep_Sets(torch.nn.Module):
 
     class Block(torch.nn.Module):
 
-        def __init__(self, in_out_feat):
+        def __init__(self, in_out):
 
             super().__init__()
 
             self.block = torch.nn.Sequential(
-                torch.nn.Linear(in_out_feat, in_out_feat),
+                torch.nn.Linear(in_out, in_out),
                 torch.nn.ReLU(),
-                torch.nn.Linear(in_out_feat, in_out_feat),
+                torch.nn.Linear(in_out, in_out),
                 torch.nn.ReLU(),
             )
 
@@ -263,22 +286,22 @@ class Model_CNN(torch.nn.Module):
 
     class Res_Block(torch.nn.Module):
 
-        def __init__(self, in_out_channels):
+        def __init__(self, in_out):
 
             super().__init__()
             
             self.block = torch.nn.Sequential(
                 torch.nn.Conv3d(
-                    in_channels=in_out_channels, 
-                    out_channels=in_out_channels, 
+                    in_channels=in_out, 
+                    out_channels=in_out, 
                     kernel_size=3, 
                     stride=1, 
                     padding="same"
                 ),
                 torch.nn.ReLU(),
                 torch.nn.Conv3d(
-                    in_channels=in_out_channels, 
-                    out_channels=in_out_channels, 
+                    in_channels=in_out, 
+                    out_channels=in_out, 
                     kernel_size=3, 
                     stride=1, 
                     padding="same"
