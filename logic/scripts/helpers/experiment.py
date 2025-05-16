@@ -1,10 +1,6 @@
 
-import torch
+import pathlib
 
-from .data.dset.constants import (
-    Names_Datasets,
-    Names_Splits
-)
 from .data.dset.config import Config_Dataset
 from .data.dset.dataset import Custom_Dataset
 from .model.constants import Names_Models
@@ -19,148 +15,48 @@ from .result.table import Summary_Table
 from .result.constants import Names_Kinds_Items
  
 
-class Deep_Sets:
+class Experiment:
 
     def __init__(
         self,
-        level,
-        num_events_per_set,
-        num_sets_per_label,
-        num_sets_sens,
-        learn_rate,
-        size_batch_train,
-        size_batch_eval,
-        num_epochs,
-        path_dir_dsets_main,
-        path_dir_raw_signal,
-        path_dir_models_main,
-        path_dir_plots,
-        device,
-        loss_fn=torch.nn.MSELoss(),
-        lr_scheduler=None,
-        num_epochs_checkpoint=5,
-        q_squared_veto="loose",
-        balanced_classes=True,
-        std_scale=True,
-        shuffle=True,
-        label_subset:list[float]=None,
-        value_dc9_np=-0.82,
-        generate_dsets=False,
-        train_model=False,
+        path_dir_plots:str|pathlib.Path,
+        device:str,
     ):
         
-        config_dset_train = Config_Dataset(
-            name=(
-                Names_Datasets()
-                .sets_unbinned_signal
-            ),
-            level=level,
-            q_squared_veto=q_squared_veto,
-            balanced_classes=balanced_classes,
-            std_scale=std_scale,
-            split=Names_Splits().train,
-            path_dir_dsets_main=path_dir_dsets_main,
-            path_dir_raw_signal=path_dir_raw_signal,
-            shuffle=shuffle,
-            label_subset=label_subset,
-            num_events_per_set=num_events_per_set,
-            num_sets_per_label=num_sets_per_label,
-        )
+        self.path_dir_plots = path_dir_plots
+        
+        self.device = device
 
-        config_dset_eval = Config_Dataset(
-            name=(
-                Names_Datasets()
-                .sets_unbinned_signal
-            ),
-            level=level,
-            q_squared_veto=q_squared_veto,
-            balanced_classes=balanced_classes,
-            std_scale=std_scale,
-            split=Names_Splits().eval_,
-            path_dir_dsets_main=path_dir_dsets_main,
-            path_dir_raw_signal=path_dir_raw_signal,
-            shuffle=shuffle,
-            label_subset=label_subset,
-            num_events_per_set=num_events_per_set,
-            num_sets_per_label=num_sets_per_label,
-        )
+        self.table_summary = Summary_Table()
 
-        config_dset_eval_sens = Config_Dataset(
-            name=(
-                Names_Datasets()
-                .sets_unbinned_signal
-            ),
-            level=level,
-            q_squared_veto=q_squared_veto,
-            balanced_classes=balanced_classes,
-            std_scale=std_scale,
-            split=Names_Splits().eval_,
-            path_dir_dsets_main=path_dir_dsets_main,
-            path_dir_raw_signal=path_dir_raw_signal,
-            shuffle=shuffle,
-            label_subset=[value_dc9_np],
-            num_events_per_set=num_events_per_set,
-            num_sets_per_label=num_sets_sens,
-        )
-
-        config_model = Config_Model(
-            name=Names_Models().deep_sets,
-            path_dir_models_main=path_dir_models_main,
-            config_dset_train=config_dset_train,
-            loss_fn=loss_fn,
-            learn_rate=learn_rate,
-            scheduler_lr=lr_scheduler,
-            size_batch_train=size_batch_train,
-            size_batch_eval=size_batch_eval,
-            num_epochs=num_epochs,
-            num_epochs_checkpoint=num_epochs_checkpoint,
-        )
-
-        dset_train = Custom_Dataset(
-            config_dset_train
-        )
+    def evaluate(
+        self,
+        config_model:Config_Model,
+        config_dset_eval:Config_Dataset,
+        config_dset_eval_sens:Config_Dataset,
+        generate_dsets=False,
+        value_dc9_np=-0.82,
+    ):
 
         dset_eval = Custom_Dataset(
             config_dset_eval
         )
-
         dset_eval_sens = Custom_Dataset(
             config_dset_eval_sens
         )
-
+        
         if generate_dsets:
-
-            dset_train.generate()
-            dset_eval.generate()
             dset_eval_sens.generate()
+            dset_eval.generate()
 
-        dset_train.load()
-        dset_eval.load()
         dset_eval_sens.load()
+        dset_eval.load()
 
         model = Custom_Model(
             config_model
         )
 
-        if train_model:
-
-            trainer = Trainer(
-                model=model,
-                dset_train=dset_train,
-                dset_eval=dset_eval,
-                device=device,
-            )
-
-            trainer.train()
-
-            plot_loss_curves(
-                config_model=config_model,
-                path_dir=path_dir_plots,
-            )
-
         model.load()
-
-        table_summary = Summary_Table()
 
         eval = Evaluator(
             model=model,
@@ -182,18 +78,18 @@ class Deep_Sets:
             avgs=avgs, 
             stds=stds,
             config_model=config_model,
-            path_dir=path_dir_plots,
+            path_dir=self.path_dir_plots,
         )
         
         mse, mae = eval.calc_mse_mae()
-
-        table_summary.add_item(
+        
+        self.table_summary.add_item(
             config_model=config_model,
             kind=Names_Kinds_Items().mse,
             item=mse,
         )
   
-        table_summary.add_item(
+        self.table_summary.add_item(
             config_model=config_model,
             kind=Names_Kinds_Items().mae,
             item=mae,
@@ -203,19 +99,19 @@ class Deep_Sets:
             eval_sens.run_test_sens()
         )
 
-        table_summary.add_item(
+        self.table_summary.add_item(
             config_model=config_model,
             kind=Names_Kinds_Items().np_mean,
             item=avg_sens,
         )
 
-        table_summary.add_item(
+        self.table_summary.add_item(
             config_model=config_model,
             kind=Names_Kinds_Items().np_std,
             item=std_sens,
         )
 
-        table_summary.add_item(
+        self.table_summary.add_item(
             config_model=config_model,
             kind=Names_Kinds_Items().np_bias,
             item=bias_sens,
@@ -227,10 +123,51 @@ class Deep_Sets:
             std=std_sens,
             label=value_dc9_np,
             config_model=config_model,
-            path_dir=path_dir_plots
+            path_dir=self.path_dir_plots
         )
 
-        return table_summary
+    def train(
+        self,
+        config_model:Config_Model,
+        config_dset_eval:Config_Dataset,
+        generate_dsets=False,
+    ):
+
+        dset_train = Custom_Dataset(
+            config_model.config_dset_train
+        )
+
+        dset_eval = Custom_Dataset(
+            config_dset_eval
+        )
+
+        if generate_dsets:
+
+            dset_train.generate()
+            dset_eval.generate()
+
+        dset_train.load()
+        dset_eval.load()
+
+        model = Custom_Model(
+            config_model
+        )
+
+        trainer = Trainer(
+            model=model,
+            dset_train=dset_train,
+            dset_eval=dset_eval,
+            device=self.device,
+        )
+
+        trainer.train()
+
+        plot_loss_curves(
+            config_model=config_model,
+            path_dir=self.path_dir_plots,
+        )
+
+
 
 
 

@@ -33,7 +33,7 @@ class Config_Dataset:
         path_dir_raw_signal:str|pathlib.Path,
         shuffle:bool,
         label_subset:list[float]=None, # original labels (not bin values)
-        num_events_per_set:int=None,
+        num_events_per_set_signal:int=None,
         num_sets_per_label:int=None,
         num_bins_image:int=None,
     ):
@@ -66,7 +66,7 @@ class Config_Dataset:
 
         self.label_subset = label_subset
 
-        self.num_events_per_set = num_events_per_set
+        self.num_events_per_set = num_events_per_set_signal
 
         self.num_sets_per_label = num_sets_per_label
 
