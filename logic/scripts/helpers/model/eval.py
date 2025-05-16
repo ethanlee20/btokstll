@@ -31,7 +31,7 @@ class Evaluator:
             
             self._send_bin_map_to_device()
 
-    def predict(self, x):
+    def predict(self):
 
         def predict_ebe(x):
 
@@ -54,22 +54,21 @@ class Evaluator:
 
             preds = []
             
-            for x_ in x:
+            for x in self.dataset.features:
 
-                x_ = x_.to(self.device)
+                x = x.to(self.device)
                 
                 if (
                     self.model.config.name 
                     == Names_Models().ebe
                 ):
 
-                    pred = predict_ebe(x_)
+                    pred = predict_ebe(x=x)
                 
                 else:
 
                     pred = self.model(
-                        x_
-                        .unsqueeze(0)
+                        x.unsqueeze(0)
                     )
                 
                 preds.append(pred)

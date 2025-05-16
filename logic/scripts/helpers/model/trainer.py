@@ -51,7 +51,10 @@ class Trainer:
 
         loss_fn = self.model.config.fn_loss
 
-        optimizer = self.model.config.optimizer
+        optimizer = torch.optim.Adam(
+            self.model.parameters(), 
+            lr=self.model.config.learn_rate
+        )
 
         lr_scheduler = self.model.config.scheduler_lr
 

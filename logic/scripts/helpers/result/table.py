@@ -2,12 +2,6 @@
 import torch
 import pandas
 
-from ..model.constants import Names_Models
-from ..data.dset.constants import (
-    Names_Levels,
-    Names_q_Squared_Vetos,
-    Nums_Events_Per_Set
-)
 from ..model.config import Config_Model
 from .constants import (
     Info_Index,
@@ -29,6 +23,7 @@ class Summary_Table:
     ):
 
         if kind not in Names_Kinds_Items().tuple_:
+            
             raise ValueError(
                 "kind not recognized. "
                 f"Must be in: {Names_Kinds_Items().tuple_}"

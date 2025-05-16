@@ -18,8 +18,8 @@ class Config_Model:
         path_dir_models_main:str|pathlib.Path,
         config_dset_train:Config_Dataset,
         loss_fn=None,
-        optimizer=None,
-        lr_scheduler=None,
+        learn_rate=None,
+        scheduler_lr=None,
         size_batch_train=None,
         size_batch_eval=None,
         num_epochs=None,
@@ -41,9 +41,9 @@ class Config_Model:
 
         self.fn_loss = loss_fn
 
-        self.optimizer = optimizer
+        self.learn_rate = learn_rate
 
-        self.scheduler_lr = lr_scheduler
+        self.scheduler_lr = scheduler_lr
 
         self.size_batch_train = size_batch_train
         self.size_batch_eval = size_batch_eval
