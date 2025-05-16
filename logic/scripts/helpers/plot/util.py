@@ -1,5 +1,8 @@
 
+import pathlib
+
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 
 def setup_high_quality_mpl_params():
@@ -38,7 +41,7 @@ def setup_high_quality_mpl_params():
     mpl.rcParams["legend.fontsize"] = 7.5
 
 
-def make_plot_note(ax, text:str, fontsize="medium"):
+def add_plot_note(ax, text:str, fontsize="medium"):
 
     """
     Annotate a plot in the upper right corner,
@@ -71,3 +74,82 @@ def make_plot_note(ax, text:str, fontsize="medium"):
         transform=ax.transAxes, 
         fontsize=fontsize
     )
+
+
+def save_plot_model(
+    kind, 
+    config_model,
+    path_dir,
+):
+
+    config_dset_train = config_model.config_dset_train
+
+    name_file = (
+        f"{config_model.name}_"
+        f"{config_dset_train.num_events_per_set}_"
+        f"{config_dset_train.level}_"
+        f"q2v_{config_dset_train.q_squared_veto}_"
+        f"{kind}"
+        ".png"
+    )
+
+    path_dir = pathlib.Path(
+        path_dir
+    )
+
+    path_file = path_dir.joinpath(
+        name_file
+    )
+
+    plt.savefig(
+        path_file, 
+        bbox_inches="tight"
+    )
+
+    plt.close()
+
+
+def save_plot_dset(
+    kind, 
+    config_dset,
+    path_dir
+):
+
+    name_file = (
+        f"{config_dset.name}_"
+        f"{config_dset.num_events_per_set}_"
+        f"{config_dset.split}_"
+        f"{kind}"
+        ".png"
+    )
+
+    path_dir = pathlib.Path(
+        path_dir
+    )
+
+    path_file = path_dir.joinpath(
+        name_file
+    )
+
+    plt.savefig(
+        path_file, 
+        bbox_inches="tight"
+    )
+
+    plt.close()
+
+
+def make_note_model(
+    config_model
+):
+    
+    config_dset_train = config_model.config_dset_train
+
+    note = (
+        f"{config_model.name}, "
+        f"{config_dset_train.level}., "
+        f"{config_dset_train.num_sets_per_label} boots., "
+        f"{config_dset_train.num_events_per_set} events/boots."
+    )
+
+    return note

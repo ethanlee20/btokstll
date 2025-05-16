@@ -38,7 +38,7 @@ class Summary_Table:
             
             item = item.item()
 
-        config_dset = config_model.config_dset
+        config_dset = config_model.config_dset_train
         
         self.table.loc[
             (

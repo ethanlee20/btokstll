@@ -32,7 +32,7 @@ class Config_Dataset:
         path_dir_dsets_main:str|pathlib.Path,
         path_dir_raw_signal:str|pathlib.Path,
         shuffle:bool,
-        label_subset:list=None, # original labels (not bin values)
+        label_subset:list[float]=None, # original labels (not bin values)
         num_events_per_set:int=None,
         num_sets_per_label:int=None,
         num_bins_image:int=None,
