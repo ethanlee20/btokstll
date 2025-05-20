@@ -494,6 +494,30 @@ def load_file_agg_raw_signal(
     return df
 
 
+def load_file_raw_bkg(
+    dir,
+    charge_or_mix,
+    split,
+    verbose=True,    
+):
+    
+    if charge_or_mix not in {"charge", "mix"}:
+        raise ValueError("Option not recognized.")
+    
+    dir = pathlib.Path(dir)
+
+    name = f"mu_sideb_generic_{charge_or_mix}_{split}.pkl"
+    
+    path = dir.joinpath(name)
+    
+    df = pandas.read_pickle(path)
+    
+    if verbose:
+        print(f"Loaded raw bkg file: {path}")
+        
+    return df
+
+
 def save_file_torch_tensor(
     tensor:torch.Tensor, 
     path:str|pathlib.Path, 

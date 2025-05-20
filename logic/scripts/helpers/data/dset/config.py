@@ -26,14 +26,16 @@ class Config_Dataset:
         name:str,
         level:str,
         q_squared_veto:str,
-        balanced_classes:bool,
+        balanced_classes:bool, 
         std_scale:bool,
         split:str,
         path_dir_dsets_main:str|pathlib.Path,
         path_dir_raw_signal:str|pathlib.Path,
         shuffle:bool,
+        path_dir_raw_bkg:str|pathlib.Path=None,
         label_subset:list[float]=None, # original labels (not bin values)
-        num_events_per_set_signal:int=None,
+        num_events_per_set:int=None,
+        frac_bkg:float=None,
         num_sets_per_label:int=None,
         num_bins_image:int=None,
     ):
@@ -62,11 +64,17 @@ class Config_Dataset:
             path_dir_raw_signal
         )
 
+        self.path_dir_raw_bkg = pathlib.Path(
+            path_dir_raw_bkg
+        )
+
         self.shuffle = shuffle
 
         self.label_subset = label_subset
 
-        self.num_events_per_set = num_events_per_set_signal
+        self.num_events_per_set = num_events_per_set
+
+        self.frac_bkg = frac_bkg
 
         self.num_sets_per_label = num_sets_per_label
 
@@ -79,6 +87,12 @@ class Config_Dataset:
         self._set_path_dir()
 
         self._set_paths_files()
+
+        if self.num_events_per_set and self.frac_bkg:
+
+            self.num_events_per_set_signal, self.num_events_per_set_bkg = (
+                self._calc_num_signal_bkg()
+            )
 
     def _check_inputs(self):
 
@@ -123,6 +137,14 @@ class Config_Dataset:
             raise ValueError(
                 "Shuffle option not recognized."
             )
+        
+        if self.frac_bkg:
+
+            if (self.frac_bkg > 1) or (self.frac_bkg < 0):
+
+                raise ValueError(
+                    "frac_bkg must be between 0 and 1."
+                )
 
     def _set_path_dir(self):
 
@@ -226,3 +248,11 @@ class Config_Dataset:
             else None
 
         )
+
+    def _calc_num_signal_bkg(self):
+
+        num_bkg = int(self.num_events_per_set * self.frac_bkg)
+
+        num_signal = self.num_events_per_set - num_bkg
+
+        return num_signal, num_bkg

@@ -332,7 +332,7 @@ def apply_shuffle(
     return df
 
 
-def apply_cleaning(
+def apply_cleaning_signal(
     df, 
     config:Config_Dataset, 
     verbose=True
@@ -395,6 +395,50 @@ def apply_cleaning(
     
     return df
 
+
+def apply_cleaning_bkg(
+    df,
+    config,
+):
+    
+    """
+    Apply cleaning to background dataset.
+    """
+
+    df = df.copy()
+
+    df = apply_q_squared_veto(
+        df, 
+        config.q_squared_veto,
+    )
+
+    if config.std_scale:
+
+        features_to_scale = (
+            config.names_features if (
+                config.name != config.name_dset_images_signal
+            )
+            else [config.name_var_q_squared] if (
+                config.name == config.name_dset_images_signal
+            )
+            else None
+        )
+
+        df = apply_standard_scale(
+            df, 
+            config.level, 
+            config.q_squared_veto,
+            features_to_scale,
+        )
+    
+    df = apply_drop_na(df)
+    
+    if config.shuffle:
+        df = apply_shuffle
+
+    print("Applied cleaning.")
+
+    return df
 
 def convert_to_binned(
     df, 
@@ -459,11 +503,39 @@ def convert_to_binned(
     return df, bin_map
 
 
+def bins_to_probs(
+    bins,
+):
+
+    """
+    Danger : will not make columns for labels
+    that do not exist in input.
+    """
+    
+    df_one_hot = pandas.get_dummies(bins)
+
+    return df_one_hot
+
+
+def bkg_probs(num_events, num_bins):
+
+    """
+    Make background probability labels.
+    """
+
+    probs = (
+        torch.ones((num_events, num_bins))
+        / num_bins
+    )
+
+    return probs 
+
+
 def bootstrap_labeled_sets(
-    x:torch.Tensor, 
-    y:torch.Tensor, 
-    n:int, 
-    m:int, 
+    features:torch.Tensor, 
+    labels:torch.Tensor, 
+    num_events_per_set:int, 
+    num_sets_per_label:int, 
     reduce_labels:bool=True, 
 ):  
     """
@@ -471,14 +543,14 @@ def bootstrap_labeled_sets(
 
     Parameters
     ----------
-    x : torch.Tensor
+    features : torch.Tensor
         Array of features of shape: 
         (number of events, number of features)
-    y : torch.Tensor
+    labels : torch.Tensor
         Array of labels of shape: (number of events)
-    n : int
+    num_events_per_set : int
         Number of events per bootstrap  
-    m : int
+    num_sets_per_label : int
         Number of bootstraps per unique label  
     reduce_labels : bool
         Whether or not to return one label per bootstrap
@@ -499,22 +571,22 @@ def bootstrap_labeled_sets(
     bootstrap_y = []
     
     labels_to_sample = torch.unique(
-        y, 
+        labels, 
         sorted=True
     )
 
     for label in labels_to_sample:    
 
-        for _ in range(m):
+        for _ in range(num_sets_per_label):
 
-            pool_x = x[y==label]
-            pool_y = y[y==label]
+            pool_x = features[labels==label]
+            pool_y = labels[labels==label]
             assert pool_x.shape[0] == pool_y.shape[0]
 
             selection_indices = torch.randint(
                 low=0, 
                 high=len(pool_x), 
-                size=(n,)
+                size=(num_events_per_set,)
             )
 
             _bootstrap_x = pool_x[selection_indices]
@@ -540,6 +612,52 @@ def bootstrap_labeled_sets(
         )
 
     return bootstrap_x, bootstrap_y
+
+
+def bootstrap_bkg(
+    df_charge,
+    df_mix,
+    num_events_per_set,
+    num_sets,
+    frac_charge,
+):
+    
+    num_charge = int(
+        num_events_per_set 
+        * frac_charge
+    )
+
+    num_mix = num_events_per_set - num_charge
+
+    list_tensors_bootstrap = []
+
+    for _ in range(num_sets):
+
+        tensor_mix = pandas_to_torch(
+            df_mix.sample(n=num_mix, replace=True)
+        )
+        
+        tensor_charge = pandas_to_torch(
+            df_charge.sample(n=num_charge, replace=True)
+        )
+
+        _tensor_combo = torch.unsqueeze(
+            torch.concat(
+                [
+                    tensor_mix,
+                    tensor_charge,
+                ]
+            ),
+            dim=0,
+        )
+
+        list_tensors_bootstrap.append(_tensor_combo)
+
+    tensor_bootstrap = torch.concat(
+        list_tensors_bootstrap
+    )
+
+    return tensor_bootstrap
 
 
 def make_image(

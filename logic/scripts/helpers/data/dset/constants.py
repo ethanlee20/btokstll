@@ -7,6 +7,8 @@ class Names_Datasets:
     sets_binned_signal = "sets_binned_signal"
     sets_unbinned_signal = "sets_unbinned_signal"
 
+    
+
     tuple_ = (
         images_signal,
         binned_signal,
@@ -19,10 +21,12 @@ class Names_Levels:
 
     generator = "gen"
     detector = "det"
+    detector_and_background = "det_bkg"
 
     tuple_ = (
         generator, 
         detector,
+        detector_and_background,
     )
 
 
