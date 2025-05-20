@@ -69,15 +69,17 @@ class Dataset_Generator:
 
         elif config.name == config.name_dset_sets_unbinned_signal:
             
-            self._generate_sets_unbinned_signal()
+            self._generate_sets_unbinned()
 
         elif config.name == config.name_dset_images_signal:
 
-            self._generate_images_signal()
+            self._generate_images()
 
         else:
 
-            raise ValueError(f"Name not recognized: {config.name}")
+            raise ValueError(
+                f"Name not recognized: {config.name}"
+            )
         
         print(f"Generated dataset: {config.name}")
 
@@ -214,7 +216,7 @@ class Dataset_Generator:
             features_bkg = bootstrap_bkg(
                 self.df_bkg_charge, 
                 self.df_bkg_mix, 
-                config.num_events_per_set, 
+                config.num_events_per_set_bkg, 
                 num_sets, 
                 frac_charge=0.5,
             )
@@ -245,32 +247,59 @@ class Dataset_Generator:
             config.path_file_bin_map
         )
 
-    def _generate_sets_unbinned_signal(self):
+    def _generate_sets_unbinned(self):
 
         """
         Generate files for the
-        sets unbinned signal dataset.
+        sets unbinned dataset.
         """
 
         config = self.config
 
         df_agg = self.df_agg.copy()
 
-        source_features = pandas_to_torch(
+        source_features_signal = pandas_to_torch(
             df_agg[config.names_features]
         )
 
-        source_labels = pandas_to_torch(
+        source_labels_signal = pandas_to_torch(
             df_agg[config.name_label_unbinned]
         )
 
-        features, labels = bootstrap_labeled_sets(
-            source_features,
-            source_labels,
-            num_events_per_set=config.num_events_per_set,
+        features_signal, labels = bootstrap_labeled_sets(
+            source_features_signal,
+            source_labels_signal,
+            num_events_per_set=config.num_events_per_set_signal,
             num_sets_per_label=config.num_sets_per_label,
             reduce_labels=True,
         )
+
+        if config.level == (
+            Names_Levels().detector_and_background
+        ):
+            
+            num_labels = labels.shape[1]
+
+            num_sets = config.num_sets_per_label * num_labels
+            
+            features_bkg = bootstrap_bkg(
+                self.df_bkg_charge, 
+                self.df_bkg_mix, 
+                config.num_events_per_set_bkg, 
+                num_sets, 
+                frac_charge=0.5,
+            )
+
+            features = torch.concat(
+                [
+                    features_signal,
+                    features_bkg,
+                ],
+                dim=1,
+            )
+
+        else:
+            features = features_signal
 
         save_file_torch_tensor(
             features, 
@@ -282,34 +311,61 @@ class Dataset_Generator:
             config.path_file_labels
         )
 
-    def _generate_images_signal(self):
+    def _generate_images(self):
 
         """
         Generate files for the 
-        images signal dataset.
+        images dataset.
         """
 
         config = self.config
 
         df_agg = self.df_agg.copy()
 
-        features_source = pandas_to_torch(
+        features_source_signal = pandas_to_torch(
             df_agg[config.names_features]
         )
 
-        labels_source = pandas_to_torch(
+        labels_source_signal = pandas_to_torch(
             df_agg[config.name_label_unbinned]
         )
 
-        features_sets_source, labels = (
+        features_sets_source_signal, labels = (
             bootstrap_labeled_sets(
-                features_source,
-                labels_source,
-                num_events_per_set=config.num_events_per_set,
+                features_source_signal,
+                labels_source_signal,
+                num_events_per_set=config.num_events_per_set_signal,
                 num_sets_per_label=config.num_sets_per_label,
                 reduce_labels=True,
             )
         )
+
+        if config.level == (
+            Names_Levels().detector_and_background
+        ):
+            
+            num_labels = labels.shape[1]
+
+            num_sets = config.num_sets_per_label * num_labels
+            
+            features_sets_source_bkg = bootstrap_bkg(
+                self.df_bkg_charge, 
+                self.df_bkg_mix, 
+                config.num_events_per_set_bkg, 
+                num_sets, 
+                frac_charge=0.5,
+            )
+
+            features_sets_source = torch.concat(
+                [
+                    features_sets_source_signal,
+                    features_sets_source_bkg,
+                ],
+                dim=1,
+            )
+
+        else:
+            features_sets_source = features_sets_source_signal
 
         features = torch.cat(
             [
