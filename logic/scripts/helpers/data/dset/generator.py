@@ -5,7 +5,7 @@ import pandas
 import torch 
 
 from .config import Config_Dataset
-from .constants import Names_Levels
+from .constants import Names_Levels, Names_Datasets
 from .preproc import (
     convert_to_binned, 
     bins_to_probs,
@@ -27,9 +27,11 @@ from ..file_hand import (
 
 
 class Dataset_Generator:
+
     """
     Generates a dataset. 
     """
+    
     def __init__(
         self, 
         config:Config_Dataset,
@@ -53,25 +55,26 @@ class Dataset_Generator:
         self._make_dir()
 
     def generate(self):
+
         """
         Generate dataset.
         """
         
         config = self.config
 
-        if config.name == config.name_dset_binned_signal:
+        if config.name == Names_Datasets().events_binned:
 
             self._generate_binned_events()
 
-        elif config.name == config.name_dset_sets_binned_signal:
+        elif config.name == Names_Datasets().sets_binned:
 
             self._generate_sets_binned()
 
-        elif config.name == config.name_dset_sets_unbinned_signal:
+        elif config.name == Names_Datasets().sets_unbinned:
             
             self._generate_sets_unbinned()
 
-        elif config.name == config.name_dset_images_signal:
+        elif config.name == Names_Datasets().images:
 
             self._generate_images()
 
@@ -173,78 +176,21 @@ class Dataset_Generator:
         sets binned dataset.
         """    
 
-        config = self.config
-
-        df_agg = self.df_agg.copy()
-
-        df_agg, bin_map = convert_to_binned(
-            df_agg, 
-            config.name_label_unbinned, 
-            config.name_label_binned,
-        )
-        
-        source_features_signal = pandas_to_torch(
-            df_agg[config.names_features]
-        )
-
-        source_labels_signal = df_agg[config.name_label_binned]
-
-        bin_map = torch.from_numpy(bin_map)
-
-        features_signal, labels = (
-            bootstrap_labeled_sets(
-                source_features_signal,
-                source_labels_signal,
-                num_events_per_set=config.num_events_per_set_signal, 
-                num_sets_per_label=config.num_sets_per_label,
-                reduce_labels=True,
-            )
-        )
-
-        labels = pandas_to_torch(
-            bins_to_probs(labels)
-        )
-
-        if config.level == (
-            Names_Levels().detector_and_background
-        ):
-            
-            num_labels = labels.shape[1]
-
-            num_sets = config.num_sets_per_label * num_labels
-            
-            features_bkg = bootstrap_bkg(
-                self.df_bkg_charge, 
-                self.df_bkg_mix, 
-                config.num_events_per_set_bkg, 
-                num_sets, 
-                frac_charge=0.5,
-            )
-
-            features = torch.concat(
-                [
-                    features_signal,
-                    features_bkg,
-                ],
-                dim=1,
-            )
-
-        else:
-            features = features_signal
+        features, labels, bin_map = self._make_sets()
 
         save_file_torch_tensor(
             features, 
-            config.path_file_features
+            self.config.path_file_features
         )
 
         save_file_torch_tensor(
             labels, 
-            config.path_file_labels
+            self.config.path_file_labels
         )
 
         save_file_torch_tensor(
             bin_map, 
-            config.path_file_bin_map
+            self.config.path_file_bin_map
         )
 
     def _generate_sets_unbinned(self):
@@ -254,61 +200,16 @@ class Dataset_Generator:
         sets unbinned dataset.
         """
 
-        config = self.config
-
-        df_agg = self.df_agg.copy()
-
-        source_features_signal = pandas_to_torch(
-            df_agg[config.names_features]
-        )
-
-        source_labels_signal = pandas_to_torch(
-            df_agg[config.name_label_unbinned]
-        )
-
-        features_signal, labels = bootstrap_labeled_sets(
-            source_features_signal,
-            source_labels_signal,
-            num_events_per_set=config.num_events_per_set_signal,
-            num_sets_per_label=config.num_sets_per_label,
-            reduce_labels=True,
-        )
-
-        if config.level == (
-            Names_Levels().detector_and_background
-        ):
-            
-            num_labels = labels.shape[1]
-
-            num_sets = config.num_sets_per_label * num_labels
-            
-            features_bkg = bootstrap_bkg(
-                self.df_bkg_charge, 
-                self.df_bkg_mix, 
-                config.num_events_per_set_bkg, 
-                num_sets, 
-                frac_charge=0.5,
-            )
-
-            features = torch.concat(
-                [
-                    features_signal,
-                    features_bkg,
-                ],
-                dim=1,
-            )
-
-        else:
-            features = features_signal
+        features, labels = self._make_sets()
 
         save_file_torch_tensor(
             features, 
-            config.path_file_features
+            self.config.path_file_features
         )
 
         save_file_torch_tensor(
             labels, 
-            config.path_file_labels
+            self.config.path_file_labels
         )
 
     def _generate_images(self):
@@ -318,16 +219,62 @@ class Dataset_Generator:
         images dataset.
         """
 
-        config = self.config
+        features_sets, labels = self._make_sets()
 
+        features = torch.cat(
+            [
+                make_image(
+                    set_,
+                    n_bins=self.config.num_bins_image
+                ).unsqueeze(dim=0)
+                for set_ 
+                in features_sets
+            ]
+        )
+
+        save_file_torch_tensor(
+            features, 
+            self.config.path_file_features
+        )
+
+        save_file_torch_tensor(
+            labels, 
+            self.config.path_file_labels
+        )
+
+    def _make_sets(
+        self,
+    ):
+        
         df_agg = self.df_agg.copy()
+
+        config = self.config
+        
+        if config.name == (
+            Names_Datasets().sets_binned
+        ):
+
+            df_agg, bin_map = convert_to_binned(
+                df_agg, 
+                config.name_label_unbinned, 
+                config.name_label_binned,
+            )
+
+            bin_map = torch.from_numpy(bin_map)
+
+            labels_source_signal = pandas_to_torch(
+                df_agg[config.name_label_binned]
+            )
+
+        
+        else:
+
+            labels_source_signal = pandas_to_torch(
+                df_agg[config.name_label_unbinned]
+            )
 
         features_source_signal = pandas_to_torch(
             df_agg[config.names_features]
-        )
-
-        labels_source_signal = pandas_to_torch(
-            df_agg[config.name_label_unbinned]
         )
 
         features_sets_source_signal, labels = (
@@ -340,12 +287,23 @@ class Dataset_Generator:
             )
         )
 
+        if config.name == (
+            Names_Datasets().sets_binned
+        ):
+            
+            labels = pandas_to_torch(
+                bins_to_probs(labels)
+            )
+
+            num_labels = labels.shape[1]
+
+        else:
+            num_labels = len(torch.unique(labels))
+
         if config.level == (
             Names_Levels().detector_and_background
         ):
             
-            num_labels = labels.shape[1]
-
             num_sets = config.num_sets_per_label * num_labels
             
             features_sets_source_bkg = bootstrap_bkg(
@@ -356,7 +314,7 @@ class Dataset_Generator:
                 frac_charge=0.5,
             )
 
-            features_sets_source = torch.concat(
+            features_sets = torch.concat(
                 [
                     features_sets_source_signal,
                     features_sets_source_bkg,
@@ -365,28 +323,16 @@ class Dataset_Generator:
             )
 
         else:
-            features_sets_source = features_sets_source_signal
+            features_sets = features_sets_source_signal
 
-        features = torch.cat(
-            [
-                make_image(
-                    features_set,
-                    n_bins=config.num_bins_image
-                ).unsqueeze(dim=0)
-                for features_set 
-                in features_sets_source
-            ]
-        )
+        if config.name == (
+            Names_Datasets().events_binned
+        ):
 
-        save_file_torch_tensor(
-            features, 
-            config.path_file_features
-        )
-
-        save_file_torch_tensor(
-            labels, 
-            config.path_file_labels
-        )
+            return features_sets, labels, bin_map
+        
+        else:
+            return features_sets, labels
 
     def _load_agg_signal_data(self):
 

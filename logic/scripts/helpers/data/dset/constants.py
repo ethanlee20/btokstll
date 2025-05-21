@@ -2,18 +2,16 @@
 
 class Names_Datasets:
 
-    images_signal = "images_signal"
-    binned_signal = "binned_signal"
-    sets_binned_signal = "sets_binned_signal"
-    sets_unbinned_signal = "sets_unbinned_signal"
-
-    
+    images = "images"
+    events_binned = "events_binned"
+    sets_binned = "sets_binned"
+    sets_unbinned = "sets_unbinned"
 
     tuple_ = (
-        images_signal,
-        binned_signal,
-        sets_binned_signal,
-        sets_unbinned_signal,
+        images,
+        events_binned,
+        sets_binned,
+        sets_unbinned,
     )
 
 
