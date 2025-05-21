@@ -5,7 +5,12 @@ import pandas
 import torch 
 
 from .config import Config_Dataset
-from .constants import Names_Levels, Names_Datasets
+from .constants import (
+    Names_Levels, 
+    Names_Datasets, 
+    Names_Variables,
+    Names_Labels,
+)
 from .preproc import (
     convert_to_binned, 
     bins_to_probs,
@@ -263,18 +268,18 @@ class Dataset_Generator:
             bin_map = torch.from_numpy(bin_map)
 
             labels_source_signal = pandas_to_torch(
-                df_agg[config.name_label_binned]
+                df_agg[Names_Labels().binned]
             )
 
         
         else:
 
             labels_source_signal = pandas_to_torch(
-                df_agg[config.name_label_unbinned]
+                df_agg[Names_Labels().unbinned]
             )
 
         features_source_signal = pandas_to_torch(
-            df_agg[config.names_features]
+            df_agg[list(Names_Variables().tuple_)]
         )
 
         features_sets_source_signal, labels = (
@@ -342,12 +347,10 @@ class Dataset_Generator:
         data file if it doesn't already exist.
         """
 
-        config = self.config
-
         if not make_path_file_agg_raw_signal(
-            config.path_dir_dsets_main,
-            config.level,
-            config.range_trials_raw_signal,
+            self.config.path_dir_dsets_main,
+            self.config.level,
+            self.config.range_trials_raw_signal,
         ).is_file():
             
             print(
@@ -356,17 +359,17 @@ class Dataset_Generator:
             )
 
             agg_data_raw_signal(
-                config.level, 
-                config.range_trials_raw_signal, 
-                config.names_features,
-                config.path_dir_raw_signal,
-                config.path_dir_dsets_main,
+                level=self.config.level, 
+                trials=self.config.range_trials_raw_signal, 
+                columns=list(Names_Variables().tuple_),
+                raw_signal_data_dir=self.config.path_dir_raw_signal,
+                save_dir=self.config.path_dir_dsets_main,
             )
 
         df_agg = load_file_agg_raw_signal(
-            config.path_dir_dsets_main,
-            config.level, 
-            config.range_trials_raw_signal, 
+            self.config.path_dir_dsets_main,
+            self.config.level, 
+            self.config.range_trials_raw_signal, 
         )
 
         self.df_agg = apply_cleaning_signal(

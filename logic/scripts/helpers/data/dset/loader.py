@@ -1,5 +1,6 @@
 
 from .config import Config_Dataset
+from .constants import Names_Datasets
 from ..file_hand import load_file_torch_tensor
 
 
@@ -22,21 +23,21 @@ class Dataset_Loader:
 
         config = self.config
 
-        if config.name == config.name_dset_binned_signal:
+        if config.name == Names_Datasets().events_binned:
 
-            self._load_binned_signal()
+            self._load_events_binned()
 
-        elif config.name == config.name_dset_sets_binned_signal:
+        elif config.name == Names_Datasets().sets_binned:
 
-            self._load_sets_binned_signal()
+            self._load_sets_binned()
 
-        elif config.name == config.name_dset_sets_unbinned_signal:
+        elif config.name == Names_Datasets().sets_unbinned:
 
-            self._load_sets_unbinned_signal()
+            self._load_sets_unbinned()
 
-        elif config.name == config.name_dset_images_signal:
+        elif config.name == Names_Datasets().images:
 
-            self._load_images_signal()
+            self._load_images()
 
         else:
 
@@ -46,7 +47,7 @@ class Dataset_Loader:
         
         print(f"Loaded dataset: {config.name}")
 
-    def _load_binned_signal(self):
+    def _load_events_binned(self):
 
         config = self.config
 
@@ -62,7 +63,7 @@ class Dataset_Loader:
             config.path_file_bin_map
         )
 
-    def _load_sets_binned_signal(self):
+    def _load_sets_binned(self):
 
         config = self.config
 
@@ -78,7 +79,7 @@ class Dataset_Loader:
             config.path_file_bin_map
         )
 
-    def _load_sets_unbinned_signal(self):
+    def _load_sets_unbinned(self):
 
         config = self.config
 
@@ -92,7 +93,7 @@ class Dataset_Loader:
 
         self.bin_map = None
 
-    def _load_images_signal(self):
+    def _load_images(self):
 
         config = self.config
 

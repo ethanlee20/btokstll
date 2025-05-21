@@ -82,7 +82,7 @@ class Trainer:
             )
         )
 
-        model = model.to(
+        self.model = self.model.to(
             self.device
         )
 
@@ -90,7 +90,7 @@ class Trainer:
 
             loss_train = _train_epoch(
                 train_dataloader, 
-                model, 
+                self.model, 
                 loss_fn, 
                 optimizer, 
                 device=self.device
@@ -98,7 +98,7 @@ class Trainer:
             
             loss_eval = _evaluate_epoch(
                 eval_dataloader, 
-                model, 
+                self.model, 
                 loss_fn, 
                 device=self.device, 
                 scheduler=lr_scheduler

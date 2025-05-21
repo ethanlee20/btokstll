@@ -10,6 +10,11 @@ import pandas
 import scipy
 
 from .config import Config_Dataset
+from .constants import (
+    Names_Datasets,
+    Names_Variables,
+    Names_Labels
+)
 
 
 def get_dataset_prescale(
@@ -240,7 +245,10 @@ def apply_drop_na(
     """
 
     if verbose:
-        print("Number of NA values: ", df.isna().sum())
+        print(
+            "Number of NA values: \n", 
+            df.isna().sum()
+        )
 
     df_out = df.dropna()
     
@@ -292,8 +300,8 @@ def apply_q_squared_veto(
     upper_bound = bounds[1]
 
     df_vetoed = df[
-        (df["q_squared"]>lower_bound) 
-        & (df["q_squared"]<upper_bound)
+        (df[Names_Variables().q_squared] > lower_bound) 
+        & (df[Names_Variables().q_squared] < upper_bound)
     ].copy()
     
     return df_vetoed
@@ -354,11 +362,11 @@ def apply_cleaning_signal(
     if config.std_scale:
 
         features_to_scale = (
-            config.names_features if (
-                config.name != config.name_dset_images_signal
+            Names_Variables().tuple_ if (
+                config.name != Names_Datasets().images
             )
-            else [config.name_var_q_squared] if (
-                config.name == config.name_dset_images_signal
+            else [Names_Variables().q_squared] if (
+                config.name == Names_Datasets().images
             )
             else None
         )
@@ -374,21 +382,21 @@ def apply_cleaning_signal(
 
         df = apply_balance_classes(
             df, 
-            config.name_label_unbinned,
+            Names_Labels().unbinned,
         )
 
     if config.label_subset:
 
         df = apply_label_subset(
             df,
-            config.name_label_unbinned,
+            Names_Labels().unbinned,
             config.label_subset,
         )
 
     df = apply_drop_na(df)
 
     if config.shuffle:
-        df = apply_shuffle
+        df = apply_shuffle(df)
 
     if verbose:
         print("Applied cleaning.")
@@ -416,10 +424,10 @@ def apply_cleaning_bkg(
 
         features_to_scale = (
             config.names_features if (
-                config.name != config.name_dset_images_signal
+                config.name != Names_Datasets().images
             )
             else [config.name_var_q_squared] if (
-                config.name == config.name_dset_images_signal
+                config.name == Names_Datasets().images
             )
             else None
         )

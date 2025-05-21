@@ -64,9 +64,11 @@ class Config_Dataset:
             path_dir_raw_signal
         )
 
-        self.path_dir_raw_bkg = pathlib.Path(
-            path_dir_raw_bkg
-        )
+        if path_dir_raw_bkg:
+
+            self.path_dir_raw_bkg = pathlib.Path(
+                path_dir_raw_bkg
+            )
 
         self.shuffle = shuffle
 
@@ -88,11 +90,9 @@ class Config_Dataset:
 
         self._set_paths_files()
 
-        if self.num_events_per_set and self.frac_bkg:
+        if self.num_events_per_set:
 
-            self.num_events_per_set_signal, self.num_events_per_set_bkg = (
-                self._calc_num_signal_bkg()
-            )
+            self._calc_num_signal_bkg()
 
     def _check_inputs(self):
 
@@ -154,8 +154,8 @@ class Config_Dataset:
 
         name_dir = (
             f"{self.name}_"
-            "{self.level}_"
-            "q2v_{self.q_squared_veto}"
+            f"{self.level}_"
+            f"q2v_{self.q_squared_veto}"
         )
 
         self.path_dir = (
@@ -221,8 +221,8 @@ class Config_Dataset:
     def _set_range_trials_raw_signal(self):
 
         """
-        Obtain the raw signal trial range corresponding to
-        the data split.
+        Obtain the raw signal trial range 
+        corresponding to the data split.
         """
 
         names_splits = Names_Splits()
@@ -251,8 +251,18 @@ class Config_Dataset:
 
     def _calc_num_signal_bkg(self):
 
-        num_bkg = int(self.num_events_per_set * self.frac_bkg)
+        if self.frac_bkg is not None:
 
-        num_signal = self.num_events_per_set - num_bkg
+            self.num_events_per_set_bkg = int(
+                self.num_events_per_set 
+                * self.frac_bkg
+            )
 
-        return num_signal, num_bkg
+        else:
+            
+            self.num_events_per_set_bkg = 0
+
+        self.num_events_per_set_signal = (
+            self.num_events_per_set 
+            - self.num_events_per_set_bkg
+        )
