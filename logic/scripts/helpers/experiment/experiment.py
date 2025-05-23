@@ -1,20 +1,40 @@
 
 import pathlib
 
-from .data.dset.config import Config_Dataset
-from .data.dset.dataset import Custom_Dataset
-from .data.dset.constants import Names_Datasets
-from .model.constants import Names_Models
-from .model.config import Config_Model
-from .model.model import Custom_Model
-from .model.trainer import Trainer
-from .model.eval import Evaluator
-from .plot.linearity import plot_linearity
-from .plot.sensitivity import plot_sensitivity
-from .plot.loss_curves import plot_loss_curves
-from .plot.slices_image import plot_image_slices
-from .result.table import Summary_Table
-from .result.constants import Names_Kinds_Items
+from ..data.dset.config import Config_Dataset
+from ..data.dset.dataset import Custom_Dataset
+from ..data.dset.constants import Names_Datasets
+from ..model.constants import Names_Models
+from ..model.config import Config_Model
+from ..model.model import Custom_Model
+from ..model.trainer import Trainer
+from ..model.eval import Evaluator
+from ..plot.linearity import plot_linearity
+from ..plot.sensitivity import plot_sensitivity
+from ..plot.loss_curves import plot_loss_curves
+from ..plot.slices_image import plot_image_slices
+from ..result.table import Summary_Table
+from ..result.constants import Names_Kinds_Items
+
+
+class Configs:
+
+    def __init__(
+        self,
+        path_dir_plots:str|pathlib.Path,
+        device:str,
+            name=Names_Datasets().images,
+    q_squared_veto=Names_q_Squared_Vetos().loose,
+    balanced_classes=True,
+    std_scale=True,
+    shuffle=True,
+    num_bins_image=10,
+    frac_bkg=0.5,
+    path_dir_dsets_main=path_dir_dsets_main,
+    path_dir_raw_signal=path_dir_raw_signal,
+    path_dir_raw_bkg=path_dir_raw_bkg,
+    ):
+        pass
  
 
 class Experiment:
@@ -31,7 +51,7 @@ class Experiment:
 
         self.table_summary = Summary_Table()
 
-    def evaluate(
+    def _evaluate(
         self,
         config_model:Config_Model,
         config_dset_eval:Config_Dataset,
@@ -138,7 +158,7 @@ class Experiment:
             path_dir=self.path_dir_plots
         )
 
-    def train(
+    def _train(
         self,
         config_model:Config_Model,
         config_dset_eval:Config_Dataset,

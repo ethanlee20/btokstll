@@ -183,6 +183,8 @@ def plot_image_slices(
     )
 
     note = (
+        "Level: "
+        f"{config_dset.level}\n"
         "Events per set: "
         f"{config_dset.num_events_per_set}\n"
         "Bins per dim.: "
