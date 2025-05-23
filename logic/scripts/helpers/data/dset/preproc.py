@@ -68,6 +68,12 @@ def get_dataset_prescale(
                 "costheta_mu": 0.077301,
                 "costheta_K": -0.068484,
                 "chi": 3.141730, 
+            },
+            "det_bkg": {
+                "q_squared": 4.944093,
+                "costheta_mu": 0.078201,
+                "costheta_K": -0.068596,
+                "chi": 3.141794, 
             }
         },
         "std": {
@@ -82,6 +88,12 @@ def get_dataset_prescale(
                 "costheta_mu": 0.463005,
                 "costheta_K": 0.696061,
                 "chi": 1.830277, 
+            },
+            "det_bkg": {
+                "q_squared": 2.029607,
+                "costheta_mu": 0.463519,
+                "costheta_K": 0.695645,
+                "chi": 1.830584, 
             }
         }
     }
@@ -99,6 +111,12 @@ def get_dataset_prescale(
                 "costheta_mu": 0.177404,
                 "costheta_K": -0.031136,
                 "chi": 3.141597, 
+            },
+            "det_bkg": {
+                "q_squared": 10.349093,
+                "costheta_mu": 0.177490,
+                "costheta_K": -0.031386,
+                "chi": 3.141601, 
             }
         },
         "std": {
@@ -113,7 +131,13 @@ def get_dataset_prescale(
                 "costheta_mu": 0.508787,
                 "costheta_K": 0.622743,
                 "chi": 1.820018, 
-            }    
+            },
+            "det_bkg": {
+                "q_squared": 5.238074,
+                "costheta_mu": 0.509067,
+                "costheta_K": 0.622598,
+                "chi": 1.820281, 
+            }
         }
     }
 
@@ -426,7 +450,7 @@ def apply_cleaning_bkg(
             config.names_features if (
                 config.name != Names_Datasets().images
             )
-            else [config.name_var_q_squared] if (
+            else [Names_Variables().q_squared] if (
                 config.name == Names_Datasets().images
             )
             else None
@@ -442,11 +466,12 @@ def apply_cleaning_bkg(
     df = apply_drop_na(df)
     
     if config.shuffle:
-        df = apply_shuffle
+        df = apply_shuffle(df)
 
     print("Applied cleaning.")
 
     return df
+
 
 def convert_to_binned(
     df, 

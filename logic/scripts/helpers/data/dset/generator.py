@@ -47,7 +47,7 @@ class Dataset_Generator:
 
         self.config = config
 
-        self._check_files_do_not_exist()
+        # self._check_files_do_not_exist()
 
         self._load_agg_signal_data()
 
@@ -347,10 +347,16 @@ class Dataset_Generator:
         data file if it doesn't already exist.
         """
 
+        level_signal = (
+            self.config.level 
+            if self.config.level != Names_Levels().detector_and_background
+            else Names_Levels().detector
+        )
+
         if not make_path_file_agg_raw_signal(
-            self.config.path_dir_dsets_main,
-            self.config.level,
-            self.config.range_trials_raw_signal,
+            dir=self.config.path_dir_dsets_main,
+            level=level_signal,
+            trials=self.config.range_trials_raw_signal,
         ).is_file():
             
             print(
@@ -359,7 +365,7 @@ class Dataset_Generator:
             )
 
             agg_data_raw_signal(
-                level=self.config.level, 
+                level=level_signal, 
                 trials=self.config.range_trials_raw_signal, 
                 columns=list(Names_Variables().tuple_),
                 raw_signal_data_dir=self.config.path_dir_raw_signal,
@@ -367,9 +373,9 @@ class Dataset_Generator:
             )
 
         df_agg = load_file_agg_raw_signal(
-            self.config.path_dir_dsets_main,
-            self.config.level, 
-            self.config.range_trials_raw_signal, 
+            dir=self.config.path_dir_dsets_main,
+            level=level_signal, 
+            trials=self.config.range_trials_raw_signal, 
         )
 
         self.df_agg = apply_cleaning_signal(

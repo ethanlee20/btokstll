@@ -5,6 +5,8 @@ import uproot
 import pandas
 import torch
 
+from .dset.constants import Names_Splits, Names_Levels
+
 
 def open_tree(path, tree_name, verbose=True):
 
@@ -349,8 +351,13 @@ def make_path_file_agg_raw_signal(
             "path to a directory."
         )
 
-    if not level in {"gen", "det"}:
-        raise ValueError("Level must be 'gen' or 'det'.")
+    if not level in {
+        Names_Levels().generator, 
+        Names_Levels().detector
+    }:
+        raise ValueError(
+            "Level must be 'gen' or 'det'."
+        )
     
     filename = f"agg_sig_{trials[0]}_to_{trials[-1]}_{level}.pkl"
     path = dir.joinpath(filename)

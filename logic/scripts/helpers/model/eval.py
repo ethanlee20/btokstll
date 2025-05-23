@@ -141,7 +141,7 @@ class Evaluator:
 
         bias = avg - label
 
-        return avg, std, bias
+        return avg, std, bias, label
     
     def calc_mse_mae(self):
 

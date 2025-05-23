@@ -24,6 +24,10 @@ def plot_linearity(
 
     _, ax = plt.subplots()
 
+    labels = labels.detach().numpy()
+    avgs = avgs.detach().numpy()
+    stds = stds.detach().numpy()
+
     ax.scatter(
         labels, 
         avgs, 
@@ -83,11 +87,6 @@ def plot_linearity(
     if ylabel is not None:
 
         ax.set_ylabel(ylabel)
-    
-    add_plot_note(
-        ax, 
-        note,
-    )
 
     note = make_note_model(
         config_model

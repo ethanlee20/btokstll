@@ -15,7 +15,6 @@ def plot_image_slices(
     path_dir,
     n_slices=3, 
     cmap=plt.cm.magma, 
-    note=None,
 ):  
     """
     Plot slices of a B->K*ll dataset image.
@@ -37,8 +36,8 @@ def plot_image_slices(
     }
 
     norm = mpl.colors.Normalize(
-        vmin=-1.1, 
-        vmax=1.1,
+        vmin=-1, 
+        vmax=1,
     )
 
     image = image.squeeze().cpu()

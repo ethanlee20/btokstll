@@ -38,6 +38,7 @@ class Config_Dataset:
         frac_bkg:float=None,
         num_sets_per_label:int=None,
         num_bins_image:int=None,
+        sensitivity_study:bool=False,
     ):
         
         """
@@ -81,6 +82,8 @@ class Config_Dataset:
         self.num_sets_per_label = num_sets_per_label
 
         self.num_bins_image = num_bins_image
+
+        self.sensitivity_study = sensitivity_study
 
         self._check_inputs()
 
@@ -188,9 +191,13 @@ class Config_Dataset:
                 "Kind not recognized. "
                 f"Must be in {names_kinds.tuple_}"
             )
-
-        name_file = f"{self.split}_{kind}.pt"
         
+        name_file = (
+            f"{self.split}_{kind}.pt" 
+            if not self.sensitivity_study
+            else f"{self.split}_sens_{kind}.pt"
+        )
+
         if self.num_events_per_set:
 
             name_file = (
@@ -232,17 +239,17 @@ class Config_Dataset:
         if self.split not in names_splits.tuple_:
 
             raise ValueError(
-                f"Split must be in {names_splits.tuple_}"
+                f"Split must be in {Names_Splits().tuple_}"
             )
         
         self.range_trials_raw_signal = (
 
             trials_splits.train if (
-                self.split==names_splits.train
+                self.split == Names_Splits().train
             )
 
             else trials_splits.eval_ if (
-                self.split==names_splits.eval_
+                self.split == Names_Splits().eval_
             )
 
             else None

@@ -3,6 +3,7 @@ import pathlib
 
 from .data.dset.config import Config_Dataset
 from .data.dset.dataset import Custom_Dataset
+from .data.dset.constants import Names_Datasets
 from .model.constants import Names_Models
 from .model.config import Config_Model
 from .model.model import Custom_Model
@@ -11,6 +12,7 @@ from .model.eval import Evaluator
 from .plot.linearity import plot_linearity
 from .plot.sensitivity import plot_sensitivity
 from .plot.loss_curves import plot_loss_curves
+from .plot.slices_image import plot_image_slices
 from .result.table import Summary_Table
 from .result.constants import Names_Kinds_Items
  
@@ -35,7 +37,6 @@ class Experiment:
         config_dset_eval:Config_Dataset,
         config_dset_eval_sens:Config_Dataset,
         generate_dsets=False,
-        value_dc9_np=-0.82,
     ):
 
         dset_eval = Custom_Dataset(
@@ -52,6 +53,15 @@ class Experiment:
         dset_eval_sens.load()
         dset_eval.load()
 
+        if config_dset_eval.name == (
+            Names_Datasets().images
+        ):
+            plot_image_slices(
+                image=dset_eval.features[0], 
+                config_dset=config_dset_eval, 
+                path_dir=self.path_dir_plots
+            )
+
         model = Custom_Model(
             config_model
         )
@@ -61,11 +71,13 @@ class Experiment:
         eval = Evaluator(
             model=model,
             dataset=dset_eval,
+            device=self.device,
         )
 
         eval_sens = Evaluator(
             model=model,
             dataset=dset_eval_sens,
+            device=self.device,
         )
 
         eval.predict()
@@ -95,7 +107,7 @@ class Experiment:
             item=mae,
         )
 
-        avg_sens, std_sens, bias_sens = (
+        avg_sens, std_sens, bias_sens, label_sens = (
             eval_sens.run_test_sens()
         )
 
@@ -121,7 +133,7 @@ class Experiment:
             preds=eval_sens.preds,
             avg=avg_sens,
             std=std_sens,
-            label=value_dc9_np,
+            label=label_sens,
             config_model=config_model,
             path_dir=self.path_dir_plots
         )

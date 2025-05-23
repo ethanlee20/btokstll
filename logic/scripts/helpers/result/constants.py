@@ -48,11 +48,11 @@ class Names_Kinds_Items:
     
     mae = "MAE"
     
-    np_std = "Std. at NP"
+    np_std = "Std_at_NP"
     
-    np_mean = "Mean at NP"
+    np_mean = "Mean_at_NP"
     
-    np_bias = "Bias at NP"
+    np_bias = "Bias_at_NP"
 
     tuple_ = (
         mse,

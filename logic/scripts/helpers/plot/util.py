@@ -118,6 +118,7 @@ def save_plot_dset(
     name_file = (
         f"{config_dset.name}_"
         f"{config_dset.num_events_per_set}_"
+        f"{config_dset.level}_"
         f"{config_dset.split}_"
         f"{kind}"
         ".png"

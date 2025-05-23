@@ -53,6 +53,8 @@ class Names_Variables:
         chi,
     )
 
+    list_ = list(tuple_)
+
 
 class Names_Labels:
 
