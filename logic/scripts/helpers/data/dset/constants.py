@@ -78,6 +78,17 @@ class Names_Splits:
     )
 
 
+class Names_Sets_Events:
+
+    sets = "sets"
+    events = "events"
+
+    tuple_ = (
+        sets,
+        events,
+    )
+
+
 class Names_Kind_File_Tensor:
 
     features = "features"

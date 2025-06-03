@@ -258,7 +258,10 @@ class Config_Dataset:
 
     def _calc_num_signal_bkg(self):
 
-        if self.frac_bkg is not None:
+        if (
+            (self.frac_bkg is not None) 
+            and (self.level == Names_Levels().detector_and_background)
+        ):
 
             self.num_events_per_set_bkg = int(
                 self.num_events_per_set 

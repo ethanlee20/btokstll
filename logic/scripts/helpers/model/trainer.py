@@ -1,4 +1,5 @@
 
+import time
 
 import torch
 
@@ -69,7 +70,7 @@ class Trainer:
                 self.dset_train, 
                 batch_size=size_batch_train, 
                 drop_last=True, 
-                shuffle=True
+                shuffle=False#True
             )
         )
 
@@ -78,7 +79,7 @@ class Trainer:
                 self.dset_eval, 
                 batch_size=size_batch_eval, 
                 drop_last=True, 
-                shuffle=True
+                shuffle=False#True
             )
         )
 
@@ -174,11 +175,11 @@ class Trainer:
             
         path = self.model.config.path_dir  
 
-        check_dir_model_not_exist(path)
+        # check_dir_model_not_exist(path)
 
         path.mkdir(
             parents=True, 
-            exist_ok=False,
+            exist_ok=True,
         )
 
 
@@ -249,13 +250,23 @@ def _train_epoch(
     
     total_batch_loss = 0
 
+    t0 = time.time()
+
     for x, y in dataloader:
 
+        print(f"batch data load time: {time.time() - t0}")
+
+        t0 = time.time()
+        
         if device is not None:
 
             x = x.to(device)
 
             y = y.to(device)
+
+        print(f"batch data transfer time: {time.time() - t0}")
+
+        t0 = time.time()
 
         batch_loss = _train_batch(
             x, 
@@ -266,6 +277,10 @@ def _train_epoch(
         )
 
         total_batch_loss += batch_loss
+
+        print(f"batch train time: {time.time() - t0}")
+
+        t0 = time.time()
 
     avg_batch_loss = (
         total_batch_loss 

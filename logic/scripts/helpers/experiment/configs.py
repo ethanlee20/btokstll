@@ -175,7 +175,7 @@ class Config_Experiment_Images:
                                 kind="train"
                             )
                         ),
-                        **self.dict_kwargs_dset_common,
+                        **self.dict_kwargs_model_common,
                     )
 
                 )
@@ -367,7 +367,7 @@ class Config_Experiment_Deep_Sets:
                                 kind="train"
                             )
                         ),
-                        **self.dict_kwargs_dset_common,
+                        **self.dict_kwargs_model_common,
                     )
 
                 )
@@ -416,38 +416,25 @@ class Config_Experiment_Event_by_Event:
         frac_bkg=0.5,
         loss_fn=torch.nn.CrossEntropyLoss(),
         learn_rate=4e-4,
-        size_batch_train=32,
-        size_batch_eval=32,
-        num_epochs=80,
+        size_batch_train=10_000,
+        size_batch_eval=10_000,
+        num_epochs=1,
         num_epochs_checkpoint=5,
     ):
         
         self.value_dc9_np = value_dc9_np
         self.num_sets_per_label_nominal = num_sets_per_label_nominal
         self.num_sets_per_label_sens = num_sets_per_label_sens
+        self.frac_bkg = frac_bkg
 
         self._set_dict_kwargs_dset_common(
             q_squared_veto=q_squared_veto,
             balanced_classes=balanced_classes,
             std_scale=std_scale,
             shuffle=shuffle,
-            frac_bkg=frac_bkg,
         )
 
-        self._set_dict_configs_dsets()
-
-        self.config_model = Config_Model(
-            name=Names_Models().ebe,
-            path_dir_models_main=Paths_Directories().models_main,
-            config_dset_train=(
-                self.get_config_dset(
-                    level=level, 
-                    kind="train"
-                )
-            ),
-            loss_fn=loss_fn,
-
-        )
+        self._set_dicts_configs_dsets()
 
         self._set_dict_kwargs_model_common(
             loss_fn=loss_fn,
@@ -463,20 +450,42 @@ class Config_Experiment_Event_by_Event:
     def get_config_dset(
         self,
         level,
-        num_events_per_set,
-        kind,
+        split,
+        num_events_per_set=None,
+        sens=False,
     ):
-        
-        return (
-            self.dict_configs_dsets
-            [level]
-            [num_events_per_set]
-            [kind]
-        )
+        if num_events_per_set is None:
+            config_dset = (
+                self.dict_configs_dsets_events
+                [level]
+                [split]
+            )
 
-    def _set_dict_configs_dsets(self):
+        elif (split == Names_Splits().eval_) and (num_events_per_set is not None):
+            
+            if sens:
+
+                config_dset = (
+                    self.dict_configs_dsets_sets_eval
+                    [level]
+                    ["eval_sens"]
+                )
+
+            if not sens:
+
+                config_dset = (
+                    self.dict_configs_dsets_sets_eval
+                    [level]
+                    ["eval"]
+                )
+
+        else: raise ValueError()
+
+        return config_dset 
+
+    def _set_dicts_configs_dsets(self):
                 
-        self.dict_configs_dsets = {
+        self.dict_configs_dsets_sets_eval = {
 
             level : {
 
@@ -484,32 +493,26 @@ class Config_Experiment_Event_by_Event:
                     
                     dict(
 
-                        train = (
-                            Config_Dataset(
-                                level=level,
-                                split=Names_Splits().train,
-                                num_events_per_set=num_events_per_set,
-                                num_sets_per_label=self.num_sets_per_label_nominal,
-                                **self.dict_kwargs_dset_common,
-                            )
-                        ),
-
                         eval = (
                             Config_Dataset(
+                                name=Names_Datasets().sets_binned,
                                 level=level,
                                 split=Names_Splits().eval_,
                                 num_events_per_set=num_events_per_set,
                                 num_sets_per_label=self.num_sets_per_label_nominal,
+                                frac_bkg=self.frac_bkg,
                                 **self.dict_kwargs_dset_common,
                             )
                         ),
 
                         eval_sens = (
                             Config_Dataset(
+                                name=Names_Datasets().sets_binned,
                                 level=level,
                                 split=Names_Splits().eval_,
                                 num_events_per_set=num_events_per_set,
                                 num_sets_per_label=self.num_sets_per_label_sens,
+                                frac_bkg=self.frac_bkg,
                                 label_subset=[self.value_dc9_np],
                                 sensitivity_study=True,
                                 **self.dict_kwargs_dset_common,
@@ -523,6 +526,32 @@ class Config_Experiment_Event_by_Event:
 
             for level in Names_Levels().tuple_
         }
+        
+        self.dict_configs_dsets_events = {
+
+            level : dict(
+
+                train = (
+                    Config_Dataset(
+                        name=Names_Datasets().events_binned,
+                        level=level,
+                        split=Names_Splits().train,
+                        **self.dict_kwargs_dset_common,
+                    )
+                ),
+
+                eval = (
+                    Config_Dataset(
+                        name=Names_Datasets().events_binned,
+                        level=level,
+                        split=Names_Splits().eval_,
+                        **self.dict_kwargs_dset_common,
+                    )
+                ),
+            )
+
+            for level in Names_Levels().tuple_
+        }
 
     def _set_dict_kwargs_dset_common(
         self,
@@ -530,18 +559,13 @@ class Config_Experiment_Event_by_Event:
         balanced_classes,
         std_scale,
         shuffle,
-        num_bins_image,
-        frac_bkg,
     ):
 
         self.dict_kwargs_dset_common = dict(
-            name=Names_Datasets().images,
             q_squared_veto=q_squared_veto,
             balanced_classes=balanced_classes,
             std_scale=std_scale,
             shuffle=shuffle,
-            num_bins_image=num_bins_image,
-            frac_bkg=frac_bkg,
             path_dir_dsets_main=Paths_Directories().dsets_main,
             path_dir_raw_signal=Paths_Directories().raw_signal,
             path_dir_raw_bkg=Paths_Directories().raw_bkg,
@@ -560,20 +584,15 @@ class Config_Experiment_Event_by_Event:
     def _set_dict_configs_models(self):
         
         self.dict_configs_models = {
-
-            level : (
-
-                Config_Model(
-                    config_dset_train=(
-                        self.get_config_dset(
-                            level=level, 
-                            kind="train",
-                        )
-                    ),
-                    **self.dict_kwargs_dset_common,
-                )
+            level : Config_Model(
+                config_dset_train=(
+                    self.get_config_dset(
+                        level=level, 
+                        split=Names_Splits().train,
+                    )
+                ),
+                **self.dict_kwargs_model_common,
             )
-
             for level in Names_Levels().tuple_
         }
 

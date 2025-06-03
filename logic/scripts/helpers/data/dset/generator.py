@@ -47,8 +47,6 @@ class Dataset_Generator:
 
         self.config = config
 
-        # self._check_files_do_not_exist()
-
         self._load_agg_signal_data()
 
         if config.level == (
@@ -69,7 +67,7 @@ class Dataset_Generator:
 
         if config.name == Names_Datasets().events_binned:
 
-            self._generate_binned_events()
+            self._generate_events_binned()
 
         elif config.name == Names_Datasets().sets_binned:
 
@@ -91,7 +89,7 @@ class Dataset_Generator:
         
         print(f"Generated dataset: {config.name}")
 
-    def _generate_binned_events(self):
+    def _generate_events_binned(self):
 
         """
         Generate files for the 
@@ -100,23 +98,23 @@ class Dataset_Generator:
 
         config = self.config
 
-        df_agg = self.df_agg.copy()
+        df_agg = self.df_agg.copy()#.sample(n=100_000)
         
         df_agg, bin_map = convert_to_binned(
             df_agg, 
-            config.name_label_unbinned, 
-            config.name_label_binned
+            Names_Labels().unbinned, 
+            Names_Labels().binned,
         )
         
         features_signal = pandas_to_torch(
-            df_agg[config.names_features]
+            df_agg[Names_Variables().list_]
         )
 
         labels_signal = pandas_to_torch(
             bins_to_probs(
-                df_agg[config.name_label_binned]
+                df_agg[Names_Labels().binned]
             )
-        )
+        ).float()
 
         bin_map = torch.from_numpy(bin_map)
 
@@ -131,7 +129,7 @@ class Dataset_Generator:
             )
 
             features_bkg = pandas_to_torch(
-                df_bkg[config.names_features]
+                df_bkg[Names_Variables().list_]
             )
 
             labels_bkg = bkg_probs(
@@ -261,8 +259,8 @@ class Dataset_Generator:
 
             df_agg, bin_map = convert_to_binned(
                 df_agg, 
-                config.name_label_unbinned, 
-                config.name_label_binned,
+                Names_Labels().unbinned, 
+                Names_Labels().binned,
             )
 
             bin_map = torch.from_numpy(bin_map)
@@ -271,7 +269,6 @@ class Dataset_Generator:
                 df_agg[Names_Labels().binned]
             )
 
-        
         else:
 
             labels_source_signal = pandas_to_torch(
@@ -279,7 +276,7 @@ class Dataset_Generator:
             )
 
         features_source_signal = pandas_to_torch(
-            df_agg[list(Names_Variables().tuple_)]
+            df_agg[Names_Variables().list_]
         )
 
         features_sets_source_signal, labels = (

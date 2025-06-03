@@ -16,25 +16,6 @@ from ..plot.slices_image import plot_image_slices
 from ..result.table import Summary_Table
 from ..result.constants import Names_Kinds_Items
 
-
-class Configs:
-
-    def __init__(
-        self,
-        path_dir_plots:str|pathlib.Path,
-        device:str,
-            name=Names_Datasets().images,
-    q_squared_veto=Names_q_Squared_Vetos().loose,
-    balanced_classes=True,
-    std_scale=True,
-    shuffle=True,
-    num_bins_image=10,
-    frac_bkg=0.5,
-    path_dir_dsets_main=path_dir_dsets_main,
-    path_dir_raw_signal=path_dir_raw_signal,
-    path_dir_raw_bkg=path_dir_raw_bkg,
-    ):
-        pass
  
 
 class Experiment:
@@ -51,7 +32,7 @@ class Experiment:
 
         self.table_summary = Summary_Table()
 
-    def _evaluate(
+    def evaluate(
         self,
         config_model:Config_Model,
         config_dset_eval:Config_Dataset,
@@ -158,7 +139,7 @@ class Experiment:
             path_dir=self.path_dir_plots
         )
 
-    def _train(
+    def train(
         self,
         config_model:Config_Model,
         config_dset_eval:Config_Dataset,
@@ -198,6 +179,9 @@ class Experiment:
             config_model=config_model,
             path_dir=self.path_dir_plots,
         )
+
+        dset_train.unload()
+        dset_eval.unload()
 
 
 

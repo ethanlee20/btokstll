@@ -447,7 +447,7 @@ def apply_cleaning_bkg(
     if config.std_scale:
 
         features_to_scale = (
-            config.names_features if (
+            Names_Variables().list_ if (
                 config.name != Names_Datasets().images
             )
             else [Names_Variables().q_squared] if (
