@@ -28,24 +28,27 @@ class Custom_Dataset(torch.utils.data.Dataset):
         generator = Dataset_Generator(
             self.config
         )
-        
+
         generator.generate()
 
 
     def load(self):
+
         """
-        Load.
+        Load the dataset from disk.
         """
 
         loader = Dataset_Loader(
             self.config
         )
         loader.load()
+
         self.features = loader.features
         self.labels = loader.labels
         self.bin_map = loader.bin_map
 
     def unload(self):
+
         """
         Unload data from memory.
         """
@@ -57,6 +60,7 @@ class Custom_Dataset(torch.utils.data.Dataset):
         print("Unloaded dataset.")
 
     def __len__(self):
+
         """
         Get the length of the dataset.
         """
@@ -66,19 +70,6 @@ class Custom_Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         """
         Get a (feature, label) pair.
-
-        Parameters
-        ----------
-        index : int
-            The index of the pair 
-            within the dataset.
-
-        Returns
-        -------
-        x : torch.Tensor
-            The features.
-        y : torch.Tensor
-            The label.
         """
 
         x = self.features[index]

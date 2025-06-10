@@ -85,14 +85,12 @@ class Dataset_Generator:
     def _generate_events_binned(self):
 
         """
-        Generate files for the 
-        binned events dataset.
+        Generate the binned events dataset.
         """
         
         features_signal = torch_from_pandas(
             self.df_signal[Names_Variables().list_]
         )
-
         labels_signal = bins_to_probs(
             bins=torch_from_pandas(
                 self.df_signal[self.config.name_label]
@@ -104,30 +102,25 @@ class Dataset_Generator:
             Names_Levels()
             .detector_and_background
         ):
-
             df_bkg = pandas.concat(
                 [
                     self.df_bkg_charge,
                     self.df_bkg_mix,
                 ]
             )
-
             features_bkg = torch_from_pandas(
                 df_bkg[Names_Variables().list_]
             )
-
             labels_bkg = bkg_probs(
                 num_events=len(features_bkg),
                 num_bins=self.num_labels_unique_preclean,
             )
-
             features = torch.concat(
                 [
                     features_signal, 
                     features_bkg,
                 ]
             )
-
             labels = torch.concat(
                 [
                     labels_signal, 
@@ -136,25 +129,25 @@ class Dataset_Generator:
             )
 
         else:
-
             features = features_signal
             labels = labels_signal
 
-        num_examples = len(labels)
-        index_shuffled = torch.randperm(num_examples)
-        features = features[index_shuffled]
-        labels = labels[index_shuffled]
+        def shuffle():
+            num_examples = len(labels)
+            index_shuffled = torch.randperm(num_examples)
+            features = features[index_shuffled]
+            labels = labels[index_shuffled]
+            return features, labels
+        features, labels = shuffle()
 
         save_file_torch_tensor(
             features, 
             self.config.path_file_features,
         )
-
         save_file_torch_tensor(
             labels, 
             self.config.path_file_labels,
         )
-
         save_file_torch_tensor(
             self.bin_map, 
             self.config.path_file_bin_map,
@@ -163,37 +156,32 @@ class Dataset_Generator:
     def _generate_sets_binned(self):
 
         """
-        Generate files for the 
-        sets binned dataset.
+        Generate the sets binned dataset.
         """    
 
         features, labels = self._make_sets()
-
         labels = bins_to_probs(
             bins=labels, 
             num_bins=self.num_labels_unique_preclean,
         )
 
         save_file_torch_tensor(
-            self.bin_map, 
-            self.config.path_file_bin_map
-        )
-
-        save_file_torch_tensor(
             features, 
             self.config.path_file_features
         )
-
         save_file_torch_tensor(
             labels, 
             self.config.path_file_labels
+        )
+        save_file_torch_tensor(
+            self.bin_map, 
+            self.config.path_file_bin_map
         )
 
     def _generate_sets_unbinned(self):
 
         """
-        Generate files for the
-        sets unbinned dataset.
+        Generate the sets unbinned dataset.
         """
 
         features, labels = self._make_sets()
@@ -211,8 +199,7 @@ class Dataset_Generator:
     def _generate_images(self):
 
         """
-        Generate files for the 
-        images dataset.
+        Generate files the images dataset.
         """
 
         features_sets, labels = self._make_sets()
@@ -232,7 +219,6 @@ class Dataset_Generator:
             features, 
             self.config.path_file_features
         )
-
         save_file_torch_tensor(
             labels, 
             self.config.path_file_labels
@@ -245,7 +231,6 @@ class Dataset_Generator:
         labels_source_signal = torch_from_pandas(
             self.df_signal[self.config.name_label]
         )
-        
         features_source_signal = torch_from_pandas(
             self.df_signal[Names_Variables().list_]
         )
@@ -263,12 +248,10 @@ class Dataset_Generator:
         if self.config.level == (
             Names_Levels().detector_and_background
         ):  
-
             num_sets_total = (
                 self.config.num_sets_per_label 
                 * self.num_labels_unique_postclean
             )
-            
             features_sets_bkg = bootstrap_bkg(
                 self.df_bkg_charge, 
                 self.df_bkg_mix, 
@@ -276,7 +259,6 @@ class Dataset_Generator:
                 num_sets_total, 
                 frac_charge=0.5,
             )
-
             features = torch.concat(
                 [
                     features_sets_signal,
@@ -294,6 +276,7 @@ class Dataset_Generator:
 
         """
         Load the aggregated raw signal data.
+        
         Generate the aggregated raw signal 
         data file if it doesn't already exist.
         """
@@ -337,10 +320,13 @@ class Dataset_Generator:
                 Names_Labels().binned,
             )
 
-        self.num_labels_unique_preclean = len(
-            df_signal[self.config.name_label]
-            .unique()
-        )
+        def get_num_labels_unique():
+            return len(
+                df_signal[self.config.name_label]
+                .unique()
+            )
+
+        self.num_labels_unique_preclean = get_num_labels_unique()
         
         self.df_signal = apply_cleaning_signal(
             df_signal, 
@@ -348,10 +334,7 @@ class Dataset_Generator:
             bin_map=self.bin_map
         )
 
-        self.num_labels_unique_postclean = len(
-            self.df_signal[self.config.name_label]
-            .unique()
-        )
+        self.num_labels_unique_postclean = get_num_labels_unique()
 
 
     def _load_bkg_data(self):
@@ -383,11 +366,8 @@ class Dataset_Generator:
         def assert_file_does_not_exist(
             path:pathlib.Path|str
         ):
-            
             path = pathlib.Path(path)
-
             if path.is_file():
-
                 raise ValueError(
                     f"File: {path} already exists. " 
                     "Delete the file to proceed."
@@ -410,7 +390,6 @@ class Dataset_Generator:
         Make the dataset's directory.
         """
 
-        config = self.config
-        
+        config = self.config        
         config.path_dir.mkdir(exist_ok=True)
 

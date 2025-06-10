@@ -1,8 +1,7 @@
 
 """
-Dataset preprocessing utilities
+Dataset preprocessing utilities.
 """
-
 
 import numpy
 import torch
@@ -13,7 +12,9 @@ from .config import Config_Dataset
 from .constants import (
     Names_Datasets,
     Names_Variables,
-    Names_Labels
+    Names_Labels,
+    Names_Levels,
+    Names_q_Squared_Vetos
 )
 
 
@@ -23,37 +24,35 @@ def get_dataset_prescale(
     q_squared_veto:str, 
     var:str,
 ):
+    
     """
-    Get prescale values calculated from the
+    Get prescale value calculated from the
     first 20 trials (training dataset).
 
     Prescale values are used for standard scaling
     the dataset's features.
-
-    Parameters
-    ----------
-    kind : str
-        The kind of value to get.
-        "mean" or "std".
-    level : str
-        The reconstruction level.
-        "gen" or "det".
-        Determines which dataset's values to get.
-    q_squared_veto : str
-        "tight" or "loose". "tight" gets values computed
-        from the dataset with a tight q^2 veto.
-        "loose" gets values computed from the dataset
-        with a loose q^2 veto.
-    var : str
-        The variable whose value to get.
-        "q_squared", "costheta_mu", "costheta_K" 
-        or "chi"
-
-    Returns 
-    -------
-    value : float
-        The requested prescale value.
     """
+
+    if kind not in ("mean", "std"):
+        raise ValueError(
+            "kind not known. "
+            f"Must be in {("mean", "std")}."
+        )
+    if level not in Names_Levels().tuple_:
+        raise ValueError(
+            "Level not known. "
+            f"Must be in {Names_Levels().tuple_}."
+        )
+    if q_squared_veto not in Names_q_Squared_Vetos().tuple_:
+        raise ValueError(
+            "q_squared_veto not known. "
+            f"Must be in {Names_q_Squared_Vetos().tuple_}."
+        )
+    if var not in Names_Variables().tuple_:
+        raise ValueError(
+            "var not known. "
+            f"Must be in {Names_Variables().tuple_}."
+        )
 
     table_tight_q2_veto = {
         "mean": {
@@ -140,6 +139,8 @@ def get_dataset_prescale(
             }
         }
     }
+
+
 
     table = (
         table_tight_q2_veto 
