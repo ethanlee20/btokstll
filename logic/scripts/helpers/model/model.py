@@ -204,6 +204,7 @@ class Model_EBE(torch.nn.Module):
         return set_log_probs
     
     def calculate_expected_value(
+        self,
         log_probs,
         bin_map
     ):

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from .util import (
     add_plot_note,
-    make_note_model,
+    make_note,
     save_plot_model
 )
 
@@ -14,6 +14,7 @@ def plot_linearity(
     avgs, 
     stds, 
     config_model,
+    config_dset_eval,
     path_dir,
     buffer_line_ref=0.05, 
     xlim=(-2.25, 1.35), 
@@ -88,8 +89,9 @@ def plot_linearity(
 
         ax.set_ylabel(ylabel)
 
-    note = make_note_model(
-        config_model
+    note = make_note(
+        config_model=config_model,
+        config_dset_eval=config_dset_eval,
     )
 
     add_plot_note(
@@ -100,6 +102,7 @@ def plot_linearity(
     save_plot_model(
         "lin",
         config_model=config_model,
+        config_dset_eval=config_dset_eval,
         path_dir=path_dir,
     )
 

@@ -5,13 +5,14 @@ import matplotlib.pyplot as plt
 from ..model.loss_table import Loss_Table
 from .util import (
     save_plot_model, 
-    make_note_model, 
+    make_note, 
     add_plot_note
 )
 
 
 def plot_loss_curves(
     config_model,
+    config_dset_eval,
     path_dir,
     start_epoch=0, 
     log_scale=False,
@@ -60,8 +61,9 @@ def plot_loss_curves(
 
     ax.set_xlabel("Epoch")
 
-    note = make_note_model(
-        config_model
+    note = make_note(
+        config_model=config_model,
+        config_dset_eval=config_dset_eval,
     )
 
     add_plot_note(
@@ -72,5 +74,6 @@ def plot_loss_curves(
     save_plot_model(
         "loss_curves",
         config_model,
+        config_dset_eval,
         path_dir,
     )

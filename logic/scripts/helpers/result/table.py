@@ -18,6 +18,7 @@ class Summary_Table:
     def add_item(
         self, 
         config_model:Config_Model,
+        config_dset_eval,
         kind,
         item,
     ):
@@ -33,14 +34,12 @@ class Summary_Table:
             
             item = item.item()
 
-        config_dset = config_model.config_dset_train
-        
         self.table.loc[
             (
-                config_dset.level, 
-                config_dset.q_squared_veto, 
+                config_dset_eval.level, 
+                config_dset_eval.q_squared_veto, 
                 config_model.name, 
-                config_dset.num_events_per_set,
+                config_dset_eval.num_events_per_set,
             ), 
             kind,
         ] = item

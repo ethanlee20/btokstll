@@ -79,16 +79,15 @@ def add_plot_note(ax, text:str, fontsize="medium"):
 def save_plot_model(
     kind, 
     config_model,
+    config_dset_eval,
     path_dir,
 ):
 
-    config_dset_train = config_model.config_dset_train
-
     name_file = (
         f"{config_model.name}_"
-        f"{config_dset_train.num_events_per_set}_"
-        f"{config_dset_train.level}_"
-        f"q2v_{config_dset_train.q_squared_veto}_"
+        f"{config_dset_eval.num_events_per_set}_"
+        f"{config_dset_eval.level}_"
+        f"q2v_{config_dset_eval.q_squared_veto}_"
         f"{kind}"
         ".png"
     )
@@ -140,17 +139,16 @@ def save_plot_dset(
     plt.close()
 
 
-def make_note_model(
-    config_model
+def make_note(
+    config_model,
+    config_dset_eval,
 ):
-    
-    config_dset_train = config_model.config_dset_train
 
     note = (
         f"{config_model.name}, "
-        f"{config_dset_train.level}., "
-        f"{config_dset_train.num_sets_per_label} boots., "
-        f"{config_dset_train.num_events_per_set} events/boots."
+        f"{config_dset_eval.level}., "
+        f"{config_dset_eval.num_sets_per_label} boots., "
+        f"{config_dset_eval.num_events_per_set} events/boots."
     )
 
     return note

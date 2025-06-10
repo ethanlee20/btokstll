@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from .util import (
     add_plot_note,
-    make_note_model,
+    make_note,
     save_plot_model
 )
 
@@ -15,6 +15,7 @@ def plot_sensitivity(
     std,
     label,
     config_model,
+    config_dset_eval,
     path_dir,
     bins=50, 
     xbounds=(-1.5, 0), 
@@ -76,7 +77,7 @@ def plot_sensitivity(
     
     ax.legend()
     
-    note = make_note_model(config_model)
+    note = make_note(config_model, config_dset_eval)
 
     add_plot_note(
         ax, 
@@ -87,6 +88,7 @@ def plot_sensitivity(
     save_plot_model(
         kind="sens",
         config_model=config_model,
+        config_dset_eval=config_dset_eval,
         path_dir=path_dir,
     )
 

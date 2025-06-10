@@ -57,7 +57,16 @@ class Trainer:
             lr=self.model.config.learn_rate
         )
 
-        lr_scheduler = self.model.config.scheduler_lr
+        scheduler_lr = (
+            torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, 
+                factor=0.95, 
+                threshold=0, 
+                patience=0, 
+                eps=1e-9
+            ) if self.model.config.use_scheduler_lr
+            else None
+        )
 
         num_epochs = self.model.config.num_epochs
 
@@ -102,7 +111,7 @@ class Trainer:
                 self.model, 
                 loss_fn, 
                 device=self.device, 
-                scheduler=lr_scheduler
+                scheduler=scheduler_lr
             ).item()
             
             self.loss_table.append(
@@ -117,9 +126,9 @@ class Trainer:
                 loss_eval
             )
             
-            if lr_scheduler:
+            if scheduler_lr is not None:
                 _print_prev_learn_rate(
-                    lr_scheduler
+                    scheduler_lr
                 )
             
             print_gpu_memory_info()
@@ -175,7 +184,7 @@ class Trainer:
             
         path = self.model.config.path_dir  
 
-        # check_dir_model_not_exist(path)
+        check_dir_model_not_exist(path)
 
         path.mkdir(
             parents=True, 
@@ -250,13 +259,13 @@ def _train_epoch(
     
     total_batch_loss = 0
 
-    t0 = time.time()
+    # t0 = time.time()
 
     for x, y in dataloader:
 
-        print(f"batch data load time: {time.time() - t0}")
+        # print(f"batch data load time: {time.time() - t0}")
 
-        t0 = time.time()
+        # t0 = time.time()
         
         if device is not None:
 
@@ -264,9 +273,9 @@ def _train_epoch(
 
             y = y.to(device)
 
-        print(f"batch data transfer time: {time.time() - t0}")
+        # print(f"batch data transfer time: {time.time() - t0}")
 
-        t0 = time.time()
+        # t0 = time.time()
 
         batch_loss = _train_batch(
             x, 
@@ -278,9 +287,9 @@ def _train_epoch(
 
         total_batch_loss += batch_loss
 
-        print(f"batch train time: {time.time() - t0}")
+        # print(f"batch train time: {time.time() - t0}")
 
-        t0 = time.time()
+        # t0 = time.time()
 
     avg_batch_loss = (
         total_batch_loss 

@@ -5,6 +5,7 @@ import torch
 from .model import Custom_Model
 from ..data.dset.dataset import Custom_Dataset
 from .constants import Names_Models
+from ..data.dset.preproc import values_from_probs
 
 
 class Evaluator:
@@ -24,6 +25,15 @@ class Evaluator:
 
         self._send_model_to_device()
 
+        self.labels = (
+            values_from_probs(
+                self.dataset.labels,
+                self.dataset.bin_map,
+            )
+            if model.config.name == Names_Models().ebe
+            else self.dataset.labels 
+        )
+
         if (
             model.config.name 
             == Names_Models().ebe
@@ -36,12 +46,12 @@ class Evaluator:
         def predict_ebe(x):
 
             log_probs = (
-                self.model
+                self.model.model
                 .predict_log_probs(x)
             )
 
             pred = (
-                self.model
+                self.model.model
                 .calculate_expected_value(
                     log_probs, 
                     self.dataset.bin_map,
@@ -91,7 +101,7 @@ class Evaluator:
 
             preds, labels = sort(
                 self.preds,
-                self.dataset.labels
+                self.labels
             )
 
             preds = preds.reshape(
@@ -132,7 +142,7 @@ class Evaluator:
             return label
 
         label = get_label(
-            self.dataset.labels
+            self.labels
         )
 
         avg = self.preds.mean()
@@ -151,7 +161,7 @@ class Evaluator:
                 torch.nn.functional
                 .mse_loss(
                     self.preds, 
-                    self.dataset.labels
+                    self.labels
                 )
             )
 
@@ -159,7 +169,7 @@ class Evaluator:
                 torch.nn.functional
                 .l1_loss(
                     self.preds, 
-                    self.dataset.labels
+                    self.labels
                 )
             )
 

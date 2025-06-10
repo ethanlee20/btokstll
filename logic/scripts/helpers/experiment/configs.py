@@ -415,10 +415,11 @@ class Config_Experiment_Event_by_Event:
         shuffle=True,
         frac_bkg=0.5,
         loss_fn=torch.nn.CrossEntropyLoss(),
-        learn_rate=4e-4,
+        learn_rate=3e-3,
+        use_scheduler_lr=True,
         size_batch_train=10_000,
         size_batch_eval=10_000,
-        num_epochs=1,
+        num_epochs=500,
         num_epochs_checkpoint=5,
     ):
         
@@ -443,6 +444,7 @@ class Config_Experiment_Event_by_Event:
             size_batch_eval=size_batch_eval,
             num_epochs=num_epochs,
             num_epochs_checkpoint=num_epochs_checkpoint,
+            use_scheduler_lr=use_scheduler_lr,
         )
 
         self._set_dict_configs_models()
@@ -468,6 +470,7 @@ class Config_Experiment_Event_by_Event:
                 config_dset = (
                     self.dict_configs_dsets_sets_eval
                     [level]
+                    [num_events_per_set]
                     ["eval_sens"]
                 )
 
@@ -476,6 +479,7 @@ class Config_Experiment_Event_by_Event:
                 config_dset = (
                     self.dict_configs_dsets_sets_eval
                     [level]
+                    [num_events_per_set]
                     ["eval"]
                 )
 
@@ -604,6 +608,7 @@ class Config_Experiment_Event_by_Event:
         size_batch_eval,
         num_epochs,
         num_epochs_checkpoint,
+        use_scheduler_lr,
     ):
 
         self.dict_kwargs_model_common = dict(
@@ -615,4 +620,5 @@ class Config_Experiment_Event_by_Event:
             size_batch_eval=size_batch_eval,
             num_epochs=num_epochs,
             num_epochs_checkpoint=num_epochs_checkpoint,
+            use_scheduler_lr=use_scheduler_lr,
         )

@@ -19,7 +19,7 @@ class Config_Model:
         config_dset_train:Config_Dataset,
         loss_fn=None,
         learn_rate=None,
-        scheduler_lr=None,
+        use_scheduler_lr=False,
         size_batch_train=None,
         size_batch_eval=None,
         num_epochs=None,
@@ -43,7 +43,7 @@ class Config_Model:
 
         self.learn_rate = learn_rate
 
-        self.scheduler_lr = scheduler_lr
+        self.use_scheduler_lr = use_scheduler_lr
 
         self.size_batch_train = size_batch_train
         self.size_batch_eval = size_batch_eval

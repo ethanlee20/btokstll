@@ -19,7 +19,7 @@ from .preproc import (
     apply_cleaning_bkg,
     bootstrap_labeled_sets,
     bootstrap_bkg,
-    pandas_to_torch,
+    torch_from_pandas,
     make_image
 )
 from ..file_hand import (
@@ -47,7 +47,7 @@ class Dataset_Generator:
 
         self.config = config
 
-        self._load_agg_signal_data()
+        self._load_signal()
 
         if config.level == (
             Names_Levels()
@@ -62,32 +62,25 @@ class Dataset_Generator:
         """
         Generate dataset.
         """
-        
-        config = self.config
 
-        if config.name == Names_Datasets().events_binned:
-
+        if self.config.name == Names_Datasets().events_binned:
             self._generate_events_binned()
 
-        elif config.name == Names_Datasets().sets_binned:
-
+        elif self.config.name == Names_Datasets().sets_binned:
             self._generate_sets_binned()
 
-        elif config.name == Names_Datasets().sets_unbinned:
-            
+        elif self.config.name == Names_Datasets().sets_unbinned:
             self._generate_sets_unbinned()
 
-        elif config.name == Names_Datasets().images:
-
+        elif self.config.name == Names_Datasets().images:
             self._generate_images()
 
         else:
-
             raise ValueError(
-                f"Name not recognized: {config.name}"
+                f"Name not recognized: {self.config.name}"
             )
         
-        print(f"Generated dataset: {config.name}")
+        print(f"Generated dataset: {self.config.name}")
 
     def _generate_events_binned(self):
 
@@ -95,46 +88,37 @@ class Dataset_Generator:
         Generate files for the 
         binned events dataset.
         """
-
-        config = self.config
-
-        df_agg = self.df_agg.copy()#.sample(n=100_000)
         
-        df_agg, bin_map = convert_to_binned(
-            df_agg, 
-            Names_Labels().unbinned, 
-            Names_Labels().binned,
-        )
-        
-        features_signal = pandas_to_torch(
-            df_agg[Names_Variables().list_]
+        features_signal = torch_from_pandas(
+            self.df_signal[Names_Variables().list_]
         )
 
-        labels_signal = pandas_to_torch(
-            bins_to_probs(
-                df_agg[Names_Labels().binned]
-            )
-        ).float()
+        labels_signal = bins_to_probs(
+            bins=torch_from_pandas(
+                self.df_signal[self.config.name_label]
+            ),
+            num_bins=self.num_labels_unique_preclean,
+        )
 
-        bin_map = torch.from_numpy(bin_map)
-
-        if config.level == (
+        if self.config.level == (
             Names_Levels()
             .detector_and_background
         ):
 
             df_bkg = pandas.concat(
-                self.df_bkg_charge,
-                self.df_bkg_mix,
+                [
+                    self.df_bkg_charge,
+                    self.df_bkg_mix,
+                ]
             )
 
-            features_bkg = pandas_to_torch(
+            features_bkg = torch_from_pandas(
                 df_bkg[Names_Variables().list_]
             )
 
             labels_bkg = bkg_probs(
                 num_events=len(features_bkg),
-                num_bins=labels_signal.shape[1]
+                num_bins=self.num_labels_unique_preclean,
             )
 
             features = torch.concat(
@@ -154,22 +138,26 @@ class Dataset_Generator:
         else:
 
             features = features_signal
-
             labels = labels_signal
+
+        num_examples = len(labels)
+        index_shuffled = torch.randperm(num_examples)
+        features = features[index_shuffled]
+        labels = labels[index_shuffled]
 
         save_file_torch_tensor(
             features, 
-            config.path_file_features,
+            self.config.path_file_features,
         )
 
         save_file_torch_tensor(
             labels, 
-            config.path_file_labels,
+            self.config.path_file_labels,
         )
 
         save_file_torch_tensor(
-            bin_map, 
-            config.path_file_bin_map,
+            self.bin_map, 
+            self.config.path_file_bin_map,
         )
 
     def _generate_sets_binned(self):
@@ -179,7 +167,17 @@ class Dataset_Generator:
         sets binned dataset.
         """    
 
-        features, labels, bin_map = self._make_sets()
+        features, labels = self._make_sets()
+
+        labels = bins_to_probs(
+            bins=labels, 
+            num_bins=self.num_labels_unique_preclean,
+        )
+
+        save_file_torch_tensor(
+            self.bin_map, 
+            self.config.path_file_bin_map
+        )
 
         save_file_torch_tensor(
             features, 
@@ -189,11 +187,6 @@ class Dataset_Generator:
         save_file_torch_tensor(
             labels, 
             self.config.path_file_labels
-        )
-
-        save_file_torch_tensor(
-            bin_map, 
-            self.config.path_file_bin_map
         )
 
     def _generate_sets_unbinned(self):
@@ -249,94 +242,55 @@ class Dataset_Generator:
         self,
     ):
         
-        df_agg = self.df_agg.copy()
-
-        config = self.config
+        labels_source_signal = torch_from_pandas(
+            self.df_signal[self.config.name_label]
+        )
         
-        if config.name == (
-            Names_Datasets().sets_binned
-        ):
-
-            df_agg, bin_map = convert_to_binned(
-                df_agg, 
-                Names_Labels().unbinned, 
-                Names_Labels().binned,
-            )
-
-            bin_map = torch.from_numpy(bin_map)
-
-            labels_source_signal = pandas_to_torch(
-                df_agg[Names_Labels().binned]
-            )
-
-        else:
-
-            labels_source_signal = pandas_to_torch(
-                df_agg[Names_Labels().unbinned]
-            )
-
-        features_source_signal = pandas_to_torch(
-            df_agg[Names_Variables().list_]
+        features_source_signal = torch_from_pandas(
+            self.df_signal[Names_Variables().list_]
         )
 
-        features_sets_source_signal, labels = (
+        features_sets_signal, labels = (
             bootstrap_labeled_sets(
                 features_source_signal,
                 labels_source_signal,
-                num_events_per_set=config.num_events_per_set_signal,
-                num_sets_per_label=config.num_sets_per_label,
+                num_events_per_set=self.config.num_events_per_set_signal,
+                num_sets_per_label=self.config.num_sets_per_label,
                 reduce_labels=True,
             )
         )
 
-        if config.name == (
-            Names_Datasets().sets_binned
-        ):
-            
-            labels = pandas_to_torch(
-                bins_to_probs(labels)
-            )
-
-            num_labels = labels.shape[1]
-
-        else:
-            num_labels = len(torch.unique(labels))
-
-        if config.level == (
+        if self.config.level == (
             Names_Levels().detector_and_background
-        ):
+        ):  
+
+            num_sets_total = (
+                self.config.num_sets_per_label 
+                * self.num_labels_unique_postclean
+            )
             
-            num_sets = config.num_sets_per_label * num_labels
-            
-            features_sets_source_bkg = bootstrap_bkg(
+            features_sets_bkg = bootstrap_bkg(
                 self.df_bkg_charge, 
                 self.df_bkg_mix, 
-                config.num_events_per_set_bkg, 
-                num_sets, 
+                self.config.num_events_per_set_bkg, 
+                num_sets_total, 
                 frac_charge=0.5,
             )
 
-            features_sets = torch.concat(
+            features = torch.concat(
                 [
-                    features_sets_source_signal,
-                    features_sets_source_bkg,
+                    features_sets_signal,
+                    features_sets_bkg,
                 ],
                 dim=1,
             )
 
         else:
-            features_sets = features_sets_source_signal
+            features = features_sets_signal
 
-        if config.name == (
-            Names_Datasets().events_binned
-        ):
+        return features, labels
 
-            return features_sets, labels, bin_map
-        
-        else:
-            return features_sets, labels
-
-    def _load_agg_signal_data(self):
+    def _load_signal(self):
 
         """
         Load the aggregated raw signal data.
@@ -344,15 +298,15 @@ class Dataset_Generator:
         data file if it doesn't already exist.
         """
 
-        level_signal = (
-            self.config.level 
-            if self.config.level != Names_Levels().detector_and_background
-            else Names_Levels().detector
+        level = (
+            Names_Levels().detector
+            if self.config.level == Names_Levels().detector_and_background
+            else self.config.level
         )
 
         if not make_path_file_agg_raw_signal(
             dir=self.config.path_dir_dsets_main,
-            level=level_signal,
+            level=level,
             trials=self.config.range_trials_raw_signal,
         ).is_file():
             
@@ -362,23 +316,43 @@ class Dataset_Generator:
             )
 
             agg_data_raw_signal(
-                level=level_signal, 
+                level=level, 
                 trials=self.config.range_trials_raw_signal, 
-                columns=list(Names_Variables().tuple_),
+                columns=Names_Variables().list_,
                 raw_signal_data_dir=self.config.path_dir_raw_signal,
                 save_dir=self.config.path_dir_dsets_main,
             )
 
-        df_agg = load_file_agg_raw_signal(
+        df_signal = load_file_agg_raw_signal(
             dir=self.config.path_dir_dsets_main,
-            level=level_signal, 
+            level=level, 
             trials=self.config.range_trials_raw_signal, 
         )
 
-        self.df_agg = apply_cleaning_signal(
-            df_agg, 
-            self.config,
+        if self.config.is_binned:
+
+            df_signal, self.bin_map = convert_to_binned(
+                df_signal, 
+                Names_Labels().unbinned, 
+                Names_Labels().binned,
+            )
+
+        self.num_labels_unique_preclean = len(
+            df_signal[self.config.name_label]
+            .unique()
         )
+        
+        self.df_signal = apply_cleaning_signal(
+            df_signal, 
+            self.config,
+            bin_map=self.bin_map
+        )
+
+        self.num_labels_unique_postclean = len(
+            self.df_signal[self.config.name_label]
+            .unique()
+        )
+
 
     def _load_bkg_data(self):
         

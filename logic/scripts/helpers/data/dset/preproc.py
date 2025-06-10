@@ -113,10 +113,10 @@ def get_dataset_prescale(
                 "chi": 3.141597, 
             },
             "det_bkg": {
-                "q_squared": 10.349093,
-                "costheta_mu": 0.177490,
-                "costheta_K": -0.031386,
-                "chi": 3.141601, 
+                "q_squared": 10.134447,
+                "costheta_mu": 0.182426,
+                "costheta_K": -0.044501,
+                "chi": 3.141522, 
             }
         },
         "std": {
@@ -133,10 +133,10 @@ def get_dataset_prescale(
                 "chi": 1.820018, 
             },
             "det_bkg": {
-                "q_squared": 5.238074,
-                "costheta_mu": 0.509067,
-                "costheta_K": 0.622598,
-                "chi": 1.820281, 
+                "q_squared": 4.976700,
+                "costheta_mu": 0.523063,
+                "costheta_K": 0.615523,
+                "chi": 1.831986, 
             }
         }
     }
@@ -367,7 +367,8 @@ def apply_shuffle(
 def apply_cleaning_signal(
     df, 
     config:Config_Dataset, 
-    verbose=True
+    bin_map=None, 
+    verbose=True,
 ):
     """
     Apply cleaning to aggregated signal dataframe.
@@ -381,7 +382,19 @@ def apply_cleaning_signal(
     df = apply_q_squared_veto(
         df, 
         config.q_squared_veto,
+    )    
+
+    name_label = (
+        Names_Labels().binned if config.is_binned
+        else Names_Labels().unbinned
     )
+
+    def check_input():
+        if config.is_binned and (bin_map is None):
+            raise ValueError(
+                "bin_map must be specified for binned dataset."
+            )
+    check_input()
 
     if config.std_scale:
 
@@ -406,15 +419,24 @@ def apply_cleaning_signal(
 
         df = apply_balance_classes(
             df, 
-            Names_Labels().unbinned,
+            name_label,
         )
 
     if config.label_subset:
 
+        label_subset = (
+            [
+                (bin_map == label).nonzero().item() 
+                for label in config.label_subset
+            ]
+            if config.is_binned
+            else config.label_subset
+        )
+            
         df = apply_label_subset(
             df,
-            Names_Labels().unbinned,
-            config.label_subset,
+            name_label,
+            label_subset,
         )
 
     df = apply_drop_na(df)
@@ -533,21 +555,33 @@ def convert_to_binned(
         columns=name_label_unbinned
     )
 
+    bin_map = torch.from_numpy(bin_map)
+
     return df, bin_map
 
 
 def bins_to_probs(
     bins,
+    num_bins,
 ):
+    num_examples = len(bins)
 
-    """
-    Danger : will not make columns for labels
-    that do not exist in input.
-    """
+    probs = torch.zeros(
+        (num_examples, num_bins),
+        dtype=torch.float32,
+    )
+    probs[
+        torch.arange(num_examples), 
+        bins.int()
+    ] = 1.0
+
+    return probs
+
+
+def values_from_probs(probs, bin_map):
     
-    df_one_hot = pandas.get_dummies(bins)
-
-    return df_one_hot
+    values = bin_map[(probs==1.0).nonzero()[:, 1]]
+    return values
 
 
 def bkg_probs(num_events, num_bins):
@@ -666,11 +700,11 @@ def bootstrap_bkg(
 
     for _ in range(num_sets):
 
-        tensor_mix = pandas_to_torch(
+        tensor_mix = torch_from_pandas(
             df_mix.sample(n=num_mix, replace=True)
         )
         
-        tensor_charge = pandas_to_torch(
+        tensor_charge = torch_from_pandas(
             df_charge.sample(n=num_charge, replace=True)
         )
 
@@ -743,7 +777,7 @@ def make_image(
     return torch_image
 
 
-def pandas_to_torch(
+def torch_from_pandas(
     obj,
 ):
     """

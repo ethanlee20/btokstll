@@ -91,6 +91,7 @@ class Experiment:
             avgs=avgs, 
             stds=stds,
             config_model=config_model,
+            config_dset_eval=config_dset_eval,
             path_dir=self.path_dir_plots,
         )
         
@@ -98,12 +99,14 @@ class Experiment:
         
         self.table_summary.add_item(
             config_model=config_model,
+            config_dset_eval=config_dset_eval,
             kind=Names_Kinds_Items().mse,
             item=mse,
         )
   
         self.table_summary.add_item(
             config_model=config_model,
+            config_dset_eval=config_dset_eval,
             kind=Names_Kinds_Items().mae,
             item=mae,
         )
@@ -114,18 +117,21 @@ class Experiment:
 
         self.table_summary.add_item(
             config_model=config_model,
+            config_dset_eval=config_dset_eval_sens,
             kind=Names_Kinds_Items().np_mean,
             item=avg_sens,
         )
 
         self.table_summary.add_item(
             config_model=config_model,
+            config_dset_eval=config_dset_eval_sens,
             kind=Names_Kinds_Items().np_std,
             item=std_sens,
         )
 
         self.table_summary.add_item(
             config_model=config_model,
+            config_dset_eval=config_dset_eval_sens,
             kind=Names_Kinds_Items().np_bias,
             item=bias_sens,
         )
@@ -136,6 +142,7 @@ class Experiment:
             std=std_sens,
             label=label_sens,
             config_model=config_model,
+            config_dset_eval=config_dset_eval_sens,
             path_dir=self.path_dir_plots
         )
 
@@ -177,6 +184,7 @@ class Experiment:
 
         plot_loss_curves(
             config_model=config_model,
+            config_dset_eval=config_dset_eval,
             path_dir=self.path_dir_plots,
         )
 

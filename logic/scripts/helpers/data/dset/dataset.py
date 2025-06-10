@@ -7,6 +7,7 @@ from .loader import Dataset_Loader
 
 
 class Custom_Dataset(torch.utils.data.Dataset):
+
     """
     Custom dataset.
     """
@@ -15,20 +16,19 @@ class Custom_Dataset(torch.utils.data.Dataset):
         self, 
         config:Config_Dataset,
     ):
-        """
-        Initialize.
-        """
-    
+        
         self.config = config
 
     def generate(self):
+        
         """
-        Generate.
+        Create and save the dataset.
         """
 
         generator = Dataset_Generator(
             self.config
         )
+        
         generator.generate()
 
 
