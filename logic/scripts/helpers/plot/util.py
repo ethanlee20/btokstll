@@ -67,7 +67,7 @@ def add_plot_note(ax, text:str, fontsize="medium"):
 
     ax.text(
         1,
-        1.01, 
+        1.05, 
         text, 
         horizontalalignment="right", 
         verticalalignment="bottom", 

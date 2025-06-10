@@ -512,9 +512,7 @@ def load_file_raw_bkg(
         raise ValueError("Option not recognized.")
     
     dir = pathlib.Path(dir)
-
     name = f"mu_sideb_generic_{charge_or_mix}_{split}_scaled.pkl"
-    
     path = dir.joinpath(name)
     
     df = pandas.read_pickle(path)
