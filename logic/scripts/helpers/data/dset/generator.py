@@ -320,6 +320,8 @@ class Dataset_Generator:
                 Names_Labels().binned,
             )
 
+        else: self.bin_map = None
+
         def get_num_labels_unique():
             return len(
                 df_signal[self.config.name_label]

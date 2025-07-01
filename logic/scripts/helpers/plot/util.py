@@ -66,10 +66,10 @@ def add_plot_note(ax, text:str, fontsize="medium"):
     """
 
     ax.text(
-        1,
+        -0.15,
         1.05, 
         text, 
-        horizontalalignment="right", 
+        horizontalalignment="left", 
         verticalalignment="bottom", 
         transform=ax.transAxes, 
         fontsize=fontsize

@@ -1,6 +1,8 @@
 
 import pathlib
 
+import matplotlib.pyplot as plt
+
 from ..data.dset.config import Config_Dataset
 from ..data.dset.dataset import Custom_Dataset
 from ..data.dset.constants import Names_Datasets
@@ -13,6 +15,7 @@ from ..plot.linearity import plot_linearity
 from ..plot.sensitivity import plot_sensitivity
 from ..plot.loss_curves import plot_loss_curves
 from ..plot.slices_image import plot_image_slices
+from ..plot.util import add_plot_note
 from ..result.table import Summary_Table
 from ..result.constants import Names_Kinds_Items
 
@@ -26,7 +29,7 @@ class Experiment:
         device:str,
     ):
         
-        self.path_dir_plots = path_dir_plots
+        self.path_dir_plots = pathlib.Path(path_dir_plots)
         
         self.device = device
 
@@ -57,9 +60,15 @@ class Experiment:
         if config_dset_eval.name == (
             Names_Datasets().images
         ):
+            value_dc9_plot = -0.82
+            image = dset_eval.features[
+                dset_eval.labels == value_dc9_plot
+            ][0]
+
             plot_image_slices(
-                image=dset_eval.features[0], 
-                config_dset=config_dset_eval, 
+                image=image, 
+                config_dset=config_dset_eval,
+                value_dc9=value_dc9_plot, 
                 path_dir=self.path_dir_plots
             )
 
@@ -84,67 +93,130 @@ class Experiment:
         eval.predict()
         eval_sens.predict()
 
-        labels, avgs, stds = eval.run_test_lin()
+        if model.config.name == Names_Models().ebe:
 
-        plot_linearity(
-            labels=labels, 
-            avgs=avgs, 
-            stds=stds,
-            config_model=config_model,
-            config_dset_eval=config_dset_eval,
-            path_dir=self.path_dir_plots,
-        )
+            value_dc9_sm = 0
+            value_dc9_np = -0.82
+            
+            log_probs_sm = eval.log_probs[eval.labels==value_dc9_sm][0].cpu()
+            log_probs_np = eval.log_probs[eval.labels==value_dc9_np][0].cpu()
+
+            fig, ax = plt.subplots()
+
+            fig.set_figwidth(5)
+
+            def my_bar(x, y, label, color):
+
+                xmin = list(x)
+                xmax = list(x[1:])
+                xmax.append(xmax[-1]+xmax[1]-xmax[0])
+
+                ax.hlines(
+                    y=y, 
+                    xmin=xmin,
+                    xmax=xmax,
+                    label=label,
+                    color=color,
+                    linewidths=2,
+                )
+
+            ax.axvline(x=value_dc9_sm, color='black', label=r"$\delta C_9 ="+f"{value_dc9_sm}$", ls='--')
+            ax.axvline(x=value_dc9_np, color='black', label=r"$\delta C_9 ="+f"{value_dc9_np}$", ls=':')
+            
+            my_bar(
+                x=dset_eval.bin_map.cpu(),
+                y=log_probs_sm,
+                label=r"SM ($\delta C_9 ="+f"{value_dc9_sm}$)",
+                color='blue',
+            )
+
+            my_bar(
+                x=dset_eval.bin_map.cpu(),
+                y=log_probs_np,
+                label=r"NP ($\delta C_9 ="+f"{value_dc9_np}$)",
+                color='red',
+            )
+
+            # ax.plot(dset_eval.bin_map.cpu(), log_probs_sm, label=r"SM ($\delta C_9 ="+f"{value_dc9_sm}$)", color="blue")
+            # ax.plot(dset_eval.bin_map.cpu(), log_probs_np, label=r"NP ($\delta C_9 ="+f"{value_dc9_np}$)", color="red")
+
+
+            ax.set_xlabel(r"$\delta C_9$")
+            ax.set_ylabel(r"$\log p(\delta C_9 | x_1, ..., x_N)$")
+            ax.legend(loc='lower right')
+
+            note = (
+                f"Level: {model.config.config_dset_train.level}"
+                f"\nEvents per Set: {config_dset_eval.num_events_per_set}"    
+            )
+            add_plot_note(ax=ax, text=note)
+
+            name_file = f"log_prob_{model.config.config_dset_train.level}_{config_dset_eval.num_events_per_set}.png"
+            path = self.path_dir_plots.joinpath(name_file)
+            plt.savefig(path, bbox_inches="tight")
+            plt.close()
+
+        # labels, avgs, stds = eval.run_test_lin()
+
+        # plot_linearity(
+        #     labels=labels, 
+        #     avgs=avgs, 
+        #     stds=stds,
+        #     config_model=config_model,
+        #     config_dset_eval=config_dset_eval,
+        #     path_dir=self.path_dir_plots,
+        # )
         
-        mse, mae = eval.calc_mse_mae()
+        # mse, mae = eval.calc_mse_mae()
         
-        self.table_summary.add_item(
-            config_model=config_model,
-            config_dset_eval=config_dset_eval,
-            kind=Names_Kinds_Items().mse,
-            item=mse,
-        )
+        # self.table_summary.add_item(
+        #     config_model=config_model,
+        #     config_dset_eval=config_dset_eval,
+        #     kind=Names_Kinds_Items().mse,
+        #     item=mse,
+        # )
   
-        self.table_summary.add_item(
-            config_model=config_model,
-            config_dset_eval=config_dset_eval,
-            kind=Names_Kinds_Items().mae,
-            item=mae,
-        )
+        # self.table_summary.add_item(
+        #     config_model=config_model,
+        #     config_dset_eval=config_dset_eval,
+        #     kind=Names_Kinds_Items().mae,
+        #     item=mae,
+        # )
 
-        avg_sens, std_sens, bias_sens, label_sens = (
-            eval_sens.run_test_sens()
-        )
+        # avg_sens, std_sens, bias_sens, label_sens = (
+        #     eval_sens.run_test_sens()
+        # )
 
-        self.table_summary.add_item(
-            config_model=config_model,
-            config_dset_eval=config_dset_eval_sens,
-            kind=Names_Kinds_Items().np_mean,
-            item=avg_sens,
-        )
+        # self.table_summary.add_item(
+        #     config_model=config_model,
+        #     config_dset_eval=config_dset_eval_sens,
+        #     kind=Names_Kinds_Items().np_mean,
+        #     item=avg_sens,
+        # )
 
-        self.table_summary.add_item(
-            config_model=config_model,
-            config_dset_eval=config_dset_eval_sens,
-            kind=Names_Kinds_Items().np_std,
-            item=std_sens,
-        )
+        # self.table_summary.add_item(
+        #     config_model=config_model,
+        #     config_dset_eval=config_dset_eval_sens,
+        #     kind=Names_Kinds_Items().np_std,
+        #     item=std_sens,
+        # )
 
-        self.table_summary.add_item(
-            config_model=config_model,
-            config_dset_eval=config_dset_eval_sens,
-            kind=Names_Kinds_Items().np_bias,
-            item=bias_sens,
-        )
+        # self.table_summary.add_item(
+        #     config_model=config_model,
+        #     config_dset_eval=config_dset_eval_sens,
+        #     kind=Names_Kinds_Items().np_bias,
+        #     item=bias_sens,
+        # )
 
-        plot_sensitivity(
-            preds=eval_sens.preds,
-            avg=avg_sens,
-            std=std_sens,
-            label=label_sens,
-            config_model=config_model,
-            config_dset_eval=config_dset_eval_sens,
-            path_dir=self.path_dir_plots
-        )
+        # plot_sensitivity(
+        #     preds=eval_sens.preds,
+        #     avg=avg_sens,
+        #     std=std_sens,
+        #     label=label_sens,
+        #     config_model=config_model,
+        #     config_dset_eval=config_dset_eval_sens,
+        #     path_dir=self.path_dir_plots
+        # )
 
     def train(
         self,

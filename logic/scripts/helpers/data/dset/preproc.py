@@ -294,17 +294,23 @@ def apply_q_squared_veto(
 def apply_label_subset(
     df, 
     name_label:str, 
-    label_subset:list,
+    label_subset:list|str,
 ):
     
     """
     Reduce a dataframe to data from specified labels.
     """
 
-    df = df[
-        df[name_label]
-        .isin(label_subset)
-    ]
+    if type(label_subset) == str:
+        if label_subset == "leq_zero":
+            df = df[df[name_label] <= 0]
+    elif type(label_subset) == list:
+        df = df[
+            df[name_label]
+            .isin(label_subset)
+        ]
+    else: raise ValueError
+
     return df
 
 

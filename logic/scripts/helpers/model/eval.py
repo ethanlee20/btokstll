@@ -58,11 +58,12 @@ class Evaluator:
                 )
             )
 
-            return pred
+            return pred, log_probs
 
         with torch.no_grad():
 
             preds = []
+            log_probs = []
             
             for x in self.dataset.features:
 
@@ -73,8 +74,10 @@ class Evaluator:
                     == Names_Models().ebe
                 ):
 
-                    pred = predict_ebe(x=x)
+                    pred, log_probs_ = predict_ebe(x=x)
                 
+                    log_probs.append(log_probs_.unsqueeze(dim=0))
+
                 else:
 
                     pred = self.model(
@@ -84,6 +87,9 @@ class Evaluator:
                 preds.append(pred)
             
             self.preds = torch.tensor(preds)
+
+            if self.model.config.name == Names_Models().ebe:
+                self.log_probs = torch.cat(log_probs)
     
     def run_test_lin(self):
 

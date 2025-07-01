@@ -101,6 +101,7 @@ class Config_Experiment_Images:
                                 split=Names_Splits().eval_,
                                 num_events_per_set=num_events_per_set,
                                 num_sets_per_label=self.num_sets_per_label_nominal,
+                                label_subset='leq_zero',
                                 **self.dict_kwargs_dset_common,
                             )
                         ),
@@ -295,6 +296,7 @@ class Config_Experiment_Deep_Sets:
                                 split=Names_Splits().eval_,
                                 num_events_per_set=num_events_per_set,
                                 num_sets_per_label=self.num_sets_per_label_nominal,
+                                label_subset='leq_zero',
                                 **self.dict_kwargs_dset_common,
                             )
                         ),
@@ -505,6 +507,7 @@ class Config_Experiment_Event_by_Event:
                                 num_events_per_set=num_events_per_set,
                                 num_sets_per_label=self.num_sets_per_label_nominal,
                                 frac_bkg=self.frac_bkg,
+                                label_subset='leq_zero',
                                 **self.dict_kwargs_dset_common,
                             )
                         ),

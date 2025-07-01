@@ -713,8 +713,13 @@ def calculate_variables(ell, df):
         additional calculated variables.
     """
 
-    if ell not in {"mu", "e"}:
-        raise ValueError(f"ell not recognized: {ell}")
+    possible_ell = {"mu", "e"}
+
+    if ell not in possible_ell:
+        raise ValueError(
+            f"ell not recognized: {ell}. "
+            f"Must be in {possible_ell}."
+        )
 
     ell_p_E = f'{ell}_p_E'
     ell_p_px = f'{ell}_p_px'

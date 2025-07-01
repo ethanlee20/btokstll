@@ -12,6 +12,7 @@ from .util import save_plot_dset
 def plot_image_slices(
     image, 
     config_dset,
+    value_dc9,
     path_dir,
     n_slices=3, 
     cmap=plt.cm.magma, 
@@ -105,7 +106,6 @@ def plot_image_slices(
     for i in z_indices:
 
         plot_outline(i)
-
         plot_slice(i)
 
     cbar = fig.colorbar(
@@ -144,36 +144,6 @@ def plot_image_slices(
         ax_labels["z"], 
         labelpad=-3
     )
-
-    ticks = {
-        "x": ["-1", "1"],
-        "y": ["-1", "1"],
-        "z": ['0', r"$2\pi$"],
-    }      
-
-    ax_3d.set_xticks(
-        [
-            0, 
-            cartesian_shape["x"]-1
-        ], 
-        ticks["x"]
-    )
-    
-    ax_3d.set_xticks(
-        [
-            0, 
-            cartesian_shape["y"]-1
-        ], 
-        ticks["y"]
-    )
-    
-    ax_3d.set_xticks(
-        [
-            0, 
-            cartesian_shape["z"]-1
-        ], 
-        ticks["z"]
-    )
     
     ax_3d.tick_params(pad=0.3)
     
@@ -183,22 +153,24 @@ def plot_image_slices(
     )
 
     note = (
-        "Level: "
+        r"\textbf{Level}: "
         f"{config_dset.level}\n"
-        "Events per set: "
+        r"\textbf{Events per set}: "
         f"{config_dset.num_events_per_set}\n"
-        "Bins per dim.: "
-        f"{config_dset.num_bins_image}"
+        r"\textbf{Bins per dim.}: "
+        f"{config_dset.num_bins_image}\n"
+        r"$\boldsymbol{\delta C_9}$ : "
+        f"{value_dc9}"
     )
 
     ax_3d.set_title(
         f"{note}", 
-        loc="center", 
-        y=1
+        loc="left",
+        y=0.85
     )
 
     save_plot_dset(
-        "slices_image", 
+        f"slices_image_dc9_{value_dc9}", 
         config_dset, 
         path_dir,
     )
