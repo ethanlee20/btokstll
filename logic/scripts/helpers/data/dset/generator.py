@@ -199,7 +199,7 @@ class Dataset_Generator:
     def _generate_images(self):
 
         """
-        Generate files the images dataset.
+        Generate files for the images dataset.
         """
 
         features_sets, labels = self._make_sets()

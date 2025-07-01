@@ -116,13 +116,21 @@ class Config_Dataset:
                 raise ValueError(
                     "frac_bkg must be between 0 and 1."
                 )
+            
+        if (
+            (self.frac_bkg is not None) 
+            and (self.level != Names_Levels().detector_and_background)
+        ):
+            raise ValueError(
+                "Background can only be specified if level is 'detector and background'."
+            )
 
     def _set_path_dir(self):
 
         """
-        Create the dataset's subdirectory path.
+        Create the dataset's directory path.
         """
-
+        
         name_dir = (
             f"{self.name}_"
             f"{self.level}_"
@@ -151,6 +159,7 @@ class Config_Dataset:
             if not self.sensitivity_study
             else f"{self.split}_sens_{kind}.pt"
         )
+
         if self.num_events_per_set:
             name_file = (
                 f"{self.num_events_per_set}_" 
@@ -161,6 +170,10 @@ class Config_Dataset:
         return path
 
     def _set_paths_files(self):
+
+        """
+        Set dataset file paths.
+        """
 
         self.path_file_features = self._make_path_file_tensor(
             Names_Kind_File_Tensor().features, 
@@ -175,7 +188,7 @@ class Config_Dataset:
     def _set_range_trials_raw_signal(self):
 
         """
-        Obtain the raw signal trial range 
+        Set the raw signal trial range 
         corresponding to the data split.
         """
 
