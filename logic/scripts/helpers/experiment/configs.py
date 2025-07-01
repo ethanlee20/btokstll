@@ -113,7 +113,7 @@ class Config_Experiment_Images:
                                 num_events_per_set=num_events_per_set,
                                 num_sets_per_label=self.num_sets_per_label_sens,
                                 label_subset=[self.value_dc9_np],
-                                sensitivity_study=True,
+                                is_sensitivity_study=True,
                                 **self.dict_kwargs_dset_common,
                             )
                         ),
@@ -308,7 +308,7 @@ class Config_Experiment_Deep_Sets:
                                 num_events_per_set=num_events_per_set,
                                 num_sets_per_label=self.num_sets_per_label_sens,
                                 label_subset=[self.value_dc9_np],
-                                sensitivity_study=True,
+                                is_sensitivity_study=True,
                                 **self.dict_kwargs_dset_common,
                             )
                         ),
@@ -521,7 +521,7 @@ class Config_Experiment_Event_by_Event:
                                 num_sets_per_label=self.num_sets_per_label_sens,
                                 frac_bkg=self.frac_bkg,
                                 label_subset=[self.value_dc9_np],
-                                sensitivity_study=True,
+                                is_sensitivity_study=True,
                                 **self.dict_kwargs_dset_common,
                             )
                         ),

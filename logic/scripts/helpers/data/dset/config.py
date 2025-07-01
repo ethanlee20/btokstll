@@ -26,51 +26,61 @@ class Config_Dataset:
         self,
         name:str,
         level:str,
+        split:str,
         q_squared_veto:str,
         balanced_classes:bool, 
         std_scale:bool,
-        split:str,
+        shuffle:bool,
         path_dir_dsets_main:str|pathlib.Path,
         path_dir_raw_signal:str|pathlib.Path,
-        shuffle:bool,
-        path_dir_raw_bkg:str|pathlib.Path=None,
-        label_subset:list[float]=None, # original labels (not bin values)
         num_events_per_set:int=None,
-        frac_bkg:float=None,
         num_sets_per_label:int=None,
         num_bins_image:int=None,
-        sensitivity_study:bool=False,
+        frac_bkg:float=None,
+        path_dir_raw_bkg:str|pathlib.Path=None,
+        label_subset:list[float]=None, # original labels (not bin values)
+        is_sensitivity_study:bool=False,
     ):
+        
         self.name = name
         self.level = level
+        self.split = split
+
         self.q_squared_veto = q_squared_veto
         self.balanced_classes = balanced_classes
         self.std_scale = std_scale
-        self.split = split
+        self.shuffle = shuffle
+        
         self.path_dir_dsets_main = pathlib.Path(
             path_dir_dsets_main
         )
         self.path_dir_raw_signal = pathlib.Path(
             path_dir_raw_signal
         )
+        
+        self.num_events_per_set = num_events_per_set
+        self.num_sets_per_label = num_sets_per_label
+        self.num_bins_image = num_bins_image
+        
+        self.frac_bkg = frac_bkg
         if path_dir_raw_bkg:
             self.path_dir_raw_bkg = pathlib.Path(
                 path_dir_raw_bkg
             )
-        self.shuffle = shuffle
+        
         self.label_subset = label_subset
-        self.num_events_per_set = num_events_per_set
-        self.frac_bkg = frac_bkg
-        self.num_sets_per_label = num_sets_per_label
-        self.num_bins_image = num_bins_image
-        self.sensitivity_study = sensitivity_study
+        self.is_sensitivity_study = is_sensitivity_study
         
         self._check_inputs()
+        
         self._set_range_trials_raw_signal()
+        
         self._set_path_dir()
         self._set_paths_files()
+
         self._set_is_binned()
         self._set_name_label()
+
         if self.num_events_per_set:
             self._calc_num_signal_bkg()
 
@@ -86,6 +96,11 @@ class Config_Dataset:
                 f"Level not recognized: {self.level}"
             )
         
+        if self.split not in Names_Splits().tuple_:
+            raise ValueError(
+                f"Split not recognized: {self.split}"
+            )
+        
         if self.q_squared_veto not in Names_q_Squared_Vetos().tuple_:
             raise ValueError(
                 f"q^2 veto not recognized: {self.q_squared_veto}"
@@ -99,11 +114,6 @@ class Config_Dataset:
         if self.std_scale not in (True, False):
             raise ValueError(
                 "Standard scale option not recognized."
-            )
-        
-        if self.split not in Names_Splits().tuple_:
-            raise ValueError(
-                f"Split not recognized: {self.split}"
             )
         
         if self.shuffle not in (True, False):
@@ -122,8 +132,13 @@ class Config_Dataset:
             and (self.level != Names_Levels().detector_and_background)
         ):
             raise ValueError(
-                "Background can only be specified if level is 'detector and background'."
+                "Background can only be specified " 
+                "if level is 'detector_and_background'."
             )
+        
+        if (
+            
+        )
 
     def _set_path_dir(self):
 
@@ -156,7 +171,7 @@ class Config_Dataset:
         
         name_file = (
             f"{self.split}_{kind}.pt" 
-            if not self.sensitivity_study
+            if not self.is_sensitivity_study
             else f"{self.split}_sens_{kind}.pt"
         )
 
