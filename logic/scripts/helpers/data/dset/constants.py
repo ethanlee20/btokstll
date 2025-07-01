@@ -14,6 +14,16 @@ class Names_Datasets:
         sets_unbinned,
     )
 
+    set_based = (
+        images,
+        sets_binned,
+        sets_unbinned,
+    )
+
+    tuple_event_based = (
+        events_binned,
+    )
+
 
 class Names_Levels:
 

@@ -3,6 +3,7 @@
 Configuration for datasets.
 """
 
+
 import pathlib
 
 from .constants import (
@@ -38,7 +39,7 @@ class Config_Dataset:
         num_bins_image:int=None,
         frac_bkg:float=None,
         path_dir_raw_bkg:str|pathlib.Path=None,
-        label_subset:list[float]=None, # original labels (not bin values)
+        label_subset:list[float]|str=None, # original labels (not bin values)
         is_sensitivity_study:bool=False,
     ):
         
@@ -81,64 +82,71 @@ class Config_Dataset:
         self._set_is_binned()
         self._set_name_label()
 
-        if self.num_events_per_set:
-            self._calc_num_signal_bkg()
+        if self.name in Names_Datasets().set_based:
+            self._set_num_signal_bkg()
 
     def _check_inputs(self):
 
-        if self.name not in Names_Datasets().tuple_:
-            raise ValueError(
-                f"Name not recognized: {self.name}"
-            )
-        
-        if self.level not in Names_Levels().tuple_:
-            raise ValueError(
-                f"Level not recognized: {self.level}"
-            )
-        
-        if self.split not in Names_Splits().tuple_:
-            raise ValueError(
-                f"Split not recognized: {self.split}"
-            )
-        
-        if self.q_squared_veto not in Names_q_Squared_Vetos().tuple_:
-            raise ValueError(
-                f"q^2 veto not recognized: {self.q_squared_veto}"
-            )
-        
-        if self.balanced_classes not in (True, False):
-            raise ValueError(
-                "Balanced classes option not recognized."
-            )
-        
-        if self.std_scale not in (True, False):
-            raise ValueError(
-                "Standard scale option not recognized."
-            )
-        
-        if self.shuffle not in (True, False):
-            raise ValueError(
-                "Shuffle option not recognized."
-            )
-        
-        if self.frac_bkg:
-            if (self.frac_bkg > 1) or (self.frac_bkg < 0):
-                raise ValueError(
-                    "frac_bkg must be between 0 and 1."
-                )
+        def check_required():
+
+            if self.name not in Names_Datasets().tuple_:
+                raise ValueError
+            if self.level not in Names_Levels().tuple_:
+                raise ValueError
+            if self.split not in Names_Splits().tuple_:
+                raise ValueError
+            if self.q_squared_veto not in Names_q_Squared_Vetos().tuple_:
+                raise ValueError
+            if type(self.balanced_classes) is not bool:
+                raise ValueError
+            if type(self.std_scale) is not bool:
+                raise ValueError
+            if type(self.shuffle) is not bool:
+                raise ValueError
+            if not self.path_dir_dsets_main.is_dir():
+                raise ValueError
+            if not self.path_dir_raw_signal.is_dir():
+                raise ValueError
             
-        if (
-            (self.frac_bkg is not None) 
-            and (self.level != Names_Levels().detector_and_background)
-        ):
-            raise ValueError(
-                "Background can only be specified " 
-                "if level is 'detector_and_background'."
-            )
+        def check_set():
+
+            if self.num_events_per_set is None:
+                raise ValueError
+            if self.num_sets_per_label is None:
+                raise ValueError
+            if (
+                (self.name == Names_Datasets().images) 
+                and (type(self.num_bins_image) is not int)
+            ):
+                raise ValueError
+
+        def check_bkg():
+
+            if self.path_dir_raw_bkg is None:
+                raise ValueError
+            if not self.path_dir_raw_bkg.is_dir():
+                raise ValueError
+            if self.frac_bkg:
+                if (self.frac_bkg > 1) or (self.frac_bkg < 0):
+                    raise ValueError
         
-        if (
-            
-        )
+        def check_misc():
+
+            if self.label_subset:
+                if type(self.label_subset) not in (list, str):
+                    raise ValueError
+            if type(self.is_sensitivity_study) is not bool: 
+                raise ValueError
+
+        check_required()
+
+        if self.name in Names_Datasets().set_based: 
+            check_set()
+
+        if self.level == Names_Levels().detector_and_background: 
+            check_bkg()
+
+        check_misc()
 
     def _set_path_dir(self):
 
@@ -164,24 +172,29 @@ class Config_Dataset:
         """
         
         if kind not in Names_Kind_File_Tensor().tuple_:
-            raise ValueError(
-                "Kind not recognized. "
-                f"Must be in {Names_Kind_File_Tensor().tuple_}"
-            )
+            raise ValueError
         
-        name_file = (
-            f"{self.split}_{kind}.pt" 
-            if not self.is_sensitivity_study
-            else f"{self.split}_sens_{kind}.pt"
+        sensitivity_label = (
+            None if not self.is_sensitivity_study 
+            else "sens"
         )
 
-        if self.num_events_per_set:
-            name_file = (
-                f"{self.num_events_per_set}_" 
-                + name_file
-            )
+        name_parts = [
+            str(i) for i in
+            [
+                self.num_events_per_set, 
+                self.split, 
+                sensitivity_label, 
+                kind,
+            ]
+            if i is not None
+        ]
 
-        path = self.path_dir.joinpath(name_file)
+        name_base = "_".join(name_parts)
+        extension = ".pt"
+        name = name_base + extension
+        path = self.path_dir.joinpath(name)
+
         return path
 
     def _set_paths_files(self):
@@ -195,7 +208,7 @@ class Config_Dataset:
         )
         self.path_file_labels = self._make_path_file_tensor(
             Names_Kind_File_Tensor().labels,
-        )            
+        )
         self.path_file_bin_map = self._make_path_file_tensor(
             Names_Kind_File_Tensor().bin_map,       
         )
@@ -206,11 +219,6 @@ class Config_Dataset:
         Set the raw signal trial range 
         corresponding to the data split.
         """
-
-        if self.split not in Names_Splits().tuple_:
-            raise ValueError(
-                f"Split must be in {Names_Splits().tuple_}"
-            )
         
         self.range_trials_raw_signal = (
             Trials_Splits().train if (
@@ -222,16 +230,25 @@ class Config_Dataset:
             else None
         )
 
-    def _calc_num_signal_bkg(self):
+    def _set_num_signal_bkg(self):
 
+        if (
+            (self.frac_bkg is None) 
+            and (self.level == Names_Levels().detector_and_background)
+        ):
+            raise ValueError
+        if (
+            (self.frac_bkg is not None)
+            and (self.level != Names_Levels().detector_and_background)
+        ):
+            raise ValueError
+        
         self.num_events_per_set_bkg = (
             int(
                 self.num_events_per_set 
                 * self.frac_bkg
-            ) if (
-                (self.frac_bkg is not None) 
-                and (self.level == Names_Levels().detector_and_background)
-            ) else 0
+            ) if self.frac_bkg is not None
+            else 0
         )
         
         self.num_events_per_set_signal = (

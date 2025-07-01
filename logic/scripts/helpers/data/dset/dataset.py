@@ -16,7 +16,6 @@ class Custom_Dataset(torch.utils.data.Dataset):
         self, 
         config:Config_Dataset,
     ):
-        
         self.config = config
 
     def generate(self):
@@ -28,7 +27,7 @@ class Custom_Dataset(torch.utils.data.Dataset):
         generator = Dataset_Generator(
             self.config
         )
-
+        
         generator.generate()
 
 
