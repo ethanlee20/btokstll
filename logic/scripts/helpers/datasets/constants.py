@@ -1,31 +1,26 @@
 
-
-class Names_Datasets:
+class Names_of_Datasets:
 
     images = "images"
     events_binned = "events_binned"
     sets_binned = "sets_binned"
     sets_unbinned = "sets_unbinned"
-
+    
     tuple_ = (
         images,
         events_binned,
         sets_binned,
         sets_unbinned,
     )
-
     set_based = (
         images,
         sets_binned,
         sets_unbinned,
     )
-
-    tuple_event_based = (
-        events_binned,
-    )
+    event_based = (events_binned,)
 
 
-class Names_Levels:
+class Names_of_Levels:
 
     generator = "gen"
     detector = "det"
@@ -38,18 +33,15 @@ class Names_Levels:
     )
 
 
-class Names_q_Squared_Vetos:
+class Names_of_q_Squared_Vetos:
     
     tight = "tight"
     loose = "loose"
     
-    tuple_ = (
-        tight, 
-        loose,
-    )
+    tuple_ = (tight, loose)
 
 
-class Names_Variables:
+class Names_of_Variables:
 
     q_squared = "q_squared"
     cos_theta_mu = "costheta_mu"
@@ -62,44 +54,26 @@ class Names_Variables:
         cos_k,
         chi,
     )
-
     list_ = list(tuple_)
 
 
-class Names_Labels:
+class Names_of_Labels:
 
     unbinned = "dc9"
     binned = "dc9_bin_index"
 
-    tuple_ = (
-        unbinned,
-        binned,
-    )
+    tuple_ = (unbinned, binned)
     
 
-class Names_Splits:        
+class Names_of_Splits:        
 
     train = "train"
     eval_ = "eval"
 
-    tuple_ = (
-        train,
-        eval_,
-    )
+    tuple_ = (train, eval_)
 
 
-class Names_Sets_Events:
-
-    sets = "sets"
-    events = "events"
-
-    tuple_ = (
-        sets,
-        events,
-    )
-
-
-class Names_Kind_File_Tensor:
+class Names_of_Kinds_of_Dataset_Files:
 
     features = "features"
     labels = "labels"
@@ -108,22 +82,19 @@ class Names_Kind_File_Tensor:
     tuple_ = (
         features,
         labels,
-        bin_map,
+        bin_map
     )
 
 
-class Trials_Splits:
+class Raw_Signal_Trial_Ranges:
     
     train = range(1, 21)
     eval_ = range(21, 41)
 
-    tuple_ = (
-        train,
-        eval_,
-    )
+    tuple_ = (train, eval_)
 
 
-class Nums_Events_Per_Set:
+class Numbers_of_Events_per_Set:
     
     tuple_ = (
         70_000, 

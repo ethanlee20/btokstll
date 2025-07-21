@@ -1,644 +1,937 @@
 
-import pathlib
-
-import matplotlib.pyplot as plt
-
-from ..data.dset.config import Config_Dataset
-from ..data.dset.dataset import Custom_Dataset
-from ..data.dset.constants import Names_Datasets
-from ..model.constants import Names_Models
-from ..model.config import Config_Model
-from ..model.model import Custom_Model
-from ..model.trainer import Trainer
-from ..model.eval import Evaluator
+from ..datasets.settings.settings import Unbinned_Sets_Dataset_Settings, Images_Dataset_Settings, Binned_Events_Dataset_Settings, Binned_Sets_Dataset_Settings
+from ..datasets.constants import Names_of_Splits, Numbers_of_Events_per_Set, Names_of_Levels
+from ..datasets.datasets import Unbinned_Sets_Dataset, Images_Dataset, Binned_Events_Dataset, Binned_Sets_Dataset
+from ..models.settings import Model_Settings
+from ..models.constants import Names_of_Models
+from ..models.models import Model
+from ..models.trainer import Trainer
+from ..models.evaluation import Set_Based_Model_Evaluator, Event_Based_Model_Evaluator
+from .constants import Paths_to_Directories, delta_C9_value_new_physics, delta_C9_value_standard_model, Names_of_Result_Table_Columns
 from ..plot.linearity import plot_linearity
 from ..plot.sensitivity import plot_sensitivity
-from ..plot.loss_curves import plot_loss_curves
-from ..plot.slices_image import plot_image_slices
-from ..plot.util import add_plot_note
-from ..result.table import Summary_Table
-from ..result.constants import Names_Kinds_Items
+from ..plot.probabilities import plot_log_probability_distribution_examples
+from ..plot.image import plot_image_examples
+from .results_table import Results_Table
 
- 
 
-class Experiment:
+def train_model(
+    model,
+    training_dataset,
+    evaluation_dataset,
+    device      
+):   
+    
+    trainer = Trainer(
+        model=model,
+        training_dataset=training_dataset,
+        evaluation_dataset=evaluation_dataset,
+        device=device
+    )
+    trainer.train()
+
+
+def evaluate_model(
+    model, 
+    evaluation_dataset, 
+    sensitivity_evaluation_dataset,
+    results_table,
+    device
+):
+    
+    def run_linearity_test(evaluator, evaluation_dataset):
+        linearity_test_results = evaluator.run_linearity_test(evaluation_dataset)
+        plot_linearity(
+            linearity_test_results=linearity_test_results,
+            model_settings=evaluator.model.settings,
+            dataset_settings=evaluation_dataset.settings,
+            path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
+        )
+    
+    def run_sensitivity_test(evaluator, sensitivity_evaluation_dataset, results_table):
+        sensitivity_test_results = evaluator.run_sensitivity_test(sensitivity_evaluation_dataset)
+        plot_sensitivity(
+            sensitivity_test_results=sensitivity_test_results,
+            model_settings=evaluator.model.settings,
+            dataset_settings=sensitivity_evaluation_dataset.settings,
+            path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
+        )
+        results_table.add_items(
+            column_names=[
+                Names_of_Result_Table_Columns().np_mean, 
+                Names_of_Result_Table_Columns().np_bias, 
+                Names_of_Result_Table_Columns().np_std
+            ],
+            values=[
+                sensitivity_test_results.avg, 
+                sensitivity_test_results.bias, 
+                sensitivity_test_results.std
+            ],
+            model_settings=evaluator.model.settings,
+            dataset_settings=sensitivity_evaluation_dataset.settings,
+        )
+    
+    def run_error_test(evaluator, evaluation_dataset, results_table):
+        error_test_results = evaluator.run_error_test(evaluation_dataset)
+        results_table.add_items(
+            column_names=[
+                Names_of_Result_Table_Columns().mse, 
+                Names_of_Result_Table_Columns().mae
+            ],
+            values=[
+                error_test_results.mse, 
+                error_test_results.mae
+            ],
+            model_settings=evaluator.model.settings,
+            dataset_settings=evaluation_dataset.settings,
+        )    
+
+    def plot_log_probability_distributions(evaluator, evaluation_dataset):
+        log_probabilities = evaluator.predict_log_probabilities(evaluation_dataset.features)
+        plot_log_probability_distribution_examples(
+            log_probabilities=log_probabilities,
+            binned_labels=evaluation_dataset.labels,
+            bin_map=evaluation_dataset.bin_map,
+            model_settings=evaluator.model.settings,
+            dataset_settings=evaluation_dataset.settings,
+            path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
+        )
+
+    model.load_final_model_from_file()
+
+    evaluator = (
+        Set_Based_Model_Evaluator(model=model, device=device) 
+        if model.settings.name in Names_of_Models().set_based
+        else Event_Based_Model_Evaluator(model=model, device=device)
+        if model.settings.name in Names_of_Models().event_based
+        else None
+    )
+    if evaluator is None: raise ValueError
+
+    run_linearity_test(evaluator=evaluator, evaluation_dataset=evaluation_dataset)
+    run_sensitivity_test(evaluator=evaluator, sensitivity_evaluation_dataset=sensitivity_evaluation_dataset, results_table=results_table)
+    run_error_test(evaluator=evaluator, evaluation_dataset=evaluation_dataset, results_table=results_table)
+    if model.settings.name in Names_of_Models().event_based:
+        plot_log_probability_distributions(evaluator=evaluator, evaluation_dataset=evaluation_dataset)
+
+
+class Deep_Sets:
 
     def __init__(
         self,
-        path_dir_plots:str|pathlib.Path,
-        device:str,
-    ):
-        
-        self.path_dir_plots = pathlib.Path(path_dir_plots)
-        
+        level,
+        num_events_per_set,
+        num_sets_per_label,
+        num_sets_per_label_sensitivity,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        results_table:Results_Table,
+        device,
+        bkg_fraction=None,
+        bkg_charge_fraction=None
+    ):  
+        self._initialize_settings(
+            level=level,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label,
+            num_sets_per_label_sensitivity=num_sets_per_label_sensitivity,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints,
+            bkg_fraction=bkg_fraction,
+            bkg_charge_fraction=bkg_charge_fraction
+        )
+        self.model = Model(self.model_settings)
+        self.results_table = results_table
         self.device = device
 
-        self.table_summary = Summary_Table()
+    def train_model(self, remake_datasets):
+        training_dataset = Unbinned_Sets_Dataset(self.training_dataset_settings, remake=remake_datasets)
+        evaluation_dataset = Unbinned_Sets_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
+        train_model(
+            model=self.model, 
+            training_dataset=training_dataset, 
+            evaluation_dataset=evaluation_dataset, 
+            device=self.device
+        )
+        training_dataset.unload()
+        evaluation_dataset.unload()
 
-    def evaluate(
+    def evaluate_model(self, remake_datasets):
+        evaluation_dataset = Unbinned_Sets_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
+        sensitivity_evaluation_dataset = Unbinned_Sets_Dataset(self.sensitivity_evaluation_dataset_settings, remake=remake_datasets)
+        evaluate_model(
+            model=self.model,
+            evaluation_dataset=evaluation_dataset, 
+            sensitivity_evaluation_dataset=sensitivity_evaluation_dataset,
+            results_table=self.results_table,
+            device=self.device
+        )
+        evaluation_dataset.unload()
+        sensitivity_evaluation_dataset.unload()
+
+    def _initialize_settings(
         self,
-        config_model:Config_Model,
-        config_dset_eval:Config_Dataset,
-        config_dset_eval_sens:Config_Dataset,
-        generate_dsets=False,
+        level,
+        num_events_per_set,
+        num_sets_per_label,
+        num_sets_per_label_sensitivity,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        bkg_fraction=None,
+        bkg_charge_fraction=None
     ):
-
-        dset_eval = Custom_Dataset(
-            config_dset_eval
+        self.training_dataset_settings = Unbinned_Sets_Dataset_Settings(
+            level=level,
+            split=Names_of_Splits().train,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label,
+            is_sensitivity_study=False,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            path_to_main_datasets_dir=Paths_to_Directories().path_to_main_datasets_dir,
+            path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
+            path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir,
+            bkg_fraction=bkg_fraction,
+            bkg_charge_fraction=bkg_charge_fraction,
+            label_subset=None
         )
-        dset_eval_sens = Custom_Dataset(
-            config_dset_eval_sens
+        self.evaluation_dataset_settings = Unbinned_Sets_Dataset_Settings(
+            level=level,
+            split=Names_of_Splits().eval_,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label,
+            is_sensitivity_study=False,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            path_to_main_datasets_dir=Paths_to_Directories().path_to_main_datasets_dir,
+            path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
+            path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir,
+            bkg_fraction=bkg_fraction,
+            bkg_charge_fraction=bkg_charge_fraction,
+            label_subset=None
         )
-        
-        if generate_dsets:
-            dset_eval_sens.generate()
-            dset_eval.generate()
+        self.sensitivity_evaluation_dataset_settings = Unbinned_Sets_Dataset_Settings(
+            level=level,
+            split=Names_of_Splits().eval_,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label_sensitivity,
+            is_sensitivity_study=True,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            path_to_main_datasets_dir=Paths_to_Directories().path_to_main_datasets_dir,
+            path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
+            path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir,
+            bkg_fraction=bkg_fraction,
+            bkg_charge_fraction=bkg_charge_fraction,
+            label_subset=[delta_C9_value_new_physics]
+        )
+        self.model_settings = Model_Settings(
+            name=Names_of_Models().deep_sets,
+            path_to_main_models_dir=Paths_to_Directories().path_to_main_models_dir,
+            training_dataset_settings=self.training_dataset_settings,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints
+        )
 
-        dset_eval_sens.load()
-        dset_eval.load()
 
-        if config_dset_eval.name == (
-            Names_Datasets().images
-        ):
-            value_dc9_plot = -0.82
-            image = dset_eval.features[
-                dset_eval.labels == value_dc9_plot
-            ][0]
+class CNN:
 
-            plot_image_slices(
-                image=image, 
-                config_dset=config_dset_eval,
-                value_dc9=value_dc9_plot, 
-                path_dir=self.path_dir_plots
+    def __init__(
+        self,
+        level,
+        num_events_per_set,
+        num_sets_per_label,
+        num_sets_per_label_sensitivity,
+        num_bins_per_dimension,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        results_table:Results_Table,
+        device,
+        bkg_fraction=None,
+        bkg_charge_fraction=None
+    ):
+        self._initialize_settings(
+            level=level,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label,
+            num_sets_per_label_sensitivity=num_sets_per_label_sensitivity,
+            num_bins_per_dimension=num_bins_per_dimension,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints,
+            bkg_fraction=bkg_fraction,
+            bkg_charge_fraction=bkg_charge_fraction
+        )
+        self.model = Model(self.model_settings)
+        self.results_table = results_table
+        self.device = device
+
+    def train_model(self, remake_datasets):
+        training_dataset = Unbinned_Sets_Dataset(self.training_dataset_settings, remake=remake_datasets)
+        evaluation_dataset = Unbinned_Sets_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
+        train_model(
+            model=self.model, 
+            training_dataset=training_dataset, 
+            evaluation_dataset=evaluation_dataset, 
+            device=self.device
+        )
+        training_dataset.unload()
+        evaluation_dataset.unload()
+
+    def evaluate_model(self, remake_datasets):
+        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
+        sensitivity_evaluation_dataset = Images_Dataset(self.sensitivity_evaluation_dataset_settings, remake=remake_datasets)
+        evaluate_model(
+            model=self.model,
+            evaluation_dataset=evaluation_dataset, 
+            sensitivity_evaluation_dataset=sensitivity_evaluation_dataset,
+            results_table=self.results_table,
+            device=self.device
+        )
+        evaluation_dataset.unload()
+        sensitivity_evaluation_dataset.unload()
+
+    def plot_image_examples(self, remake_dataset):
+        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings, remake=remake_dataset)
+        plot_image_examples(
+            dataset=evaluation_dataset, 
+            path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
+        )
+        evaluation_dataset.unload()
+
+    def _initialize_settings(
+        self,
+        level,
+        num_events_per_set,
+        num_sets_per_label,
+        num_sets_per_label_sensitivity,
+        num_bins_per_dimension,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        bkg_fraction=None,
+        bkg_charge_fraction=None
+    ):
+        self.training_dataset_settings = Images_Dataset_Settings(
+            level=level,
+            split=Names_of_Splits().train,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label,
+            num_bins_per_dimension=num_bins_per_dimension,
+            is_sensitivity_study=False,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            path_to_main_datasets_dir=Paths_to_Directories().path_to_main_datasets_dir,
+            path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
+            path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir,
+            bkg_fraction=bkg_fraction,
+            bkg_charge_fraction=bkg_charge_fraction,
+            label_subset=None
+        )
+        self.evaluation_dataset_settings = Images_Dataset_Settings(
+            level=level,
+            split=Names_of_Splits().eval_,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label,
+            num_bins_per_dimension=num_bins_per_dimension,
+            is_sensitivity_study=False,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            path_to_main_datasets_dir=Paths_to_Directories().path_to_main_datasets_dir,
+            path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
+            path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir,
+            bkg_fraction=bkg_fraction,
+            bkg_charge_fraction=bkg_charge_fraction,
+            label_subset=None
+        )
+        self.sensitivity_evaluation_dataset_settings = Images_Dataset_Settings(
+            level=level,
+            split=Names_of_Splits().eval_,
+            num_events_per_set=num_events_per_set,
+            num_sets_per_label=num_sets_per_label_sensitivity,
+            num_bins_per_dimension=num_bins_per_dimension,
+            is_sensitivity_study=True,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            path_to_main_datasets_dir=Paths_to_Directories().path_to_main_datasets_dir,
+            path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
+            path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir,
+            bkg_fraction=bkg_fraction,
+            bkg_charge_fraction=bkg_charge_fraction,
+            label_subset=[delta_C9_value_new_physics]
+        )
+        self.model_settings = Model_Settings(
+            name=Names_of_Models().cnn,
+            path_to_main_models_dir=Paths_to_Directories().path_to_main_models_dir,
+            training_dataset_settings=self.training_dataset_settings,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints
+        )
+
+
+class Event_by_Event:
+
+    def __init__(
+        self,
+        level,
+        num_evaluation_sets_per_label,
+        num_evaluation_sets_per_label_sensitivity,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        results_table:Results_Table,
+        device
+    ):       
+        self._initialize_settings(
+            level=level,
+            num_evaluation_sets_per_label=num_evaluation_sets_per_label,
+            num_evaluation_sets_per_label_sensitivity=num_evaluation_sets_per_label_sensitivity,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints
+        )
+        self.model = Model(self.model_settings)
+        self.results_table = results_table
+        self.device = device
+
+    def train_model(self, remake_datasets):
+        training_dataset = Binned_Events_Dataset(self.training_dataset_settings, remake=remake_datasets)
+        evaluation_dataset = Binned_Events_Dataset(self.evaluation_event_dataset_settings, remake=remake_datasets)
+        train_model(
+            model=self.model, 
+            training_dataset=training_dataset,
+            evaluation_dataset=evaluation_dataset,
+            device=self.device
+        )
+        training_dataset.unload()
+        evaluation_dataset.unload()
+
+    def evaluate_model(self, num_events_per_set, remake_datasets):
+        evaluation_dataset = Binned_Sets_Dataset(
+            settings=self._get_evaluation_set_dataset_settings(num_events_per_set),
+            remake=remake_datasets
+        )
+        sensitivity_evaluation_dataset = Binned_Sets_Dataset(
+            settings=self._get_sensitivity_evaluation_set_dataset_settings(num_events_per_set),
+            remake=remake_datasets
+        )
+        evaluate_model(
+            model=self.model,
+            evaluation_dataset=evaluation_dataset,
+            sensitivity_evaluation_dataset=sensitivity_evaluation_dataset,
+            results_table=self.results_table,
+            device=self.device
+        )
+        evaluation_dataset.unload()
+        sensitivity_evaluation_dataset.unload()
+
+    def _initialize_settings(
+        self,
+        level,
+        num_evaluation_sets_per_label,
+        num_evaluation_sets_per_label_sensitivity,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints
+    ):
+        self.training_dataset_settings = Binned_Events_Dataset_Settings(
+            level=level,
+            split=Names_of_Splits().train,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            path_to_main_datasets_dir=Paths_to_Directories().path_to_main_datasets_dir,
+            path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
+            path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir
+        )
+        self.evaluation_event_dataset_settings = Binned_Events_Dataset_Settings(
+            level=level,
+            split=Names_of_Splits().eval_,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            path_to_main_datasets_dir=Paths_to_Directories().path_to_main_datasets_dir,
+            path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
+            path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir
+        )
+        self.evaluation_set_datasets_settings = {
+            Binned_Sets_Dataset_Settings(
+                level=level,
+                split=Names_of_Splits().eval_,
+                num_events_per_set=num_events_per_set,
+                num_sets_per_label=num_evaluation_sets_per_label,
+                is_sensitivity_study=False,
+                q_squared_veto=q_squared_veto,
+                std_scale=std_scale,
+                shuffle=shuffle,
+                path_to_main_datasets_dir=Paths_to_Directories().path_to_main_datasets_dir,
+                path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
+                path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir,
+                bkg_fraction=None,
+                bkg_charge_fraction=None
             )
-
-        model = Custom_Model(
-            config_model
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_
+        }
+        self.sensitivity_evaluation_set_datasets_settings = {
+            Binned_Sets_Dataset_Settings(
+                level=level,
+                split=Names_of_Splits().eval_,
+                num_events_per_set=num_events_per_set,
+                num_sets_per_label=num_evaluation_sets_per_label_sensitivity,
+                is_sensitivity_study=True,
+                q_squared_veto=q_squared_veto,
+                std_scale=std_scale,
+                shuffle=shuffle,
+                path_to_main_datasets_dir=Paths_to_Directories().path_to_main_datasets_dir,
+                path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
+                path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir,
+                bkg_fraction=None,
+                bkg_charge_fraction=None,
+                label_subset=[delta_C9_value_new_physics]
+            )
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_
+        }
+        self.model_settings = Model_Settings(
+            name=Names_of_Models().ebe,
+            path_to_main_models_dir=Paths_to_Directories().path_to_main_datasets_dir,
+            training_dataset_settings=self.training_dataset_settings,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints
         )
 
-        model.load()
+    def _get_evaluation_set_dataset_settings(self, num_events_per_set):
+        return self.evaluation_set_datasets_settings[num_events_per_set]
+    
+    def _get_sensitivity_evaluation_set_dataset_settings(self, num_events_per_set):
+        return self.sensitivity_evaluation_set_datasets_settings[num_events_per_set]
+    
 
-        eval = Evaluator(
-            model=model,
-            dataset=dset_eval,
-            device=self.device,
+
+
+
+
+class Deep_Sets_Group:
+
+    def __init__(
+        self,
+        num_sets_per_label,
+        num_sets_per_label_sensitivity,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        results_table,
+        device,
+        bkg_fraction,
+        bkg_charge_fraction
+    ):      
+        self._initialize_group(
+            num_sets_per_label=num_sets_per_label,
+            num_sets_per_label_sensitivity=num_sets_per_label_sensitivity,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints,
+            results_table=results_table,
+            device=device,
+            bkg_fraction=bkg_fraction,
+            bkg_charge_fraction=bkg_charge_fraction
         )
 
-        eval_sens = Evaluator(
-            model=model,
-            dataset=dset_eval_sens,
-            device=self.device,
-        )
-
-        eval.predict()
-        eval_sens.predict()
-
-        if model.config.name == Names_Models().ebe:
-
-            value_dc9_sm = 0
-            value_dc9_np = -0.82
-            
-            log_probs_sm = eval.log_probs[eval.labels==value_dc9_sm][0].cpu()
-            log_probs_np = eval.log_probs[eval.labels==value_dc9_np][0].cpu()
-
-            fig, ax = plt.subplots()
-
-            fig.set_figwidth(5)
-
-            def my_bar(x, y, label, color):
-
-                xmin = list(x)
-                xmax = list(x[1:])
-                xmax.append(xmax[-1]+xmax[1]-xmax[0])
-
-                ax.hlines(
-                    y=y, 
-                    xmin=xmin,
-                    xmax=xmax,
-                    label=label,
-                    color=color,
-                    linewidths=2,
+    def train_all(self, remake_datasets):
+        for level in Names_of_Levels().tuple_:
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
+                (
+                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
+                    .train_model(remake_datasets=remake_datasets)
+                )
+        
+    def evaluate_all(self, remake_datasets):
+        for level in Names_of_Levels().tuple_:
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
+                (
+                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
+                    .evaluate_model(remake_datasets=remake_datasets)
                 )
 
-            ax.axvline(x=value_dc9_sm, color='black', label=r"$\delta C_9 ="+f"{value_dc9_sm}$", ls='--')
-            ax.axvline(x=value_dc9_np, color='black', label=r"$\delta C_9 ="+f"{value_dc9_np}$", ls=':')
-            
-            my_bar(
-                x=dset_eval.bin_map.cpu(),
-                y=log_probs_sm,
-                label=r"SM ($\delta C_9 ="+f"{value_dc9_sm}$)",
-                color='blue',
-            )
+    def get_individual(self, level, num_events_per_set):
+        return self.group[level][num_events_per_set]
 
-            my_bar(
-                x=dset_eval.bin_map.cpu(),
-                y=log_probs_np,
-                label=r"NP ($\delta C_9 ="+f"{value_dc9_np}$)",
-                color='red',
-            )
-
-            # ax.plot(dset_eval.bin_map.cpu(), log_probs_sm, label=r"SM ($\delta C_9 ="+f"{value_dc9_sm}$)", color="blue")
-            # ax.plot(dset_eval.bin_map.cpu(), log_probs_np, label=r"NP ($\delta C_9 ="+f"{value_dc9_np}$)", color="red")
-
-
-            ax.set_xlabel(r"$\delta C_9$")
-            ax.set_ylabel(r"$\log p(\delta C_9 | x_1, ..., x_N)$")
-            ax.legend(loc='lower right')
-
-            note = (
-                f"Level: {model.config.config_dset_train.level}"
-                f"\nEvents per Set: {config_dset_eval.num_events_per_set}"    
-            )
-            add_plot_note(ax=ax, text=note)
-
-            name_file = f"log_prob_{model.config.config_dset_train.level}_{config_dset_eval.num_events_per_set}.png"
-            path = self.path_dir_plots.joinpath(name_file)
-            plt.savefig(path, bbox_inches="tight")
-            plt.close()
-
-        # labels, avgs, stds = eval.run_test_lin()
-
-        # plot_linearity(
-        #     labels=labels, 
-        #     avgs=avgs, 
-        #     stds=stds,
-        #     config_model=config_model,
-        #     config_dset_eval=config_dset_eval,
-        #     path_dir=self.path_dir_plots,
-        # )
-        
-        # mse, mae = eval.calc_mse_mae()
-        
-        # self.table_summary.add_item(
-        #     config_model=config_model,
-        #     config_dset_eval=config_dset_eval,
-        #     kind=Names_Kinds_Items().mse,
-        #     item=mse,
-        # )
-  
-        # self.table_summary.add_item(
-        #     config_model=config_model,
-        #     config_dset_eval=config_dset_eval,
-        #     kind=Names_Kinds_Items().mae,
-        #     item=mae,
-        # )
-
-        # avg_sens, std_sens, bias_sens, label_sens = (
-        #     eval_sens.run_test_sens()
-        # )
-
-        # self.table_summary.add_item(
-        #     config_model=config_model,
-        #     config_dset_eval=config_dset_eval_sens,
-        #     kind=Names_Kinds_Items().np_mean,
-        #     item=avg_sens,
-        # )
-
-        # self.table_summary.add_item(
-        #     config_model=config_model,
-        #     config_dset_eval=config_dset_eval_sens,
-        #     kind=Names_Kinds_Items().np_std,
-        #     item=std_sens,
-        # )
-
-        # self.table_summary.add_item(
-        #     config_model=config_model,
-        #     config_dset_eval=config_dset_eval_sens,
-        #     kind=Names_Kinds_Items().np_bias,
-        #     item=bias_sens,
-        # )
-
-        # plot_sensitivity(
-        #     preds=eval_sens.preds,
-        #     avg=avg_sens,
-        #     std=std_sens,
-        #     label=label_sens,
-        #     config_model=config_model,
-        #     config_dset_eval=config_dset_eval_sens,
-        #     path_dir=self.path_dir_plots
-        # )
-
-    def train(
+    def _initialize_group(
         self,
-        config_model:Config_Model,
-        config_dset_eval:Config_Dataset,
-        generate_dsets=False,
+        num_sets_per_label,
+        num_sets_per_label_sensitivity,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        results_table,
+        device,
+        bkg_fraction,
+        bkg_charge_fraction
     ):
+        common_parameters = dict(
+            num_sets_per_label=num_sets_per_label,
+            num_sets_per_label_sensitivity=num_sets_per_label_sensitivity,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints,
+            results_table=results_table,
+            device=device
+        )
+        self.group = {
+            level : {
+                num_events_per_set : Deep_Sets(
+                    **common_parameters,
+                    level=level,
+                    num_events_per_set=num_events_per_set
+                )
+                for num_events_per_set in Numbers_of_Events_per_Set().tuple_
+            }
+            for level in (Names_of_Levels().generator, Names_of_Levels().detector)
+        }
+        self.group[Names_of_Levels().detector_and_background] = {
+            num_events_per_set : Deep_Sets(
+                **common_parameters,
+                level=Names_of_Levels().detector_and_background,
+                num_events_per_set=num_events_per_set,
+                bkg_fraction=bkg_fraction,
+                bkg_charge_fraction=bkg_charge_fraction
+            )
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_
+        }
 
-        dset_train = Custom_Dataset(
-            config_model.config_dset_train
+
+class CNN_Group:
+
+    def __init__(
+        self,
+        num_sets_per_label,
+        num_sets_per_label_sensitivity,
+        num_bins_per_dimension,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        results_table,
+        device,
+        bkg_fraction,
+        bkg_charge_fraction
+    ):
+        self._initialize_group(
+            num_sets_per_label=num_sets_per_label,
+            num_sets_per_label_sensitivity=num_sets_per_label_sensitivity,
+            num_bins_per_dimension=num_bins_per_dimension,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints,
+            results_table=results_table,
+            device=device,
+            bkg_fraction=bkg_fraction,
+            bkg_charge_fraction=bkg_charge_fraction
         )
 
-        dset_eval = Custom_Dataset(
-            config_dset_eval
-        )
-
-        if generate_dsets:
-
-            dset_train.generate()
-            dset_eval.generate()
-
-        dset_train.load()
-        dset_eval.load()
-
-        model = Custom_Model(
-            config_model
-        )
-
-        trainer = Trainer(
-            model=model,
-            dset_train=dset_train,
-            dset_eval=dset_eval,
-            device=self.device,
-        )
-
-        trainer.train()
-
-        plot_loss_curves(
-            config_model=config_model,
-            config_dset_eval=config_dset_eval,
-            path_dir=self.path_dir_plots,
-        )
-
-        dset_train.unload()
-        dset_eval.unload()
-
-
-
-
-
-
-
-
-
-
- 
-
-# class Approach_Deep_Sets:
-
-#     def __init__(
-#         self,
-#         name_model,
-#         level,
-#         q_squared_veto,
-#         balanced_classes,
-#         std_scale,
-#         shuffle,
-#         label_subset,
-#         num_events_per_set,
-#         num_sets_per_label,
-#         num_bins_image,
-#         loss_fn,
-#         optimizer,
-#         lr_scheduler,
-#         size_batch_train,
-#         size_batch_eval,
-#         num_epochs,
-#         num_epochs_checkpoint,
-#         path_dir_dsets_main,
-#         path_dir_raw_signal,
-#         path_dir_models_main,
-#         device,
-#         extra_description=None,
-#     ):
-
-
-# class Deep_Sets_Approach:
-#     def __init__(
-#         self,
-#         device,
-#         level,
-#         datasets_dir,
-#         models_dir,
-#         plots_dir,
-#         summary_table,
-#         set_sizes=[70_000, 24_000, 6_000],
-#         new_physics_delta_c9_value=-0.82,
-#         num_sets_per_label=50,
-#         num_sets_per_label_sensitivity=2000,
-#         regenerate_datasets=False,
-#         balanced_classes=True,
-#         q_squared_veto=True,
-#         std_scale=True,
-#         retrain_models=False,
-#         learning_rate=4e-4,
-#         epochs=80,
-#         train_batch_size=32,
-#         eval_batch_size=32,
-#     ):
-#         self.device = device
-#         self.level = level
-#         self.models_dir = pathlib.Path(models_dir)
-#         self.dataset_dir = pathlib.Path(datasets_dir)
-#         self.plots_dir = pathlib.Path(plots_dir)
-#         self.summary_table = summary_table
-#         self.set_sizes = set_sizes
-#         self.new_physics_delta_c9_value = new_physics_delta_c9_value
-#         self.num_sets_per_label = num_sets_per_label
-#         self.num_sets_per_label_sensitivity = num_sets_per_label_sensitivity
-#         self.regenerate_datasets = regenerate_datasets
-#         self.balanced_classes = balanced_classes
-#         self.q_squared_veto = q_squared_veto
-#         self.std_scale = std_scale
-#         self.retrain_models = retrain_models
-#         self.learning_rate = learning_rate
-#         self.epochs = epochs
-#         self.train_batch_size = train_batch_size
-#         self.eval_batch_size = eval_batch_size
-
-#         self.init_datasets()
-#         self.init_models()
-#         self.evaluate_models()
-
-#     def init_datasets(self):
-
-#         self.train_datasets = {
-#             num_events_per_set : Signal_Sets_Dataset(
-#                 level=self.level,
-#                 split="train",
-#                 save_dir=self.dataset_dir,
-#                 num_events_per_set=num_events_per_set,
-#                 num_sets_per_label=self.num_sets_per_label,
-#                 binned=False,
-#                 q_squared_veto=self.q_squared_veto,
-#                 std_scale=self.std_scale,
-#                 balanced_classes=self.balanced_classes,
-#                 extra_description=f"{num_events_per_set}",
-#                 regenerate=self.regenerate_datasets
-#             )
-#             for num_events_per_set in self.set_sizes
-#         }
-
-#         self.eval_datasets = {
-#             num_events_per_set : Signal_Sets_Dataset(
-#                 level=self.level,
-#                 split="eval",
-#                 save_dir=self.dataset_dir,
-#                 num_events_per_set=num_events_per_set,
-#                 num_sets_per_label=self.num_sets_per_label,
-#                 binned=False,
-#                 q_squared_veto=self.q_squared_veto,
-#                 std_scale=self.std_scale,
-#                 balanced_classes=self.balanced_classes,
-#                 extra_description=f"{num_events_per_set}",
-#                 regenerate=self.regenerate_datasets
-#             )
-#             for num_events_per_set in self.set_sizes
-#         }
-
-#         self.single_label_eval_datasets = {
-#             num_events_per_set : Signal_Sets_Dataset(
-#                 level=self.level,
-#                 split="eval",
-#                 save_dir=self.dataset_dir,
-#                 num_events_per_set=num_events_per_set,
-#                 num_sets_per_label=self.num_sets_per_label_sensitivity,
-#                 binned=False,
-#                 q_squared_veto=self.q_squared_veto,
-#                 std_scale=self.std_scale,
-#                 balanced_classes=self.balanced_classes,
-#                 labels_to_sample=[self.new_physics_delta_c9_value],
-#                 extra_description=f"{num_events_per_set}_single",
-#                 regenerate=self.regenerate_datasets
-#             )
-#             for num_events_per_set in self.set_sizes
-#         }
-
-#     def init_models(self):
-
-#         self.models = {
-#             num_events_per_set : Deep_Sets(
-#                 self.models_dir, 
-#                 extra_description=f"{num_events_per_set}_{self.level}_q2v_{self.q_squared_veto}"
-#             )
-#             for num_events_per_set in self.set_sizes
-#         }
-
-#         if self.retrain_models:
-#             self.train_models()
-
-#     def train_models(self):
-
-#         for num_events_per_set in self.set_sizes:
-
-#             self.train_model(num_events_per_set)
-
-#     def train_model(self, num_events_per_set):
-
-#         model = self.models[
-#             num_events_per_set
-#         ]
-
-#         loss_fn = torch.nn.MSELoss()
-#         optimizer = torch.optim.Adam(
-#             model.parameters(), 
-#             lr=self.learning_rate
-#         )
-
-#         train_dataset = self.train_datasets[
-#             num_events_per_set
-#         ]
-#         eval_dataset = self.eval_datasets[
-#             num_events_per_set
-#         ]
-#         train_dataset.load()
-#         eval_dataset.load()
-
-#         model.retrain( 
-#             train_dataset, 
-#             eval_dataset, 
-#             loss_fn, 
-#             optimizer, 
-#             self.epochs, 
-#             self.train_batch_size, 
-#             self.eval_batch_size, 
-#             self.device, 
-#             move_data=True,
-#             scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(
-#                 optimizer, 
-#                 factor=0.9, 
-#                 patience=1
-#             ),
-#             checkpoint_epochs=5,
-#         )
-
-#         _, ax = plt.subplots()
-#         plot_loss_curves(
-#             model.loss_table,
-#             ax,
-#             start_epoch=0,
-#             log_scale=True,
-#         )
-
-#         plot_file_name = f"deepsets_{num_events_per_set}_{self.level}_q2v_{self.q_squared_veto}_loss.png"
-#         plot_file_path = self.plots_dir.joinpath(plot_file_name)
-#         plt.savefig(plot_file_path, bbox_inches="tight")
-
-#         plt.show()
-#         plt.close()
-
-#         train_dataset.unload()
-#         eval_dataset.unload()
-    
-#     def evaluate_models(self,):
-
-#         for num_events_per_set in self.set_sizes:
-
-#             self.evaluate_model(num_events_per_set)
-
-#     def evaluate_model(self, num_events_per_set):
+    def train_all(self, remake_datasets):
+        for level in Names_of_Levels().tuple_:
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
+                (
+                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
+                    .train_model(remake_datasets=remake_datasets)
+                )
         
-#         model = self.models[
-#             num_events_per_set
-#         ]
-#         model.load_final()
-#         model.to(self.device)
-#         model.eval()
-
-#         self.evaluate_mse_mae(model, num_events_per_set)
-#         self.evaluate_linearity(model, num_events_per_set)
-#         self.evaluate_sensitivity(model, num_events_per_set)
-
-#     def evaluate_mse_mae(self, model, num_events_per_set):
-
-#         eval_dataset = self.eval_datasets[
-#             num_events_per_set
-#         ]
-#         eval_dataset.load()
-
-#         predictions = make_predictions(
-#             model, 
-#             eval_dataset.features,
-#             self.device,
-#         )
-
-#         mse, mae = calculate_mse_mae(
-#             predictions, 
-#             eval_dataset.labels,
-#         )
-#         self.summary_table.add_item(
-#             self.level,
-#             self.q_squared_veto,
-#             "Deep Sets", 
-#             "MSE", 
-#             num_events_per_set, 
-#             mse,
-#         )
-#         self.summary_table.add_item(
-#             self.level,
-#             self.q_squared_veto,
-#             "Deep Sets", 
-#             "MAE", 
-#             num_events_per_set, 
-#             mae,
-#         )
+    def evaluate_all(self, remake_datasets):
+        for level in Names_of_Levels().tuple_:
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
+                (
+                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
+                    .evaluate_model(remake_datasets=remake_datasets)
+                )
     
-#     def evaluate_linearity(self, model, num_events_per_set,):
+    def plot_image_examples_all(self, remake_datasets):
+        for level in Names_of_Levels().tuple_:
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
+                (
+                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
+                    .plot_image_examples(remake_datasets=remake_datasets)
+                )
 
-#         eval_dataset = self.eval_datasets[
-#             num_events_per_set
-#         ]
-#         eval_dataset.load()
+    def get_individual(self, level, num_events_per_set):
+        return self.group[level][num_events_per_set]
 
-#         predictions = make_predictions(
-#             model, 
-#             eval_dataset.features,
-#             self.device,
-#         )
+    def _initialize_group(
+        self,
+        num_sets_per_label,
+        num_sets_per_label_sensitivity,
+        num_bins_per_dimension,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        results_table,
+        device,
+        bkg_fraction,
+        bkg_charge_fraction
+    ):
+        common_parameters = dict(
+            num_sets_per_label=num_sets_per_label,
+            num_sets_per_label_sensitivity=num_sets_per_label_sensitivity,
+            num_bins_per_dimension=num_bins_per_dimension,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints,
+            results_table=results_table,
+            device=device
+        )
+        self.group = {
+            level : {
+                num_events_per_set : CNN(
+                    **common_parameters,
+                    level=level,
+                    num_events_per_set=num_events_per_set
+                )
+                for num_events_per_set in Numbers_of_Events_per_Set().tuple_
+            }
+            for level in (Names_of_Levels().generator, Names_of_Levels().detector)
+        }
+        self.group[Names_of_Levels().detector_and_background] = {
+            num_events_per_set : CNN(
+                **common_parameters,
+                level=Names_of_Levels().detector_and_background,
+                num_events_per_set=num_events_per_set,
+                bkg_fraction=bkg_fraction,
+                bkg_charge_fraction=bkg_charge_fraction
+            )
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_
+        }
 
-#         (
-#             unique_labels, 
-#             avgs, 
-#             stds,
-#         ) = run_linearity_test(
-#             predictions, 
-#             eval_dataset.labels
-#         )
 
-#         _, ax = plt.subplots()
-#         plot_prediction_linearity(
-#             ax,
-#             unique_labels.detach().cpu().numpy(),
-#             avgs.detach().cpu().numpy(),
-#             stds.detach().cpu().numpy(),
-#             note=(
-#                 f"Deep Sets, {self.level}., "
-#                 + f"{self.num_sets_per_label} boots., "
-#                 + f"{num_events_per_set} events/boots."
-#                 + f"$q^2$ veto: {self.q_squared_veto}"
-#             ),
-#         )
+class Event_by_Event_Group:
 
-#         plot_file_name = f"deepsets_{num_events_per_set}_{self.level}_q2v_{self.q_squared_veto}_lin.png"
-#         plot_file_path = self.plots_dir.joinpath(plot_file_name)
-#         plt.savefig(plot_file_path, bbox_inches="tight")
+    def __init__(
+        self,
+        num_evaluation_sets_per_label,
+        num_evaluation_sets_per_label_sensitivity,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        results_table,
+        device
+    ):
+        self.initialize_group(
+            num_evaluation_sets_per_label=num_evaluation_sets_per_label,
+            num_evaluation_sets_per_label_sensitivity=num_evaluation_sets_per_label_sensitivity,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale, 
+            shuffle=shuffle,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints,
+            results_table=results_table,
+            device=device
+        )
 
-#         plt.show()
-#         plt.close()
+    def train_all(self, remake_datasets):
+        for level in (Names_of_Levels().generator, Names_of_Levels().detector):
+            self.get_individual(level).train_model(remake_datasets)
 
-#         eval_dataset.unload()
+    def evaluate_all(self, remake_datasets): 
+        for level in (Names_of_Levels().generator, Names_of_Levels().detector):
+            for num_events_per_set in Numbers_of_Events_per_Set():
+                (
+                    self.get_individual(level)
+                    .evaluate_model(num_events_per_set=num_events_per_set, remake_datasets=remake_datasets)
+                )
 
-#     def evaluate_sensitivity(self, model, num_events_per_set,):
+    def get_individual(self, level):
+        return self.group[level]
 
-#         single_label_eval_dataset = self.single_label_eval_datasets[
-#             num_events_per_set
-#         ]
-#         single_label_eval_dataset.load()
-
-#         single_label_predictions = make_predictions(
-#             model, 
-#             single_label_eval_dataset.features,
-#             self.device,
-#         )
-
-#         mean, std, bias = run_sensitivity_test(
-#             single_label_predictions, 
-#             self.new_physics_delta_c9_value,
-#         )
-#         self.summary_table.add_item(
-#             self.level,
-#             self.q_squared_veto,
-#             "Deep Sets", 
-#             "Mean at NP", 
-#             num_events_per_set, 
-#             mean,
-#         )
-#         self.summary_table.add_item(
-#             self.level,
-#             self.q_squared_veto,
-#             "Deep Sets", 
-#             "Std. at NP", 
-#             num_events_per_set, 
-#             std
-#         )
-#         self.summary_table.add_item(
-#             self.level,
-#             self.q_squared_veto,
-#             "Deep Sets", 
-#             "Bias at NP", 
-#             num_events_per_set, 
-#             bias
-#         )
-
-#         single_label_eval_dataset.unload()
-
-#         _, ax = plt.subplots()
-
-#         plot_sensitivity(
-#             ax,
-#             single_label_predictions,
-#             self.new_physics_delta_c9_value,
-#             note=(
-#                 f"Deep Sets, {self.level}., " 
-#                 + f"{self.num_sets_per_label_sensitivity} boots., " 
-#                 + f"{num_events_per_set} events/boots."
-#                 + f"$q^2$ veto: {self.q_squared_veto}"
-#             ), 
-#         )
-
-#         plot_file_name = f"deepsets_{num_events_per_set}_{self.level}_q2v_{self.q_squared_veto}_sens.png"
-#         plot_file_path = self.plots_dir.joinpath(plot_file_name)
-#         plt.savefig(plot_file_path, bbox_inches="tight")
-
-#         plt.show()
-#         plt.close()
+    def initialize_group(
+        self,
+        num_evaluation_sets_per_label,
+        num_evaluation_sets_per_label_sensitivity,
+        q_squared_veto,
+        std_scale,
+        shuffle,
+        loss_fn,
+        learning_rate,
+        learning_rate_scheduler_reduction_factor,
+        size_of_training_batch,
+        size_of_evaluation_batch,
+        number_of_epochs,
+        number_of_epochs_between_checkpoints,
+        results_table,
+        device
+    ):
+        common_parameters = dict(
+            num_evaluation_sets_per_label=num_evaluation_sets_per_label,
+            num_evaluation_sets_per_label_sensitivity=num_evaluation_sets_per_label_sensitivity,
+            q_squared_veto=q_squared_veto,
+            std_scale=std_scale,
+            shuffle=shuffle,
+            loss_fn=loss_fn,
+            learning_rate=learning_rate,
+            learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
+            size_of_training_batch=size_of_training_batch,
+            size_of_evaluation_batch=size_of_evaluation_batch,
+            number_of_epochs=number_of_epochs,
+            number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints,
+            results_table=results_table,
+            device=device
+        )
+        self.group = {
+            level : Event_by_Event(
+                level=level, 
+                **common_parameters
+            )
+            for level in (Names_of_Levels().generator, Names_of_Levels().detector)
+        }

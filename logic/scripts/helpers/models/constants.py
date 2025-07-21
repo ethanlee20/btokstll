@@ -1,5 +1,5 @@
         
-class Names_Models:
+class Names_of_Models:
 
     deep_sets = "deep_sets"
     cnn = "cnn"
@@ -10,3 +10,7 @@ class Names_Models:
         cnn,
         ebe,
     )
+    
+    set_based = (deep_sets, cnn)
+    event_based = (ebe,)
+

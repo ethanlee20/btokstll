@@ -1,5 +1,5 @@
 
-import pathlib
+from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -48,23 +48,8 @@ def add_plot_note(ax, text:str, fontsize="medium"):
     above the plot box.
 
     This doesn't work for 3D plots.
-
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        The axes to annotate.
-    text : str
-        What to write.
-    fontsize : str
-        The fontsize.
-        Takes any argument that the
-        axes.text() method can handle.
-    
-    Side Effects
-    ------------
-    - Modifies the given axes.
     """
-
+    
     ax.text(
         -0.15,
         1.05, 
@@ -76,79 +61,9 @@ def add_plot_note(ax, text:str, fontsize="medium"):
     )
 
 
-def save_plot_model(
-    kind, 
-    config_model,
-    config_dset_eval,
-    path_dir,
-):
+def save_model_evaluation_plot(type, model_settings, dataset_settings, path_to_plots_dir):
+    
+    file_name = f"{model_settings.name}_{dataset_settings.level}_{dataset_settings.set.num_events_per_set}_{type}.png"
+    path = Path(path_to_plots_dir).joinpath(file_name)
+    plt.savefig(path, bbox_inches="tight")
 
-    name_file = (
-        f"{config_model.name}_"
-        f"{config_dset_eval.num_events_per_set}_"
-        f"{config_dset_eval.level}_"
-        f"q2v_{config_dset_eval.q_squared_veto}_"
-        f"{kind}"
-        ".png"
-    )
-
-    path_dir = pathlib.Path(
-        path_dir
-    )
-
-    path_file = path_dir.joinpath(
-        name_file
-    )
-
-    plt.savefig(
-        path_file, 
-        bbox_inches="tight"
-    )
-
-    plt.close()
-
-
-def save_plot_dset(
-    kind, 
-    config_dset,
-    path_dir
-):
-
-    name_file = (
-        f"{config_dset.name}_"
-        f"{config_dset.num_events_per_set}_"
-        f"{config_dset.level}_"
-        f"{config_dset.split}_"
-        f"{kind}"
-        ".png"
-    )
-
-    path_dir = pathlib.Path(
-        path_dir
-    )
-
-    path_file = path_dir.joinpath(
-        name_file
-    )
-
-    plt.savefig(
-        path_file, 
-        bbox_inches="tight"
-    )
-
-    plt.close()
-
-
-def make_note(
-    config_model,
-    config_dset_eval,
-):
-
-    note = (
-        f"{config_model.name}, "
-        f"{config_dset_eval.level}., "
-        f"{config_dset_eval.num_sets_per_label} boots., "
-        f"{config_dset_eval.num_events_per_set} events/boots."
-    )
-
-    return note
