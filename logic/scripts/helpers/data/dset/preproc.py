@@ -19,7 +19,7 @@ from .constants import (
 
 
 def get_dataset_prescale(
-    kind:str,  
+    kind:str,
     level:str, 
     q_squared_veto:str, 
     var:str,
