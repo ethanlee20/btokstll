@@ -4,7 +4,8 @@ import torch
 from ..plot.loss_curves import plot_loss_curves
 from .hardware_util import print_gpu_memory_info
 from .loss_table import Loss_Table
-
+from .constants import Names_of_Models
+from ..datasets.dataloaders import Custom_Data_Loader
 
 
 class Trainer:
@@ -25,6 +26,7 @@ class Trainer:
         self._make_model_dir()
     
     def train(self):
+
         optimizer = torch.optim.Adam(
             self.model.parameters(), 
             lr=self.model.settings.training.learning_rate
@@ -36,23 +38,26 @@ class Trainer:
             threshold=0,
             eps=0
         )
+
         training_dataloader = (
-            torch.utils.data.DataLoader(
-                self.training_dataset, 
+            Custom_Data_Loader(
+                dataset=self.training_dataset, 
                 batch_size=self.model.settings.training.size_of_training_batch, 
                 drop_last=True, 
-                shuffle=False # !!!
+                shuffle=True
             )
         )
         evaluation_dataloader = (
-            torch.utils.data.DataLoader(
-                self.dset_eval, 
+            Custom_Data_Loader(
+                dataset=self.dset_eval, 
                 batch_size=self.model.settings.training.size_of_evaluation_batch, 
                 drop_last=True, 
-                shuffle=False # !!!
+                shuffle=True
             )
         )
+
         self.model = self.model.to(self.device)
+        
         for epoch in range(self.model.settings.training.number_of_epochs):
             training_loss = _train_over_epoch(
                 training_dataloader, 
@@ -80,6 +85,7 @@ class Trainer:
         self.model.save_final_model_to_file()
         self.loss_table.save(self.model.settings.paths.make_path_to_loss_table_file())
         plot_loss_curves(model_settings=self.model.settings)
+        
         print("Completed training.")
 
     def _initialize_loss_table(self, start_epoch):

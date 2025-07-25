@@ -81,7 +81,7 @@ def plot_image_slices(
         )
 
     def save_plot(dataset_settings, path_to_plots_dir):
-        file_name = f"image_{dataset_settings.level}_{dataset_settings.set.num_events_per_set}.png"
+        file_name = f"image_{dataset_settings.common.level}_{dataset_settings.set.num_events_per_set}.png"
         path = Path(path_to_plots_dir).joinpath(file_name)
         plt.savefig(path, bbox_inches="tight")
 

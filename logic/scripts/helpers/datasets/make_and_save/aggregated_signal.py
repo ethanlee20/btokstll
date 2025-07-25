@@ -5,7 +5,7 @@ import numpy
 import torch
 import pandas
 
-from ..constants import Names_of_Variables, Names_of_Labels
+from ..constants import Names_of_Variables, Names_of_Labels, Names_of_Levels
 
 
 def get_delta_C9_value_of_raw_signal_file(path, verbose=True):
@@ -58,7 +58,13 @@ def make_path_to_aggregated_raw_signal_file(path_to_main_datasets_dir, level, tr
     if not path_to_main_datasets_dir.is_dir():
         raise ValueError
     
-    filename = f"agg_sig_{trial_range[0]}_to_{trial_range[-1]}_{level}.pkl"
+    signal_level = (
+        Names_of_Levels().detector 
+        if level == Names_of_Levels().detector_and_background
+        else level
+    )
+
+    filename = f"agg_sig_{trial_range[0]}_to_{trial_range[-1]}_{signal_level}.pkl"
     path = path_to_main_datasets_dir.joinpath(filename)
     return path
 
@@ -157,7 +163,7 @@ class Aggregated_Signal_Dataframe_Handler:
         dataframe = aggregate_raw_signal_files(
             level=self.level,
             trial_range=self.trial_range,
-            list_of_variable_names=Names_of_Variables().tuple_,
+            list_of_variable_names=Names_of_Variables().list_,
             path_to_raw_signal_dir=path_to_raw_signal_dir,
             dtype=dtype,
             verbose=verbose

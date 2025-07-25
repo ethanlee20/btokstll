@@ -30,7 +30,6 @@ class Common_Settings:
         path_to_raw_bkg_dir,
         label_subset=None,
     ):   
-        
         self.name = name
         self.level = level
         self.split = split
@@ -60,7 +59,6 @@ class Common_Settings:
             shuffle,
             label_subset=None,
         ):
-            
             self.q_squared_veto = q_squared_veto
             self.std_scale = std_scale
             self.shuffle = shuffle
@@ -76,8 +74,7 @@ class Set_Settings:
         is_sensitivity_study,
         bkg_fraction=None,
         bkg_charge_fraction=None, # fraction of background that comes from charge
-    ):
-        
+    ):  
         self.num_events_per_set = num_events_per_set
         self.num_sets_per_label = num_sets_per_label
         self.bkg_fraction = bkg_fraction
@@ -164,7 +161,6 @@ class Binned_Sets_Dataset_Settings:
         bkg_charge_fraction=None,
         label_subset=None
     ):
-        
         self.common = Common_Settings(
             name=Names_of_Datasets().sets_binned,
             level=level,
@@ -278,7 +274,7 @@ class Binned_Events_Dataset_Settings:
         if level == Names_of_Levels().detector_and_background:
             raise NotImplementedError
         
-        self.basic = Common_Settings(
+        self.common = Common_Settings(
             name=Names_of_Datasets().events_binned,
             level=level,
             split=split,
@@ -293,13 +289,13 @@ class Binned_Events_Dataset_Settings:
 
         self.features_filepath = make_path_to_event_based_features_file(
             split=split,
-            path_to_dataset_dir=self.basic.path_to_dataset_dir
+            path_to_dataset_dir=self.common.path_to_dataset_dir
         )
         self.labels_filepath = make_path_to_event_based_labels_file(
             split=split,
-            path_to_dataset_dir=self.basic.path_to_dataset_dir
+            path_to_dataset_dir=self.common.path_to_dataset_dir
         )
         self.bin_map_filepath = make_path_to_event_based_bin_map_file(
             split=split,
-            path_to_dataset_dir=self.basic.path_to_dataset_dir
+            path_to_dataset_dir=self.common.path_to_dataset_dir
         )

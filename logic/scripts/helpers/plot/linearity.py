@@ -32,9 +32,9 @@ def plot_linearity(
             zorder=0,
         )  
 
-    unique_labels_numpy_array = linearity_test_results.unique_labels.detach().numpy()
-    avgs_numpy_array = linearity_test_results.avgs.detach().numpy()
-    stds_numpy_array = linearity_test_results.stds.detach().numpy()
+    unique_labels_numpy_array = linearity_test_results.unique_labels.cpu().detach().numpy()
+    avgs_numpy_array = linearity_test_results.avgs.cpu().detach().numpy()
+    stds_numpy_array = linearity_test_results.stds.cpu().detach().numpy()
 
     _, ax = plt.subplots()
 

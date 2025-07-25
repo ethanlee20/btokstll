@@ -36,7 +36,8 @@ def evaluate_model(
     evaluation_dataset, 
     sensitivity_evaluation_dataset,
     results_table,
-    device
+    device,
+    epoch="final"
 ):
     
     def run_linearity_test(evaluator, evaluation_dataset):
@@ -97,7 +98,11 @@ def evaluate_model(
             path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
         )
 
-    model.load_final_model_from_file()
+    if epoch == "final":
+        model.load_final_model_from_file()
+    elif type(epoch) == int:
+        model.load_checkpoint_model_file(epoch)
+    else: raise ValueError
 
     evaluator = (
         Set_Based_Model_Evaluator(model=model, device=device) 
@@ -314,8 +319,8 @@ class CNN:
         self.device = device
 
     def train_model(self, remake_datasets):
-        training_dataset = Unbinned_Sets_Dataset(self.training_dataset_settings, remake=remake_datasets)
-        evaluation_dataset = Unbinned_Sets_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
+        training_dataset = Images_Dataset(self.training_dataset_settings, remake=remake_datasets)
+        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
         train_model(
             model=self.model, 
             training_dataset=training_dataset, 
@@ -338,8 +343,8 @@ class CNN:
         evaluation_dataset.unload()
         sensitivity_evaluation_dataset.unload()
 
-    def plot_image_examples(self, remake_dataset):
-        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings, remake=remake_dataset)
+    def plot_image_examples(self, remake_datasets):
+        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
         plot_image_examples(
             dataset=evaluation_dataset, 
             path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
@@ -482,7 +487,7 @@ class Event_by_Event:
         training_dataset.unload()
         evaluation_dataset.unload()
 
-    def evaluate_model(self, num_events_per_set, remake_datasets):
+    def evaluate_model(self, num_events_per_set, remake_datasets, epoch="final"):
         evaluation_dataset = Binned_Sets_Dataset(
             settings=self._get_evaluation_set_dataset_settings(num_events_per_set),
             remake=remake_datasets
@@ -496,7 +501,8 @@ class Event_by_Event:
             evaluation_dataset=evaluation_dataset,
             sensitivity_evaluation_dataset=sensitivity_evaluation_dataset,
             results_table=self.results_table,
-            device=self.device
+            device=self.device,
+            epoch=epoch
         )
         evaluation_dataset.unload()
         sensitivity_evaluation_dataset.unload()
@@ -538,7 +544,7 @@ class Event_by_Event:
             path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir
         )
         self.evaluation_set_datasets_settings = {
-            Binned_Sets_Dataset_Settings(
+            num_events_per_set : Binned_Sets_Dataset_Settings(
                 level=level,
                 split=Names_of_Splits().eval_,
                 num_events_per_set=num_events_per_set,
@@ -556,7 +562,7 @@ class Event_by_Event:
             for num_events_per_set in Numbers_of_Events_per_Set().tuple_
         }
         self.sensitivity_evaluation_set_datasets_settings = {
-            Binned_Sets_Dataset_Settings(
+            num_events_per_set : Binned_Sets_Dataset_Settings(
                 level=level,
                 split=Names_of_Splits().eval_,
                 num_events_per_set=num_events_per_set,
@@ -576,7 +582,7 @@ class Event_by_Event:
         }
         self.model_settings = Model_Settings(
             name=Names_of_Models().ebe,
-            path_to_main_models_dir=Paths_to_Directories().path_to_main_datasets_dir,
+            path_to_main_models_dir=Paths_to_Directories().path_to_main_models_dir,
             training_dataset_settings=self.training_dataset_settings,
             loss_fn=loss_fn,
             learning_rate=learning_rate,
@@ -645,6 +651,14 @@ class Deep_Sets_Group:
                     self.get_individual(level=level, num_events_per_set=num_events_per_set)
                     .train_model(remake_datasets=remake_datasets)
                 )
+
+    def train_subset(self, levels, nums_events_per_set, remake_datasets):
+        for level in levels:
+            for num_events_per_set in nums_events_per_set:
+                (
+                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
+                    .train_model(remake_datasets=remake_datasets)
+                )              
         
     def evaluate_all(self, remake_datasets):
         for level in Names_of_Levels().tuple_:
@@ -653,6 +667,14 @@ class Deep_Sets_Group:
                     self.get_individual(level=level, num_events_per_set=num_events_per_set)
                     .evaluate_model(remake_datasets=remake_datasets)
                 )
+
+    def evaluate_subset(self, levels, nums_events_per_set, remake_datasets):
+        for level in levels:
+            for num_events_per_set in nums_events_per_set:
+                (
+                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
+                    .evaluate_model(remake_datasets=remake_datasets)
+                )          
 
     def get_individual(self, level, num_events_per_set):
         return self.group[level][num_events_per_set]
@@ -764,6 +786,14 @@ class CNN_Group:
                     self.get_individual(level=level, num_events_per_set=num_events_per_set)
                     .train_model(remake_datasets=remake_datasets)
                 )
+
+    def train_subset(self, levels, nums_events_per_set, remake_datasets):
+        for level in levels:
+            for num_events_per_set in nums_events_per_set:
+                (
+                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
+                    .train_model(remake_datasets=remake_datasets)
+                )       
         
     def evaluate_all(self, remake_datasets):
         for level in Names_of_Levels().tuple_:
@@ -772,7 +802,15 @@ class CNN_Group:
                     self.get_individual(level=level, num_events_per_set=num_events_per_set)
                     .evaluate_model(remake_datasets=remake_datasets)
                 )
-    
+
+    def evaluate_subset(self, levels, nums_events_per_set, remake_datasets):
+        for level in levels:
+            for num_events_per_set in nums_events_per_set:
+                (
+                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
+                    .evaluate_model(remake_datasets=remake_datasets)
+                )          
+
     def plot_image_examples_all(self, remake_datasets):
         for level in Names_of_Levels().tuple_:
             for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
@@ -780,6 +818,14 @@ class CNN_Group:
                     self.get_individual(level=level, num_events_per_set=num_events_per_set)
                     .plot_image_examples(remake_datasets=remake_datasets)
                 )
+
+    def plot_image_examples_subset(self, levels, nums_events_per_set, remake_datasets):
+        for level in levels:
+            for num_events_per_set in nums_events_per_set:
+                (
+                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
+                    .plot_image_examples(remake_datasets=remake_datasets)
+                )         
 
     def get_individual(self, level, num_events_per_set):
         return self.group[level][num_events_per_set]
@@ -884,12 +930,31 @@ class Event_by_Event_Group:
         for level in (Names_of_Levels().generator, Names_of_Levels().detector):
             self.get_individual(level).train_model(remake_datasets)
 
+    def train_subset(self, levels, remake_datasets):
+        for level in levels:
+            (
+                self.get_individual(level)
+                .train_model(remake_datasets=remake_datasets)
+            )       
+
     def evaluate_all(self, remake_datasets): 
         for level in (Names_of_Levels().generator, Names_of_Levels().detector):
-            for num_events_per_set in Numbers_of_Events_per_Set():
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
                 (
                     self.get_individual(level)
                     .evaluate_model(num_events_per_set=num_events_per_set, remake_datasets=remake_datasets)
+                )
+
+    def evaluate_subset(self, levels, nums_events_per_set, remake_datasets, epoch="final"):
+        for level in levels:
+            for num_events_per_set in nums_events_per_set:
+                (
+                    self.get_individual(level)
+                    .evaluate_model(
+                        num_events_per_set=num_events_per_set, 
+                        remake_datasets=remake_datasets,
+                        epoch=epoch
+                    )
                 )
 
     def get_individual(self, level):

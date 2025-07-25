@@ -30,9 +30,13 @@ def predict_log_probabilities_using_event_based_model(model, features_of_sets_of
             set_log_probs = torch.nn.functional.log_softmax(set_logits, dim=0)
         return set_log_probs
     
-    predictions = torch.tensor(
+    predictions = torch.cat(
         [
-            predict_log_probability_distribution(model=model, set_features=set_features, device=device)
+            predict_log_probability_distribution(
+                model=model, 
+                set_features=set_features, 
+                device=device
+            ).unsqueeze(dim=0)
             for set_features in features_of_sets_of_events
         ]
     )
@@ -202,14 +206,14 @@ class Event_Based_Model_Evaluator:
     def run_linearity_test(self, set_dataset):
         results = run_linearity_test(
             predicted_values=self.predict_values(set_dataset), 
-            labels=set_dataset.labels
+            labels=set_dataset.bin_map[set_dataset.labels]
         )
         return results
     
     def run_sensitivity_test(self, sensitivity_set_dataset):
         results = run_sensitivity_test(
             predicted_values=self.predict_values(sensitivity_set_dataset),
-            labels=sensitivity_set_dataset.labels
+            labels=sensitivity_set_dataset.bin_map[sensitivity_set_dataset.labels]
         )
         return results
     

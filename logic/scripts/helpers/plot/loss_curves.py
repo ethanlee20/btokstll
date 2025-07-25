@@ -39,11 +39,11 @@ def plot_loss_curves(
     ax.set_xlabel("Epoch")
     note = (
         (
-            f"Loss curves: {model_settings.name}, {model_settings.training_dataset_settings.common.level}, ", 
-            f"events/set: {model_settings.training_dataset_settings.set.num_events_per_set}"
+            f"Loss curves: {model_settings.name}, {model_settings.training.training_dataset_settings.common.level}, ", 
+            f"events/set: {model_settings.training.training_dataset_settings.set.num_events_per_set}"
         )
         if model_settings.name in Names_of_Models().set_based
-        else f"Loss curves: {model_settings.name}, {model_settings.training_dataset_settings.common.level}"
+        else f"Loss curves: {model_settings.name}, {model_settings.training.training_dataset_settings.common.level}"
         if model_settings.name in Names_of_Models().event_based
         else None
     )

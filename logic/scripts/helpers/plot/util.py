@@ -63,7 +63,7 @@ def add_plot_note(ax, text:str, fontsize="medium"):
 
 def save_model_evaluation_plot(type, model_settings, dataset_settings, path_to_plots_dir):
     
-    file_name = f"{model_settings.name}_{dataset_settings.level}_{dataset_settings.set.num_events_per_set}_{type}.png"
+    file_name = f"{model_settings.name}_{dataset_settings.common.level}_{dataset_settings.set.num_events_per_set}_{type}.png"
     path = Path(path_to_plots_dir).joinpath(file_name)
     plt.savefig(path, bbox_inches="tight")
 

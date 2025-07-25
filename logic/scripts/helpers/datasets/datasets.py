@@ -7,7 +7,7 @@ from .make_and_save.make_and_save import (
     make_and_save_images_dataset,
     make_and_save_binned_events_dataset
 )
-from .file_handling.basic import load_torch_tensor_from_file
+from ..file_handling import load_torch_tensor_from_file
 
 
 def print_unloaded_datasets_message():
@@ -29,6 +29,7 @@ class Unbinned_Sets_Dataset(torch.utils.data.Dataset):
         self.load()
 
     def make_and_save(self):
+        self.settings.common.path_to_dataset_dir.mkdir(parents=True, exist_ok=True)
         make_and_save_unbinned_sets_dataset(
             settings=self.settings,
             verbose=self.verbose
@@ -74,6 +75,7 @@ class Binned_Sets_Dataset(torch.utils.data.Dataset):
         self.load()
 
     def make_and_save(self):
+        self.settings.common.path_to_dataset_dir.mkdir(parents=True, exist_ok=True)
         make_and_save_binned_sets_dataset(
             settings=self.settings,
             verbose=self.verbose
@@ -124,6 +126,7 @@ class Images_Dataset(torch.utils.data.Dataset):
         self.load()
 
     def make_and_save(self):
+        self.settings.common.path_to_dataset_dir.mkdir(parents=True, exist_ok=True)
         make_and_save_images_dataset(
             settings=self.settings,
             verbose=self.verbose
@@ -169,6 +172,7 @@ class Binned_Events_Dataset(torch.utils.data.Dataset):
         self.load()
 
     def make_and_save(self):
+        self.settings.common.path_to_dataset_dir.mkdir(parents=True, exist_ok=True)
         make_and_save_binned_events_dataset(
             settings=self.settings,
             verbose=self.verbose
@@ -198,7 +202,7 @@ class Binned_Events_Dataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.labels)
     
-    def __getitem__(self, index):
-        x = self.features[index]
-        y = self.labels[index]
-        return x, y
+    # def __getitem__(self, index):
+    #     x = self.features[index]
+    #     y = self.labels[index]
+    #     return x, y

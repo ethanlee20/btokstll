@@ -21,6 +21,8 @@ from .tensor_conversion import torch_tensor_from_pandas
 
 def make_and_save_unbinned_sets_dataset(settings, verbose=True):
 
+    print("Making unbinned sets dataset.")
+
     signal_feature_sets, label_sets = make_unbinned_labeled_signal_sets(
         settings=settings,
         list_of_variables_to_standard_scale=Names_of_Variables().list_,
@@ -52,19 +54,25 @@ def make_and_save_unbinned_sets_dataset(settings, verbose=True):
         path=settings.labels_filepath,
         verbose=verbose
     )
+    print("Made unbinned sets dataset")
 
 
 def make_and_save_binned_sets_dataset(settings, verbose=True):
+
+    print("Making binned sets dataset.")
     
     signal_feature_sets, label_sets, bin_map = make_binned_labeled_signal_sets(
         settings=settings,
         verbose=verbose
     )
 
-    background_feature_sets = make_background_sets(
-        settings=settings,
-        num_sets=len(signal_feature_sets),
-        verbose=verbose
+    background_feature_sets = (
+        make_background_sets(
+            settings=settings,
+            num_sets=len(signal_feature_sets),
+            verbose=verbose
+        ) if settings.set.bkg_fraction is not None
+        else torch.tensor([])
     )
 
     feature_sets = torch.cat(
@@ -91,9 +99,12 @@ def make_and_save_binned_sets_dataset(settings, verbose=True):
         path=settings.bin_map_filepath,
         verbose=verbose
     )
+    print("Made binned sets dataset.")
 
 
 def make_and_save_images_dataset(settings, verbose=True):
+
+    print("Making images dataset.")
     
     signal_feature_sets, label_sets = make_unbinned_labeled_signal_sets(
         settings=settings,
@@ -101,10 +112,13 @@ def make_and_save_images_dataset(settings, verbose=True):
         verbose=verbose
     )
     
-    background_feature_sets = make_background_sets(
-        settings=settings,
-        num_sets=len(signal_feature_sets),
-        verbose=verbose
+    background_feature_sets = (
+        make_background_sets(
+            settings=settings,
+            num_sets=len(signal_feature_sets),
+            verbose=verbose
+        ) if settings.set.bkg_fraction is not None
+        else torch.tensor([])
     )
     
     feature_sets = torch.cat(
@@ -135,9 +149,12 @@ def make_and_save_images_dataset(settings, verbose=True):
         path=settings.labels_filepath,
         verbose=verbose
     )
+    print("Made images dataset.")
 
 
 def make_and_save_binned_events_dataset(settings, verbose=True):
+
+    print("Making binned events dataset.")
     
     if settings.common.level == Names_of_Levels().detector_and_background:
         raise NotImplementedError
@@ -178,3 +195,4 @@ def make_and_save_binned_events_dataset(settings, verbose=True):
         path=settings.bin_map_filepath,
         verbose=verbose
     )
+    print("Made binned events dataset.")

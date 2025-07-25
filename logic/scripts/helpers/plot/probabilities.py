@@ -41,12 +41,14 @@ def plot_log_probability_distribution_examples(
     ax.axvline(x=delta_C9_value_new_physics, color='black', label=r"$\delta C_9 ="+f"{delta_C9_value_new_physics}$", ls=':')
 
     plot_binned_scatter(
+        ax=ax,
         x=bin_map.cpu(),
         y=example_log_probabilities_standard_model,
         label=r"SM ($\delta C_9 ="+f"{delta_C9_value_standard_model}$)",
         color='blue',
     )
     plot_binned_scatter(
+        ax=ax,
         x=bin_map.cpu(),
         y=example_log_probabilities_new_physics,
         label=r"NP ($\delta C_9 ="+f"{delta_C9_value_new_physics}$)",

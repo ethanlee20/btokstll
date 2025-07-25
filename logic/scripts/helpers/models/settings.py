@@ -71,13 +71,13 @@ class Model_Paths:
                 model_name=model_name,
                 num_events_per_set=training_dataset_settings.set.num_events_per_set,
                 level=training_dataset_settings.common.level,
-                q_squared_veto=training_dataset_settings.preprocessing.q_squared_veto
+                q_squared_veto=training_dataset_settings.common.preprocessing.q_squared_veto
             ) if model_name in Names_of_Models().set_based
             else make_path_to_event_based_model_dir(
                 path_to_main_models_dir=path_to_main_models_dir,
                 model_name=model_name,
                 level=training_dataset_settings.common.level,
-                q_squared_veto=training_dataset_settings.preprocessing.q_squared_veto
+                q_squared_veto=training_dataset_settings.common.preprocessing.q_squared_veto
             ) if model_name in Names_of_Models().event_based
             else None
         )
