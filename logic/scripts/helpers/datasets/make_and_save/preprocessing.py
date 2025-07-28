@@ -77,104 +77,6 @@ def calculate_training_dataset_means_and_stdevs(
         return aggregated_signal_means, aggregated_signal_stdevs
 
 
-# def get_training_dataset_mean_value(variable, level, q_squared_veto):
-    
-#     mean_values = {
-#         Names_of_q_Squared_Vetos().tight: {
-#             Names_of_Levels().generator: {
-#                 Names_of_Variables().q_squared: 4.752486,
-#                 Names_of_Variables().cos_theta_mu: 0.065137,
-#                 Names_of_Variables().cos_k: 0.000146,
-#                 Names_of_Variables().chi: 3.141082, 
-#             }, 
-#             Names_of_Levels().detector: {
-#                 Names_of_Variables().q_squared: 4.943439,
-#                 Names_of_Variables().cos_theta_mu: 0.077301,
-#                 Names_of_Variables().cos_k: -0.068484,
-#                 Names_of_Variables().chi: 3.141730, 
-#             },
-#             Names_of_Levels().detector_and_background: {
-#                 Names_of_Variables().q_squared: 4.944093,
-#                 Names_of_Variables().cos_theta_mu: 0.078201,
-#                 Names_of_Variables().cos_k: -0.068596,
-#                 Names_of_Variables().chi: 3.141794, 
-#             }
-#         },
-#         Names_of_q_Squared_Vetos().loose: {
-#             Names_of_Levels().generator: {
-#                 Names_of_Variables().q_squared: 9.248781,
-#                 Names_of_Variables().cos_theta_mu: 0.151290,
-#                 Names_of_Variables().cos_k: 0.000234,
-#                 Names_of_Variables().chi : 3.141442, 
-#             }, 
-#             Names_of_Levels().detector: {
-#                 Names_of_Variables().q_squared: 10.353162,
-#                 Names_of_Variables().cos_theta_mu: 0.177404,
-#                 Names_of_Variables().cos_k: -0.031136,
-#                 Names_of_Variables().chi: 3.141597, 
-#             },
-#             Names_of_Levels().detector_and_background: {  
-#                 Names_of_Variables().q_squared: 10.134447,
-#                 Names_of_Variables().cos_theta_mu: 0.182426,
-#                 Names_of_Variables().cos_k: -0.044501,
-#                 Names_of_Variables().chi: 3.141522, 
-#             }
-#         }
-#     }
-
-#     selected_mean_value = mean_values[q_squared_veto][level][variable]
-#     return selected_mean_value
-
-
-# def get_training_dataset_standard_deviation(variable, level, q_squared_veto):
-    
-#     stdev_values = {
-#         Names_of_q_Squared_Vetos().tight: {
-#             Names_of_Levels().generator: {
-#                 Names_of_Variables().q_squared: 2.053569,
-#                 Names_of_Variables().cos_theta_mu: 0.505880,
-#                 Names_of_Variables().cos_k: 0.694362,
-#                 Names_of_Variables().chi: 1.811370, 
-#             }, 
-#             Names_of_Levels().detector: {
-#                 Names_of_Variables().q_squared: 2.030002,
-#                 Names_of_Variables().cos_theta_mu: 0.463005,
-#                 Names_of_Variables().cos_k: 0.696061,
-#                 Names_of_Variables().chi: 1.830277, 
-#             },
-#             Names_of_Levels().detector_and_background: {
-#                 Names_of_Variables().q_squared: 2.029607,
-#                 Names_of_Variables().cos_theta_mu: 0.463519,
-#                 Names_of_Variables().cos_k: 0.695645,
-#                 Names_of_Variables().chi: 1.830584, 
-#             }
-#         },
-#         Names_of_q_Squared_Vetos().loose: {
-#             Names_of_Levels().generator: {
-#                 Names_of_Variables().q_squared: 5.311177,
-#                 Names_of_Variables().cos_theta_mu: 0.524446,
-#                 Names_of_Variables().cos_k: 0.635314,
-#                 Names_of_Variables().chi : 1.803100, 
-#             }, 
-#             Names_of_Levels().detector: {
-#                 Names_of_Variables().q_squared: 5.242896,
-#                 Names_of_Variables().cos_theta_mu: 0.508787,
-#                 Names_of_Variables().cos_k: 0.622743,
-#                 Names_of_Variables().chi: 1.820018, 
-#             },
-#             Names_of_Levels().detector_and_background: {  
-#                 Names_of_Variables().q_squared: 4.976700,
-#                 Names_of_Variables().cos_theta_mu: 0.523063,
-#                 Names_of_Variables().cos_k: 0.615523,
-#                 Names_of_Variables().chi: 1.831986, 
-#             }
-#         }
-#     }
-
-#     selected_stdev_value = stdev_values[q_squared_veto][level][variable]
-#     return selected_stdev_value
-
-
 def apply_standard_scale(
     dataframe, 
     list_of_names_of_columns_to_scale,
@@ -208,41 +110,6 @@ def apply_standard_scale(
     return dataframe
 
 
-# def apply_standard_scale(
-#     dataframe, 
-#     list_of_variables,
-#     level, 
-#     q_squared_veto
-# ):
-    
-#     """
-#     Standard scale columns of a dataframe.
-
-#     Outputs are given as:
-#     (original value - mean) / standard deviation
-#     """
-
-#     dataframe = dataframe.copy()
-
-#     for variable in list_of_variables:
-#         mean_value = get_training_dataset_mean_value(
-#             variable=variable, 
-#             level=level, 
-#             q_squared_veto=q_squared_veto
-#         )
-#         standard_deviation = get_training_dataset_standard_deviation(
-#             variable=variable,
-#             level=level,
-#             q_squared_veto=q_squared_veto
-#         )
-#         dataframe[variable] = (
-#             (dataframe[variable] - mean_value) 
-#             / standard_deviation
-#         )
-
-#     return dataframe
-
-
 def drop_rows_that_have_a_nan(dataframe, verbose=True):
     
     """
@@ -269,29 +136,50 @@ def apply_q_squared_veto(dataframe, q_squared_veto):
     Apply a q^2 veto to a dataframe of B->K*ll events.
     'tight' keeps  1 < q^2 < 8.
     'loose' keeps 0 < q^2 < 20.
+    'resonances' keeps 0 < q^2 < 20 except for vetos around the resonances.
     """
 
+    def apply_tight_cut(dataframe):
+        tight_cut = (
+            (dataframe[Names_of_Variables().q_squared] > 1) 
+            & (dataframe[Names_of_Variables().q_squared] < 8)
+        )
+        return dataframe[tight_cut]
+    
+    def apply_loose_cut(dataframe):
+        loose_cut = (
+            (dataframe[Names_of_Variables().q_squared] > 0) 
+            & (dataframe[Names_of_Variables().q_squared] < 20)
+        )
+        return dataframe[loose_cut]
+    
+    def apply_j_psi_resonace_cut(dataframe):
+        j_psi_resonance_cut = (
+            (dataframe[Names_of_Variables().q_squared] < 9.25)
+            | (dataframe[Names_of_Variables().q_squared] > 9.76)
+        )
+        return dataframe[j_psi_resonance_cut]
+    
+    def apply_psi_2s_resonance_cut(dataframe):
+        psi_2s_resonance_cut = (
+            (dataframe[Names_of_Variables().q_squared] < 13.5)
+            | (dataframe[Names_of_Variables().q_squared] > 13.7)
+        )
+        return dataframe[psi_2s_resonance_cut]
+        
     if q_squared_veto not in Names_of_q_Squared_Vetos().tuple_:
         raise ValueError
-    
-    tight_bounds = (1, 8) 
-    loose_bounds = (0, 20)
-    
-    bounds = (
-        tight_bounds if q_squared_veto == Names_of_q_Squared_Vetos().tight
-        else loose_bounds if q_squared_veto == Names_of_q_Squared_Vetos().loose
+
+    dataframe = (
+        apply_tight_cut(dataframe) if q_squared_veto == Names_of_q_Squared_Vetos().tight
+        else apply_loose_cut(dataframe) if q_squared_veto == Names_of_q_Squared_Vetos().loose
+        else apply_psi_2s_resonance_cut(apply_j_psi_resonace_cut(apply_loose_cut(dataframe))) 
+        if q_squared_veto == Names_of_q_Squared_Vetos().resonances
         else None
     )
-    if bounds is None:
-        raise ValueError
-    lower_bound = bounds[0]
-    upper_bound = bounds[1]
+    if dataframe is None: raise ValueError
     
-    dataframe = dataframe[
-        (dataframe[Names_of_Variables().q_squared] > lower_bound) 
-        & (dataframe[Names_of_Variables().q_squared] < upper_bound)
-    ].copy()
-    return dataframe
+    return dataframe.copy()
 
 
 def reduce_to_label_subset(dataframe, unbinned_label_subset_list_or_id):
@@ -328,10 +216,21 @@ def shuffle_rows(
     dataframe, 
     verbose=True
 ):
-
+    
     dataframe = dataframe.sample(frac=1)
     if verbose:
         print("Shuffled dataframe.")
+    return dataframe
+
+
+def reduce_num_per_label_to_lowest(dataframe):
+
+    num_lowest = dataframe[Names_of_Labels().unbinned].value_counts().values.max()
+    get_subset = lambda x : x.iloc[:num_lowest]
+    dataframe = (
+        dataframe.groupby(Names_of_Labels().unbinned, group_keys=False)[dataframe.columns]
+        .apply(get_subset)
+    )
     return dataframe
 
 
@@ -395,12 +294,15 @@ def apply_signal_preprocessing(
         list_of_variables_to_standard_scale=list_of_variables_to_standard_scale,                                   
         verbose=verbose
     )
-    
+
     if settings.common.preprocessing.label_subset is not None:
         dataframe = reduce_to_label_subset(
             dataframe=dataframe,
             unbinned_label_subset_list_or_id=settings.common.preprocessing.label_subset
         )
+
+    if settings.common.preprocessing.uniform_label_counts:
+        dataframe = reduce_num_per_label_to_lowest(dataframe)
         
     return dataframe
 

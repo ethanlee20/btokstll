@@ -37,8 +37,9 @@ class Names_of_q_Squared_Vetos:
     
     tight = "tight"
     loose = "loose"
+    resonances = "resonances"
     
-    tuple_ = (tight, loose)
+    tuple_ = (tight, loose, resonances)
 
 
 class Names_of_Variables:

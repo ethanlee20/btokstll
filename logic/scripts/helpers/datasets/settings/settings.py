@@ -25,6 +25,7 @@ class Common_Settings:
         q_squared_veto,
         std_scale,
         shuffle,
+        uniform_label_counts,
         path_to_main_datasets_dir,
         path_to_raw_signal_dir,
         path_to_raw_bkg_dir,
@@ -40,6 +41,7 @@ class Common_Settings:
             q_squared_veto=q_squared_veto,
             std_scale=std_scale,
             shuffle=shuffle,
+            uniform_label_counts=uniform_label_counts,
             label_subset=label_subset
         )
         self.raw_signal_trial_range = get_raw_signal_trial_range(split)
@@ -57,11 +59,13 @@ class Common_Settings:
             q_squared_veto,
             std_scale,
             shuffle,
+            uniform_label_counts,
             label_subset=None,
         ):
             self.q_squared_veto = q_squared_veto
             self.std_scale = std_scale
             self.shuffle = shuffle
+            self.uniform_label_counts = uniform_label_counts
             self.label_subset = label_subset
 
 
@@ -100,6 +104,7 @@ class Unbinned_Sets_Dataset_Settings:
         q_squared_veto,
         std_scale,
         shuffle,
+        uniform_label_counts,
         path_to_main_datasets_dir,
         path_to_raw_signal_dir,
         path_to_raw_bkg_dir,
@@ -115,6 +120,7 @@ class Unbinned_Sets_Dataset_Settings:
             q_squared_veto=q_squared_veto,
             std_scale=std_scale,
             shuffle=shuffle,
+            uniform_label_counts=uniform_label_counts,
             path_to_main_datasets_dir=path_to_main_datasets_dir,
             path_to_raw_signal_dir=path_to_raw_signal_dir,
             path_to_raw_bkg_dir=path_to_raw_bkg_dir,
@@ -154,6 +160,7 @@ class Binned_Sets_Dataset_Settings:
         q_squared_veto,
         std_scale,
         shuffle,
+        uniform_label_counts,
         path_to_main_datasets_dir,
         path_to_raw_signal_dir,
         path_to_raw_bkg_dir,
@@ -168,6 +175,7 @@ class Binned_Sets_Dataset_Settings:
             q_squared_veto=q_squared_veto,
             std_scale=std_scale,
             shuffle=shuffle,
+            uniform_label_counts=uniform_label_counts,
             path_to_main_datasets_dir=path_to_main_datasets_dir,
             path_to_raw_signal_dir=path_to_raw_signal_dir,
             path_to_raw_bkg_dir=path_to_raw_bkg_dir,
@@ -214,6 +222,7 @@ class Images_Dataset_Settings:
         q_squared_veto,
         std_scale,
         shuffle,
+        uniform_label_counts,
         path_to_main_datasets_dir,
         path_to_raw_signal_dir,
         path_to_raw_bkg_dir,
@@ -229,6 +238,7 @@ class Images_Dataset_Settings:
             q_squared_veto=q_squared_veto,
             std_scale=std_scale,
             shuffle=shuffle,
+            uniform_label_counts=uniform_label_counts,
             path_to_main_datasets_dir=path_to_main_datasets_dir,
             path_to_raw_signal_dir=path_to_raw_signal_dir,
             path_to_raw_bkg_dir=path_to_raw_bkg_dir,
@@ -265,6 +275,7 @@ class Binned_Events_Dataset_Settings:
         q_squared_veto,
         std_scale,
         shuffle,
+        uniform_label_counts,
         path_to_main_datasets_dir,
         path_to_raw_signal_dir,
         path_to_raw_bkg_dir,
@@ -281,6 +292,7 @@ class Binned_Events_Dataset_Settings:
             q_squared_veto=q_squared_veto,
             std_scale=std_scale,
             shuffle=shuffle,
+            uniform_label_counts=uniform_label_counts,
             path_to_main_datasets_dir=path_to_main_datasets_dir,
             path_to_raw_signal_dir=path_to_raw_signal_dir,
             path_to_raw_bkg_dir=path_to_raw_bkg_dir,
