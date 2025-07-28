@@ -177,7 +177,7 @@ class Deep_Sets:
         training_dataset.unload()
         evaluation_dataset.unload()
 
-    def evaluate_model(self, remake_datasets):
+    def evaluate_model(self, remake_datasets, epoch="final"):
         evaluation_dataset = Unbinned_Sets_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
         sensitivity_evaluation_dataset = Unbinned_Sets_Dataset(self.sensitivity_evaluation_dataset_settings, remake=remake_datasets)
         evaluate_model(
@@ -185,7 +185,8 @@ class Deep_Sets:
             evaluation_dataset=evaluation_dataset, 
             sensitivity_evaluation_dataset=sensitivity_evaluation_dataset,
             results_table=self.results_table,
-            device=self.device
+            device=self.device,
+            epoch=epoch
         )
         evaluation_dataset.unload()
         sensitivity_evaluation_dataset.unload()
@@ -660,20 +661,20 @@ class Deep_Sets_Group:
                     .train_model(remake_datasets=remake_datasets)
                 )              
         
-    def evaluate_all(self, remake_datasets):
+    def evaluate_all(self, remake_datasets, epoch="final"):
         for level in Names_of_Levels().tuple_:
             for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
                 (
                     self.get_individual(level=level, num_events_per_set=num_events_per_set)
-                    .evaluate_model(remake_datasets=remake_datasets)
+                    .evaluate_model(remake_datasets=remake_datasets, epoch=epoch)
                 )
 
-    def evaluate_subset(self, levels, nums_events_per_set, remake_datasets):
+    def evaluate_subset(self, levels, nums_events_per_set, remake_datasets, epoch="final"):
         for level in levels:
             for num_events_per_set in nums_events_per_set:
                 (
                     self.get_individual(level=level, num_events_per_set=num_events_per_set)
-                    .evaluate_model(remake_datasets=remake_datasets)
+                    .evaluate_model(remake_datasets=remake_datasets, epoch=epoch)
                 )          
 
     def get_individual(self, level, num_events_per_set):
