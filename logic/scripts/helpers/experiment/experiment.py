@@ -476,6 +476,7 @@ class Event_by_Event:
             q_squared_veto=q_squared_veto,
             std_scale=std_scale,
             shuffle=shuffle,
+            uniform_label_counts=uniform_label_counts,
             loss_fn=loss_fn,
             learning_rate=learning_rate,
             learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,

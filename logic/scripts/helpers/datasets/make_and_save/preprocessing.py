@@ -225,7 +225,7 @@ def shuffle_rows(
 
 def reduce_num_per_label_to_lowest(dataframe):
 
-    num_lowest = dataframe[Names_of_Labels().unbinned].value_counts().values.max()
+    num_lowest = dataframe[Names_of_Labels().unbinned].value_counts().values.min()
     get_subset = lambda x : x.iloc[:num_lowest]
     dataframe = (
         dataframe.groupby(Names_of_Labels().unbinned, group_keys=False)[dataframe.columns]
