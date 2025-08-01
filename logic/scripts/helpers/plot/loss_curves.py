@@ -10,7 +10,7 @@ from .util import add_plot_note
 def plot_loss_curves(
     model_settings,
     start_epoch=0, 
-    log_scale=True,
+    log_scale=False,
     note=None,
 ):
     

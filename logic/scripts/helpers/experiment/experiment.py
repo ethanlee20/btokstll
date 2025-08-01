@@ -15,6 +15,21 @@ from ..plot.image import plot_image_examples
 from .results_table import Results_Table
 
 
+def to_dict_over_num_events_per_set(x):
+    def to_dict(x):
+        return {
+            num_events_per_set : x
+            for num_events_per_set in Numbers_of_Events_per_Set().tuple_
+        }
+    if type(x) is int:
+        x = to_dict(x)
+    if type(x) is not dict: 
+        raise ValueError
+    if sorted(tuple(x.keys())) != sorted(Numbers_of_Events_per_Set().tuple_):
+        raise ValueError
+    return x
+
+
 def train_model(
     model,
     training_dataset,
@@ -143,6 +158,7 @@ class Deep_Sets:
         bkg_fraction=None,
         bkg_charge_fraction=None
     ):  
+        
         self._initialize_settings(
             level=level,
             num_events_per_set=num_events_per_set,
@@ -162,25 +178,49 @@ class Deep_Sets:
             bkg_fraction=bkg_fraction,
             bkg_charge_fraction=bkg_charge_fraction
         )
+
         self.model = Model(self.model_settings)
         self.results_table = results_table
         self.device = device
 
     def train_model(self, remake_datasets):
-        training_dataset = Unbinned_Sets_Dataset(self.training_dataset_settings, remake=remake_datasets)
-        evaluation_dataset = Unbinned_Sets_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
+
+        training_dataset = Unbinned_Sets_Dataset(self.training_dataset_settings)
+        evaluation_dataset = Unbinned_Sets_Dataset(self.evaluation_dataset_settings)
+
+        datasets = (training_dataset, evaluation_dataset)
+
+        if remake_datasets:
+            for dataset in datasets:
+                dataset.make_and_save()
+
+        for dataset in datasets:
+            dataset.load()
+
         train_model(
             model=self.model, 
             training_dataset=training_dataset, 
             evaluation_dataset=evaluation_dataset, 
             device=self.device
         )
-        training_dataset.unload()
-        evaluation_dataset.unload()
 
+        for dataset in datasets:
+            dataset.unload()
+        
     def evaluate_model(self, remake_datasets, epoch="final"):
-        evaluation_dataset = Unbinned_Sets_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
-        sensitivity_evaluation_dataset = Unbinned_Sets_Dataset(self.sensitivity_evaluation_dataset_settings, remake=remake_datasets)
+        
+        evaluation_dataset = Unbinned_Sets_Dataset(self.evaluation_dataset_settings)
+        sensitivity_evaluation_dataset = Unbinned_Sets_Dataset(self.sensitivity_evaluation_dataset_settings)
+
+        datasets = (evaluation_dataset, sensitivity_evaluation_dataset)
+
+        if remake_datasets:
+            for dataset in datasets:
+                dataset.make_and_save()
+        
+        for dataset in datasets:
+            dataset.load()
+
         evaluate_model(
             model=self.model,
             evaluation_dataset=evaluation_dataset, 
@@ -189,8 +229,9 @@ class Deep_Sets:
             device=self.device,
             epoch=epoch
         )
-        evaluation_dataset.unload()
-        sensitivity_evaluation_dataset.unload()
+
+        for dataset in datasets:
+            dataset.unload()
 
     def _initialize_settings(
         self,
@@ -212,6 +253,7 @@ class Deep_Sets:
         bkg_fraction=None,
         bkg_charge_fraction=None
     ):
+        
         self.training_dataset_settings = Unbinned_Sets_Dataset_Settings(
             level=level,
             split=Names_of_Splits().train,
@@ -229,6 +271,7 @@ class Deep_Sets:
             bkg_charge_fraction=bkg_charge_fraction,
             label_subset=None
         )
+
         self.evaluation_dataset_settings = Unbinned_Sets_Dataset_Settings(
             level=level,
             split=Names_of_Splits().eval_,
@@ -246,6 +289,7 @@ class Deep_Sets:
             bkg_charge_fraction=bkg_charge_fraction,
             label_subset=None
         )
+
         self.sensitivity_evaluation_dataset_settings = Unbinned_Sets_Dataset_Settings(
             level=level,
             split=Names_of_Splits().eval_,
@@ -263,6 +307,7 @@ class Deep_Sets:
             bkg_charge_fraction=bkg_charge_fraction,
             label_subset=[delta_C9_value_new_physics]
         )
+
         self.model_settings = Model_Settings(
             name=Names_of_Models().deep_sets,
             path_to_main_models_dir=Paths_to_Directories().path_to_main_models_dir,
@@ -302,6 +347,7 @@ class CNN:
         bkg_fraction=None,
         bkg_charge_fraction=None
     ):
+        
         self._initialize_settings(
             level=level,
             num_events_per_set=num_events_per_set,
@@ -322,41 +368,74 @@ class CNN:
             bkg_fraction=bkg_fraction,
             bkg_charge_fraction=bkg_charge_fraction
         )
+
         self.model = Model(self.model_settings)
         self.results_table = results_table
         self.device = device
 
     def train_model(self, remake_datasets):
-        training_dataset = Images_Dataset(self.training_dataset_settings, remake=remake_datasets)
-        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
+        
+        training_dataset = Images_Dataset(self.training_dataset_settings)
+        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings)
+
+        datasets = (training_dataset, evaluation_dataset)
+
+        if remake_datasets: 
+            for dataset in datasets:
+                dataset.make_and_save()
+    
+        for dataset in datasets:
+            dataset.load()
+        
         train_model(
             model=self.model, 
             training_dataset=training_dataset, 
             evaluation_dataset=evaluation_dataset, 
             device=self.device
         )
-        training_dataset.unload()
-        evaluation_dataset.unload()
+        for dataset in datasets:
+            dataset.unload()
 
-    def evaluate_model(self, remake_datasets):
-        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
-        sensitivity_evaluation_dataset = Images_Dataset(self.sensitivity_evaluation_dataset_settings, remake=remake_datasets)
+    def evaluate_model(self, remake_datasets, epoch="final"):
+        
+        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings)
+        sensitivity_evaluation_dataset = Images_Dataset(self.sensitivity_evaluation_dataset_settings)
+
+        datasets = (evaluation_dataset, sensitivity_evaluation_dataset)
+
+        if remake_datasets:
+            for dataset in datasets:
+                dataset.make_and_save()
+
+        for dataset in datasets:
+            dataset.load()
+
         evaluate_model(
             model=self.model,
             evaluation_dataset=evaluation_dataset, 
             sensitivity_evaluation_dataset=sensitivity_evaluation_dataset,
             results_table=self.results_table,
-            device=self.device
+            device=self.device,
+            epoch=epoch
         )
-        evaluation_dataset.unload()
-        sensitivity_evaluation_dataset.unload()
+
+        for dataset in datasets:
+            dataset.unload()
 
     def plot_image_examples(self, remake_datasets):
-        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings, remake=remake_datasets)
+        
+        evaluation_dataset = Images_Dataset(self.evaluation_dataset_settings)
+
+        if remake_datasets:
+            evaluation_dataset.make_and_save()
+        
+        evaluation_dataset.load()
+
         plot_image_examples(
             dataset=evaluation_dataset, 
             path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
         )
+
         evaluation_dataset.unload()
 
     def _initialize_settings(
@@ -380,6 +459,7 @@ class CNN:
         bkg_fraction=None,
         bkg_charge_fraction=None
     ):
+        
         self.training_dataset_settings = Images_Dataset_Settings(
             level=level,
             split=Names_of_Splits().train,
@@ -398,6 +478,7 @@ class CNN:
             bkg_charge_fraction=bkg_charge_fraction,
             label_subset=None
         )
+
         self.evaluation_dataset_settings = Images_Dataset_Settings(
             level=level,
             split=Names_of_Splits().eval_,
@@ -416,6 +497,7 @@ class CNN:
             bkg_charge_fraction=bkg_charge_fraction,
             label_subset=None
         )
+
         self.sensitivity_evaluation_dataset_settings = Images_Dataset_Settings(
             level=level,
             split=Names_of_Splits().eval_,
@@ -434,6 +516,7 @@ class CNN:
             bkg_charge_fraction=bkg_charge_fraction,
             label_subset=[delta_C9_value_new_physics]
         )
+
         self.model_settings = Model_Settings(
             name=Names_of_Models().cnn,
             path_to_main_models_dir=Paths_to_Directories().path_to_main_models_dir,
@@ -469,6 +552,7 @@ class Event_by_Event:
         results_table:Results_Table,
         device
     ):       
+        
         self._initialize_settings(
             level=level,
             num_evaluation_sets_per_label=num_evaluation_sets_per_label,
@@ -485,31 +569,53 @@ class Event_by_Event:
             number_of_epochs=number_of_epochs,
             number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints
         )
+        
         self.model = Model(self.model_settings)
         self.results_table = results_table
         self.device = device
 
     def train_model(self, remake_datasets):
-        training_dataset = Binned_Events_Dataset(self.training_dataset_settings, remake=remake_datasets)
-        evaluation_dataset = Binned_Events_Dataset(self.evaluation_event_dataset_settings, remake=remake_datasets)
+        
+        training_dataset = Binned_Events_Dataset(self.training_dataset_settings)
+        evaluation_dataset = Binned_Events_Dataset(self.evaluation_event_dataset_settings)
+
+        datasets = (training_dataset, evaluation_dataset)
+
+        if remake_datasets:
+            for dataset in datasets:
+                dataset.make_and_save()
+
+        for dataset in datasets:
+            dataset.load()
+
         train_model(
             model=self.model, 
             training_dataset=training_dataset,
             evaluation_dataset=evaluation_dataset,
             device=self.device
         )
-        training_dataset.unload()
-        evaluation_dataset.unload()
+        
+        for dataset in datasets:
+            dataset.unload()
 
     def evaluate_model(self, num_events_per_set, remake_datasets, epoch="final"):
+        
         evaluation_dataset = Binned_Sets_Dataset(
             settings=self._get_evaluation_set_dataset_settings(num_events_per_set),
-            remake=remake_datasets
         )
         sensitivity_evaluation_dataset = Binned_Sets_Dataset(
             settings=self._get_sensitivity_evaluation_set_dataset_settings(num_events_per_set),
-            remake=remake_datasets
         )
+
+        datasets = (evaluation_dataset, sensitivity_evaluation_dataset)
+
+        if remake_datasets:
+            for dataset in datasets:
+                dataset.make_and_save()
+
+        for dataset in datasets:
+            dataset.load()
+
         evaluate_model(
             model=self.model,
             evaluation_dataset=evaluation_dataset,
@@ -518,8 +624,9 @@ class Event_by_Event:
             device=self.device,
             epoch=epoch
         )
-        evaluation_dataset.unload()
-        sensitivity_evaluation_dataset.unload()
+
+        for dataset in datasets:
+            dataset.unload()
 
     def _initialize_settings(
         self,
@@ -538,6 +645,7 @@ class Event_by_Event:
         number_of_epochs,
         number_of_epochs_between_checkpoints
     ):
+        
         self.training_dataset_settings = Binned_Events_Dataset_Settings(
             level=level,
             split=Names_of_Splits().train,
@@ -549,6 +657,7 @@ class Event_by_Event:
             path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
             path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir
         )
+
         self.evaluation_event_dataset_settings = Binned_Events_Dataset_Settings(
             level=level,
             split=Names_of_Splits().eval_,
@@ -560,6 +669,7 @@ class Event_by_Event:
             path_to_raw_signal_dir=Paths_to_Directories().path_to_raw_signal_dir,
             path_to_raw_bkg_dir=Paths_to_Directories().path_to_raw_bkg_dir
         )
+
         self.evaluation_set_datasets_settings = {
             num_events_per_set : Binned_Sets_Dataset_Settings(
                 level=level,
@@ -579,6 +689,7 @@ class Event_by_Event:
             )
             for num_events_per_set in Numbers_of_Events_per_Set().tuple_
         }
+
         self.sensitivity_evaluation_set_datasets_settings = {
             num_events_per_set : Binned_Sets_Dataset_Settings(
                 level=level,
@@ -599,6 +710,7 @@ class Event_by_Event:
             )
             for num_events_per_set in Numbers_of_Events_per_Set().tuple_
         }
+        
         self.model_settings = Model_Settings(
             name=Names_of_Models().ebe,
             path_to_main_models_dir=Paths_to_Directories().path_to_main_models_dir,
@@ -721,8 +833,8 @@ class Deep_Sets_Group:
         bkg_fraction,
         bkg_charge_fraction
     ):
+        
         common_parameters = dict(
-            num_sets_per_label=num_sets_per_label,
             num_sets_per_label_sensitivity=num_sets_per_label_sensitivity,
             q_squared_veto=q_squared_veto,
             std_scale=std_scale,
@@ -731,29 +843,39 @@ class Deep_Sets_Group:
             loss_fn=loss_fn,
             learning_rate=learning_rate,
             learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
-            size_of_training_batch=size_of_training_batch,
-            size_of_evaluation_batch=size_of_evaluation_batch,
             number_of_epochs=number_of_epochs,
             number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints,
             results_table=results_table,
             device=device
         )
+
+        num_sets_per_label = to_dict_over_num_events_per_set(num_sets_per_label)
+        size_of_training_batch = to_dict_over_num_events_per_set(size_of_training_batch)
+        size_of_evaluation_batch = to_dict_over_num_events_per_set(size_of_evaluation_batch)
+
         self.group = {
             level : {
                 num_events_per_set : Deep_Sets(
                     **common_parameters,
                     level=level,
-                    num_events_per_set=num_events_per_set
+                    num_events_per_set=num_events_per_set,
+                    num_sets_per_label=num_sets_per_label[num_events_per_set],
+                    size_of_training_batch=size_of_training_batch[num_events_per_set],
+                    size_of_evaluation_batch=size_of_evaluation_batch[num_events_per_set]
                 )
                 for num_events_per_set in Numbers_of_Events_per_Set().tuple_
             }
             for level in (Names_of_Levels().generator, Names_of_Levels().detector)
         }
+
         self.group[Names_of_Levels().detector_and_background] = {
             num_events_per_set : Deep_Sets(
                 **common_parameters,
                 level=Names_of_Levels().detector_and_background,
                 num_events_per_set=num_events_per_set,
+                num_sets_per_label=num_sets_per_label[num_events_per_set],
+                size_of_training_batch=size_of_training_batch[num_events_per_set],
+                size_of_evaluation_batch=size_of_evaluation_batch[num_events_per_set],
                 bkg_fraction=bkg_fraction,
                 bkg_charge_fraction=bkg_charge_fraction
             )
@@ -830,12 +952,12 @@ class CNN_Group:
                     .evaluate_model(remake_datasets=remake_datasets)
                 )
 
-    def evaluate_subset(self, levels, nums_events_per_set, remake_datasets):
+    def evaluate_subset(self, levels, nums_events_per_set, remake_datasets, epoch="final"):
         for level in levels:
             for num_events_per_set in nums_events_per_set:
                 (
                     self.get_individual(level=level, num_events_per_set=num_events_per_set)
-                    .evaluate_model(remake_datasets=remake_datasets)
+                    .evaluate_model(remake_datasets=remake_datasets, epoch=epoch)
                 )          
 
     def plot_image_examples_all(self, remake_datasets):
@@ -878,8 +1000,8 @@ class CNN_Group:
         bkg_fraction,
         bkg_charge_fraction
     ):
+        
         common_parameters = dict(
-            num_sets_per_label=num_sets_per_label,
             num_sets_per_label_sensitivity=num_sets_per_label_sensitivity,
             num_bins_per_dimension=num_bins_per_dimension,
             q_squared_veto=q_squared_veto,
@@ -889,31 +1011,41 @@ class CNN_Group:
             loss_fn=loss_fn,
             learning_rate=learning_rate,
             learning_rate_scheduler_reduction_factor=learning_rate_scheduler_reduction_factor,
-            size_of_training_batch=size_of_training_batch,
-            size_of_evaluation_batch=size_of_evaluation_batch,
             number_of_epochs=number_of_epochs,
             number_of_epochs_between_checkpoints=number_of_epochs_between_checkpoints,
             results_table=results_table,
             device=device
         )
+
+        num_sets_per_label = to_dict_over_num_events_per_set(num_sets_per_label)
+        size_of_training_batch = to_dict_over_num_events_per_set(size_of_training_batch)
+        size_of_evaluation_batch = to_dict_over_num_events_per_set(size_of_evaluation_batch)
+
         self.group = {
             level : {
                 num_events_per_set : CNN(
                     **common_parameters,
                     level=level,
-                    num_events_per_set=num_events_per_set
+                    num_events_per_set=num_events_per_set,
+                    num_sets_per_label=num_sets_per_label[num_events_per_set],
+                    size_of_training_batch=size_of_training_batch[num_events_per_set],
+                    size_of_evaluation_batch=size_of_evaluation_batch[num_events_per_set]
                 )
                 for num_events_per_set in Numbers_of_Events_per_Set().tuple_
             }
             for level in (Names_of_Levels().generator, Names_of_Levels().detector)
         }
+
         self.group[Names_of_Levels().detector_and_background] = {
             num_events_per_set : CNN(
                 **common_parameters,
                 level=Names_of_Levels().detector_and_background,
                 num_events_per_set=num_events_per_set,
                 bkg_fraction=bkg_fraction,
-                bkg_charge_fraction=bkg_charge_fraction
+                bkg_charge_fraction=bkg_charge_fraction,
+                num_sets_per_label=num_sets_per_label[num_events_per_set],
+                size_of_training_batch=size_of_training_batch[num_events_per_set],
+                size_of_evaluation_batch=size_of_evaluation_batch[num_events_per_set]
             )
             for num_events_per_set in Numbers_of_Events_per_Set().tuple_
         }

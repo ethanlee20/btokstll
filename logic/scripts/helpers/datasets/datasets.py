@@ -19,14 +19,10 @@ class Unbinned_Sets_Dataset(torch.utils.data.Dataset):
     def __init__(
         self, 
         settings,
-        remake,
         verbose=True
     ):
         self.settings = settings
         self.verbose = verbose
-        if remake:
-            self.make_and_save()
-        self.load()
 
     def make_and_save(self):
         self.settings.common.path_to_dataset_dir.mkdir(parents=True, exist_ok=True)
@@ -53,11 +49,6 @@ class Unbinned_Sets_Dataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.labels)
-    
-    def __getitem__(self, index):
-        x = self.features[index]
-        y = self.labels[index]
-        return x, y
 
 
 class Binned_Sets_Dataset(torch.utils.data.Dataset):
@@ -65,14 +56,10 @@ class Binned_Sets_Dataset(torch.utils.data.Dataset):
     def __init__(
         self, 
         settings,
-        remake,
         verbose=True
     ):
         self.settings = settings
         self.verbose = verbose
-        if remake:
-            self.make_and_save()
-        self.load()
 
     def make_and_save(self):
         self.settings.common.path_to_dataset_dir.mkdir(parents=True, exist_ok=True)
@@ -105,25 +92,16 @@ class Binned_Sets_Dataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.labels)
     
-    def __getitem__(self, index):
-        x = self.features[index]
-        y = self.labels[index]
-        return x, y
-    
 
 class Images_Dataset(torch.utils.data.Dataset):
 
     def __init__(
         self, 
         settings,
-        remake,
         verbose=True
     ):  
         self.settings = settings
         self.verbose = verbose
-        if remake:
-            self.make_and_save()
-        self.load()
 
     def make_and_save(self):
         self.settings.common.path_to_dataset_dir.mkdir(parents=True, exist_ok=True)
@@ -151,25 +129,16 @@ class Images_Dataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.labels)
     
-    def __getitem__(self, index):        
-        x = self.features[index]
-        y = self.labels[index]
-        return x, y
-    
 
 class Binned_Events_Dataset(torch.utils.data.Dataset):
 
     def __init__(
         self, 
         settings,
-        remake,
         verbose=True
     ):
         self.settings = settings
         self.verbose = verbose
-        if remake:
-            self.make_and_save()
-        self.load()
 
     def make_and_save(self):
         self.settings.common.path_to_dataset_dir.mkdir(parents=True, exist_ok=True)
@@ -201,8 +170,3 @@ class Binned_Events_Dataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.labels)
-    
-    # def __getitem__(self, index):
-    #     x = self.features[index]
-    #     y = self.labels[index]
-    #     return x, y

@@ -116,6 +116,8 @@ def drop_rows_that_have_a_nan(dataframe, verbose=True):
     Drop rows of a dataframe that contain a NaN.
     """
 
+    print("Removing rows that have a NaN.")
+
     dataframe = dataframe.copy()
 
     if verbose:
@@ -166,6 +168,8 @@ def apply_q_squared_veto(dataframe, q_squared_veto):
             | (dataframe[Names_of_Variables().q_squared] > 13.7)
         )
         return dataframe[psi_2s_resonance_cut]
+    
+    print("Applying q^2 veto.")
         
     if q_squared_veto not in Names_of_q_Squared_Vetos().tuple_:
         raise ValueError
@@ -178,6 +182,8 @@ def apply_q_squared_veto(dataframe, q_squared_veto):
         else None
     )
     if dataframe is None: raise ValueError
+
+    print("Applied q^2 veto.")
     
     return dataframe.copy()
 
@@ -190,6 +196,8 @@ def reduce_to_label_subset(dataframe, unbinned_label_subset_list_or_id):
     Label subset should be specified with a list of 
     (unbinned) label values or a special subset ID string.
     """
+
+    print("Applying label subset.")
 
     less_than_or_equal_to_zero_subset_id = "less than or equal to zero"
     
@@ -208,6 +216,8 @@ def reduce_to_label_subset(dataframe, unbinned_label_subset_list_or_id):
         dataframe = dataframe[labels_column.isin(subset_list)]
     
     else: raise ValueError
+
+    print("Applied label subset.")
     
     return dataframe
 
@@ -225,12 +235,17 @@ def shuffle_rows(
 
 def reduce_num_per_label_to_lowest(dataframe):
 
+    print("Reducing events per label to lowest per label.")
+
     num_lowest = dataframe[Names_of_Labels().unbinned].value_counts().values.min()
     get_subset = lambda x : x.iloc[:num_lowest]
     dataframe = (
         dataframe.groupby(Names_of_Labels().unbinned, group_keys=False)[dataframe.columns]
         .apply(get_subset)
     )
+
+    print("Reduced events per label to lowest per label.")
+    
     return dataframe
 
 
@@ -288,6 +303,8 @@ def apply_signal_preprocessing(
     verbose=True
 ):
     
+    print("Applying signal preprocessing.")
+    
     dataframe = _apply_common_preprocessing(
         dataframe=dataframe, 
         settings=settings, 
@@ -304,6 +321,8 @@ def apply_signal_preprocessing(
     if settings.common.preprocessing.uniform_label_counts:
         dataframe = reduce_num_per_label_to_lowest(dataframe)
         
+    print("Applied signal preprocessing.")
+
     return dataframe
 
 
@@ -314,12 +333,17 @@ def apply_background_preprocessing(
     verbose=True
 ):
     
+    print("Applying background preprocessing.")
+    
     dataframe = _apply_common_preprocessing(
         dataframe=dataframe, 
         settings=settings, 
         list_of_variables_to_standard_scale=list_of_variables_to_standard_scale,                                   
         verbose=verbose
     )
+
+    print("Applied background preprocessing.")
+    
     return dataframe
 
 
