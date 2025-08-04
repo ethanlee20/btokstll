@@ -1,4 +1,9 @@
 
+from collections import namedtuple
+from itertools import product
+
+import matplotlib.pyplot as plt
+
 from ..datasets.settings.settings import Unbinned_Sets_Dataset_Settings, Images_Dataset_Settings, Binned_Events_Dataset_Settings, Binned_Sets_Dataset_Settings
 from ..datasets.constants import Names_of_Splits, Numbers_of_Events_per_Set, Names_of_Levels
 from ..datasets.datasets import Unbinned_Sets_Dataset, Images_Dataset, Binned_Events_Dataset, Binned_Sets_Dataset
@@ -62,6 +67,7 @@ def evaluate_model(
             dataset_settings=evaluation_dataset.settings,
             path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
         )
+        return linearity_test_results
     
     def run_sensitivity_test(evaluator, sensitivity_evaluation_dataset, results_table):
         sensitivity_test_results = evaluator.run_sensitivity_test(sensitivity_evaluation_dataset)
@@ -85,6 +91,7 @@ def evaluate_model(
             model_settings=evaluator.model.settings,
             dataset_settings=sensitivity_evaluation_dataset.settings,
         )
+        return sensitivity_test_results
     
     def run_error_test(evaluator, evaluation_dataset, results_table):
         error_test_results = evaluator.run_error_test(evaluation_dataset)
@@ -100,6 +107,7 @@ def evaluate_model(
             model_settings=evaluator.model.settings,
             dataset_settings=evaluation_dataset.settings,
         )    
+        return error_test_results
 
     def plot_log_probability_distributions(evaluator, evaluation_dataset):
         log_probabilities = evaluator.predict_log_probabilities(evaluation_dataset.features)
@@ -111,6 +119,7 @@ def evaluate_model(
             dataset_settings=evaluation_dataset.settings,
             path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
         )
+        return log_probabilities
 
     if epoch == "final":
         model.load_final_model_from_file()
@@ -127,11 +136,23 @@ def evaluate_model(
     )
     if evaluator is None: raise ValueError
 
-    run_linearity_test(evaluator=evaluator, evaluation_dataset=evaluation_dataset)
-    run_sensitivity_test(evaluator=evaluator, sensitivity_evaluation_dataset=sensitivity_evaluation_dataset, results_table=results_table)
-    run_error_test(evaluator=evaluator, evaluation_dataset=evaluation_dataset, results_table=results_table)
-    if model.settings.name in Names_of_Models().event_based:
-        plot_log_probability_distributions(evaluator=evaluator, evaluation_dataset=evaluation_dataset)
+    Evaluation_Results = namedtuple(
+        "Evaluation_Results", 
+        ["linearity_results", "sensitivity_results", "error_results", "log_probabilities"]
+    )
+
+    results = Evaluation_Results(
+        linearity_results=run_linearity_test(evaluator=evaluator, evaluation_dataset=evaluation_dataset),
+        sensitivity_results=run_sensitivity_test(evaluator=evaluator, sensitivity_evaluation_dataset=sensitivity_evaluation_dataset, results_table=results_table),
+        error_results=run_error_test(evaluator=evaluator, evaluation_dataset=evaluation_dataset, results_table=results_table),
+        log_probabilities=(
+            plot_log_probability_distributions(evaluator=evaluator, evaluation_dataset=evaluation_dataset) 
+            if model.settings.name in Names_of_Models().event_based else None
+        )
+    )
+
+    return results
+    
 
 
 class Deep_Sets:
@@ -221,7 +242,7 @@ class Deep_Sets:
         for dataset in datasets:
             dataset.load()
 
-        evaluate_model(
+        results = evaluate_model(
             model=self.model,
             evaluation_dataset=evaluation_dataset, 
             sensitivity_evaluation_dataset=sensitivity_evaluation_dataset,
@@ -232,6 +253,8 @@ class Deep_Sets:
 
         for dataset in datasets:
             dataset.unload()
+
+        return results
 
     def _initialize_settings(
         self,
@@ -410,7 +433,7 @@ class CNN:
         for dataset in datasets:
             dataset.load()
 
-        evaluate_model(
+        results = evaluate_model(
             model=self.model,
             evaluation_dataset=evaluation_dataset, 
             sensitivity_evaluation_dataset=sensitivity_evaluation_dataset,
@@ -421,6 +444,8 @@ class CNN:
 
         for dataset in datasets:
             dataset.unload()
+
+        return results
 
     def plot_image_examples(self, remake_datasets):
         
@@ -795,12 +820,35 @@ class Deep_Sets_Group:
                 )              
         
     def evaluate_all(self, remake_datasets, epoch="final"):
+        
+        results = {
+            level : {
+                num_events_per_set : None
+                for num_events_per_set in Numbers_of_Events_per_Set().tuple_
+            }
+            for level in Names_of_Levels().tuple_
+        }
+
         for level in Names_of_Levels().tuple_:
             for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
-                (
+                results[level][num_events_per_set] = (
                     self.get_individual(level=level, num_events_per_set=num_events_per_set)
                     .evaluate_model(remake_datasets=remake_datasets, epoch=epoch)
                 )
+
+        _, axs = plt.subplots(3, 3, sharex=True, sharey=True)
+
+        for (level, num_events_per_set), ax in zip(product(Names_of_Levels().tuple_, Numbers_of_Events_per_Set().tuple_), axs.flat):
+            plot_linearity(
+                linearity_test_results=results[level][num_events_per_set].linearity_results, 
+                model_settings=self.group[level][num_events_per_set].model_settings,
+                dataset_settings=self.group[level][num_events_per_set].evaluation_dataset_settings,
+                path_to_plots_dir=Paths_to_Directories().path_to_plots_dir,
+                ax=ax,
+                save=False
+            )
+        plt.savefig(Paths_to_Directories().path_to_plots_dir.joinpath("deep_sets_linearity_grid.png"), bbox_inches="tight")
+        plt.close()
 
     def evaluate_subset(self, levels, nums_events_per_set, remake_datasets, epoch="final"):
         for level in levels:
@@ -945,12 +993,35 @@ class CNN_Group:
                 )       
         
     def evaluate_all(self, remake_datasets):
+
+        results = {
+            level : {
+                num_events_per_set : None
+                for num_events_per_set in Numbers_of_Events_per_Set().tuple_
+            }
+            for level in Names_of_Levels().tuple_
+        }
+
         for level in Names_of_Levels().tuple_:
             for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
-                (
+                results[level][num_events_per_set] = (
                     self.get_individual(level=level, num_events_per_set=num_events_per_set)
                     .evaluate_model(remake_datasets=remake_datasets)
                 )
+
+        _, axs = plt.subplots(3, 3, sharex=True, sharey=True)
+
+        for (level, num_events_per_set), ax in zip(product(Names_of_Levels().tuple_, Numbers_of_Events_per_Set().tuple_), axs.flat):
+            plot_linearity(
+                linearity_test_results=results[level][num_events_per_set].linearity_results, 
+                model_settings=self.group[level][num_events_per_set].model_settings,
+                dataset_settings=self.group[level][num_events_per_set].evaluation_dataset_settings,
+                path_to_plots_dir=Paths_to_Directories().path_to_plots_dir,
+                ax=ax,
+                save=False
+            )
+        plt.savefig(Paths_to_Directories().path_to_plots_dir.joinpath("CNN_linearity_grid.png"), bbox_inches="tight")
+        plt.close()
 
     def evaluate_subset(self, levels, nums_events_per_set, remake_datasets, epoch="final"):
         for level in levels:

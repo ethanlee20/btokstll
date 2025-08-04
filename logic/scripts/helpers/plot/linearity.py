@@ -14,6 +14,8 @@ def plot_linearity(
     path_to_plots_dir,
     xlim=(-2.25, 1.35), 
     ylim=(-2.25, 1.35),
+    ax=None,
+    save=True,
 ):
     
     def plot_diagonal_reference_line(unique_labels_numpy_array):
@@ -36,7 +38,8 @@ def plot_linearity(
     avgs_numpy_array = linearity_test_results.avgs.cpu().detach().numpy()
     stds_numpy_array = linearity_test_results.stds.cpu().detach().numpy()
 
-    _, ax = plt.subplots()
+    if ax is None:
+        _, ax = plt.subplots()
 
     ax.scatter(
         unique_labels_numpy_array, 
