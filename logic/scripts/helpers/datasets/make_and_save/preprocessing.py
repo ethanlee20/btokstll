@@ -233,7 +233,7 @@ def shuffle_rows(
     return dataframe
 
 
-def reduce_num_per_label_to_lowest(dataframe):
+def reduce_num_per_label_to_lowest(dataframe, shuffle):
 
     print("Reducing events per label to lowest per label.")
 
@@ -243,6 +243,9 @@ def reduce_num_per_label_to_lowest(dataframe):
         dataframe.groupby(Names_of_Labels().unbinned, group_keys=False)[dataframe.columns]
         .apply(get_subset)
     )
+
+    if shuffle:
+        dataframe = shuffle_rows(dataframe)
 
     print("Reduced events per label to lowest per label.")
     
@@ -319,7 +322,7 @@ def apply_signal_preprocessing(
         )
 
     if settings.common.preprocessing.uniform_label_counts:
-        dataframe = reduce_num_per_label_to_lowest(dataframe)
+        dataframe = reduce_num_per_label_to_lowest(dataframe, shuffle=settings.common.preprocessing.shuffle)
         
     print("Applied signal preprocessing.")
 

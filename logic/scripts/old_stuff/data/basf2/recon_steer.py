@@ -114,13 +114,13 @@ def reconstruct_detector_level():
 
     invMKst_cut = "[abs(formula(daughterInvM(0, 1) - invM_Kst)) <= formula(2 * fullwidth_Kst)]"
 
-    deltaE_cut = '[abs(deltaE) <= 0.05]'    
+    deltaE_cut = '[abs(deltaE) <= 0.1]'    # was '[abs(deltaE) <= 0.05]' 
     if ell == 'e':
         deltaE_cut = '[-0.075 <= deltaE <= 0.05]'
 
     Mbc_cut = "[Mbc > 5.27]"
     if sideband:
-        Mbc_cut = "[5.2 < Mbc < 5.26]"
+        Mbc_cut = "[Mbc > 4.5]"        # was "[5.2 < Mbc < 5.26]"
         
     muon_cut = f"{muonID_cut} and {muon_p_cut} and {dr_cut} and {dz_cut}  and thetaInCDCAcceptance"
 

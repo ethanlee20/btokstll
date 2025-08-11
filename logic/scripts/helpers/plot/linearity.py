@@ -1,21 +1,12 @@
 
-from pathlib import Path
-
 import numpy
-import matplotlib.pyplot as plt
-
-from .util import add_plot_note, save_model_evaluation_plot
 
 
 def plot_linearity(
     linearity_test_results,
-    model_settings,
-    dataset_settings,
-    path_to_plots_dir,
     xlim=(-2.25, 1.35), 
     ylim=(-2.25, 1.35),
     ax=None,
-    save=True,
 ):
     
     def plot_diagonal_reference_line(unique_labels_numpy_array):
@@ -28,7 +19,7 @@ def plot_linearity(
         ax.plot(
             ticks, 
             ticks,
-            label="Reference line (slope of 1)",
+            label=None,
             color="grey",
             linewidth=0.5,
             zorder=0,
@@ -44,9 +35,9 @@ def plot_linearity(
     ax.scatter(
         unique_labels_numpy_array, 
         avgs_numpy_array, 
-        label="Average over bootstraps", 
+        label="Avg.", 
         color="firebrick", 
-        s=16, 
+        s=6, 
         zorder=5
     )
     ax.errorbar(
@@ -57,7 +48,7 @@ def plot_linearity(
         elinewidth=0.5, 
         capsize=0.5, 
         color="black", 
-        label="Standard deviation over bootstraps", 
+        label="Stdev.", 
         zorder=10
     )
 
@@ -65,20 +56,6 @@ def plot_linearity(
     
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
-    ax.legend()
-    ax.set_xlabel(r"Actual $\delta C_9$")
-    ax.set_ylabel(r"Predicted $\delta C_9$")
-    note = (
-        f"Model: {model_settings.name}, Level: {dataset_settings.common.level}", 
-        f"\nBootstraps per label: {dataset_settings.set.num_sets_per_label}, Events per bootstrap: {dataset_settings.set.num_events_per_set}"
-    )
-    add_plot_note(ax=ax, text=note)
-    save_model_evaluation_plot(
-        type="lin",
-        model_settings=model_settings,
-        dataset_settings=dataset_settings,
-        path_to_plots_dir=path_to_plots_dir
-    )
-    plt.close()
 
-
+    ax.set_xticks(ticks=[-2, 0, 1.1])
+    ax.set_yticks(ticks=[-2, 0, 1.1])

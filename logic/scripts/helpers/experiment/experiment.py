@@ -61,22 +61,22 @@ def evaluate_model(
     
     def run_linearity_test(evaluator, evaluation_dataset):
         linearity_test_results = evaluator.run_linearity_test(evaluation_dataset)
-        plot_linearity(
-            linearity_test_results=linearity_test_results,
-            model_settings=evaluator.model.settings,
-            dataset_settings=evaluation_dataset.settings,
-            path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
-        )
+        # plot_linearity(
+        #     linearity_test_results=linearity_test_results,
+        #     model_settings=evaluator.model.settings,
+        #     dataset_settings=evaluation_dataset.settings,
+        #     path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
+        # )
         return linearity_test_results
     
     def run_sensitivity_test(evaluator, sensitivity_evaluation_dataset, results_table):
         sensitivity_test_results = evaluator.run_sensitivity_test(sensitivity_evaluation_dataset)
-        plot_sensitivity(
-            sensitivity_test_results=sensitivity_test_results,
-            model_settings=evaluator.model.settings,
-            dataset_settings=sensitivity_evaluation_dataset.settings,
-            path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
-        )
+        # plot_sensitivity(
+        #     sensitivity_test_results=sensitivity_test_results,
+        #     model_settings=evaluator.model.settings,
+        #     dataset_settings=sensitivity_evaluation_dataset.settings,
+        #     path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
+        # )
         results_table.add_items(
             column_names=[
                 Names_of_Result_Table_Columns().np_mean, 
@@ -111,14 +111,14 @@ def evaluate_model(
 
     def plot_log_probability_distributions(evaluator, evaluation_dataset):
         log_probabilities = evaluator.predict_log_probabilities(evaluation_dataset.features)
-        plot_log_probability_distribution_examples(
-            log_probabilities=log_probabilities,
-            binned_labels=evaluation_dataset.labels,
-            bin_map=evaluation_dataset.bin_map,
-            model_settings=evaluator.model.settings,
-            dataset_settings=evaluation_dataset.settings,
-            path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
-        )
+        # plot_log_probability_distribution_examples(
+        #     log_probabilities=log_probabilities,
+        #     binned_labels=evaluation_dataset.labels,
+        #     bin_map=evaluation_dataset.bin_map,
+        #     model_settings=evaluator.model.settings,
+        #     dataset_settings=evaluation_dataset.settings,
+        #     path_to_plots_dir=Paths_to_Directories().path_to_plots_dir
+        # )
         return log_probabilities
 
     if epoch == "final":
@@ -641,7 +641,7 @@ class Event_by_Event:
         for dataset in datasets:
             dataset.load()
 
-        evaluate_model(
+        results = evaluate_model(
             model=self.model,
             evaluation_dataset=evaluation_dataset,
             sensitivity_evaluation_dataset=sensitivity_evaluation_dataset,
@@ -652,6 +652,8 @@ class Event_by_Event:
 
         for dataset in datasets:
             dataset.unload()
+
+        return results
 
     def _initialize_settings(
         self,
@@ -700,7 +702,7 @@ class Event_by_Event:
                 level=level,
                 split=Names_of_Splits().eval_,
                 num_events_per_set=num_events_per_set,
-                num_sets_per_label=num_evaluation_sets_per_label,
+                num_sets_per_label=num_evaluation_sets_per_label[num_events_per_set],
                 is_sensitivity_study=False,
                 q_squared_veto=q_squared_veto,
                 std_scale=std_scale,
@@ -755,9 +757,6 @@ class Event_by_Event:
     def _get_sensitivity_evaluation_set_dataset_settings(self, num_events_per_set):
         return self.sensitivity_evaluation_set_datasets_settings[num_events_per_set]
     
-
-
-
 
 
 class Deep_Sets_Group:
@@ -821,34 +820,13 @@ class Deep_Sets_Group:
         
     def evaluate_all(self, remake_datasets, epoch="final"):
         
-        results = {
+        self.results = {
             level : {
-                num_events_per_set : None
+                num_events_per_set : self.get_individual(level=level, num_events_per_set=num_events_per_set).evaluate_model(remake_datasets=remake_datasets, epoch=epoch)
                 for num_events_per_set in Numbers_of_Events_per_Set().tuple_
             }
             for level in Names_of_Levels().tuple_
         }
-
-        for level in Names_of_Levels().tuple_:
-            for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
-                results[level][num_events_per_set] = (
-                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
-                    .evaluate_model(remake_datasets=remake_datasets, epoch=epoch)
-                )
-
-        _, axs = plt.subplots(3, 3, sharex=True, sharey=True)
-
-        for (level, num_events_per_set), ax in zip(product(Names_of_Levels().tuple_, Numbers_of_Events_per_Set().tuple_), axs.flat):
-            plot_linearity(
-                linearity_test_results=results[level][num_events_per_set].linearity_results, 
-                model_settings=self.group[level][num_events_per_set].model_settings,
-                dataset_settings=self.group[level][num_events_per_set].evaluation_dataset_settings,
-                path_to_plots_dir=Paths_to_Directories().path_to_plots_dir,
-                ax=ax,
-                save=False
-            )
-        plt.savefig(Paths_to_Directories().path_to_plots_dir.joinpath("deep_sets_linearity_grid.png"), bbox_inches="tight")
-        plt.close()
 
     def evaluate_subset(self, levels, nums_events_per_set, remake_datasets, epoch="final"):
         for level in levels:
@@ -976,6 +954,9 @@ class CNN_Group:
             bkg_charge_fraction=bkg_charge_fraction
         )
 
+        self.num_sets_per_label = num_sets_per_label
+        self.num_bins_per_dimension = num_bins_per_dimension
+
     def train_all(self, remake_datasets):
         for level in Names_of_Levels().tuple_:
             for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
@@ -994,34 +975,13 @@ class CNN_Group:
         
     def evaluate_all(self, remake_datasets):
 
-        results = {
+        self.results = {
             level : {
-                num_events_per_set : None
+                num_events_per_set : self.get_individual(level=level, num_events_per_set=num_events_per_set).evaluate_model(remake_datasets=remake_datasets)
                 for num_events_per_set in Numbers_of_Events_per_Set().tuple_
             }
             for level in Names_of_Levels().tuple_
         }
-
-        for level in Names_of_Levels().tuple_:
-            for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
-                results[level][num_events_per_set] = (
-                    self.get_individual(level=level, num_events_per_set=num_events_per_set)
-                    .evaluate_model(remake_datasets=remake_datasets)
-                )
-
-        _, axs = plt.subplots(3, 3, sharex=True, sharey=True)
-
-        for (level, num_events_per_set), ax in zip(product(Names_of_Levels().tuple_, Numbers_of_Events_per_Set().tuple_), axs.flat):
-            plot_linearity(
-                linearity_test_results=results[level][num_events_per_set].linearity_results, 
-                model_settings=self.group[level][num_events_per_set].model_settings,
-                dataset_settings=self.group[level][num_events_per_set].evaluation_dataset_settings,
-                path_to_plots_dir=Paths_to_Directories().path_to_plots_dir,
-                ax=ax,
-                save=False
-            )
-        plt.savefig(Paths_to_Directories().path_to_plots_dir.joinpath("CNN_linearity_grid.png"), bbox_inches="tight")
-        plt.close()
 
     def evaluate_subset(self, levels, nums_events_per_set, remake_datasets, epoch="final"):
         for level in levels:
@@ -1161,6 +1121,10 @@ class Event_by_Event_Group:
             device=device
         )
 
+        self.num_evaluation_sets_per_label = num_evaluation_sets_per_label
+
+        self.possible_levels = (Names_of_Levels().generator, Names_of_Levels().detector)
+
     def train_all(self, remake_datasets):
         for level in (Names_of_Levels().generator, Names_of_Levels().detector):
             self.get_individual(level).train_model(remake_datasets)
@@ -1172,15 +1136,22 @@ class Event_by_Event_Group:
                 .train_model(remake_datasets=remake_datasets)
             )       
 
-    def evaluate_all(self, remake_datasets): 
-        for level in (Names_of_Levels().generator, Names_of_Levels().detector):
-            for num_events_per_set in Numbers_of_Events_per_Set().tuple_:
-                (
-                    self.get_individual(level)
-                    .evaluate_model(num_events_per_set=num_events_per_set, remake_datasets=remake_datasets)
-                )
+    def evaluate_all(self, remake_datasets, epoch="final"): 
+
+        self.results = {
+            level : {
+                num_events_per_set : self.get_individual(level).evaluate_model(
+                        num_events_per_set=num_events_per_set, 
+                        remake_datasets=remake_datasets, 
+                        epoch=epoch
+                    )
+                for num_events_per_set in Numbers_of_Events_per_Set().tuple_
+            }
+            for level in self.possible_levels
+        }
 
     def evaluate_subset(self, levels, nums_events_per_set, remake_datasets, epoch="final"):
+
         for level in levels:
             for num_events_per_set in nums_events_per_set:
                 (
@@ -1191,6 +1162,29 @@ class Event_by_Event_Group:
                         epoch=epoch
                     )
                 )
+
+    def plot_results_all(self):
+        
+        _, axs = plt.subplots(
+            len(self.possible_levels), 
+            len(Numbers_of_Events_per_Set().tuple_), 
+            sharex=True, 
+            sharey=True
+        )
+
+        for (level, num_events_per_set), ax in zip(product(self.possible_levels, Numbers_of_Events_per_Set().tuple_), axs.flat):
+            
+            plot_linearity(
+                linearity_test_results=self.results[level][num_events_per_set].linearity_results, 
+                model_settings=self.get_individual(level).model_settings,
+                dataset_settings=self.get_individual(level).evaluation_set_datasets_settings[num_events_per_set],
+                path_to_plots_dir=Paths_to_Directories().path_to_plots_dir,
+                ax=ax,
+                save=False
+            )
+
+        plt.savefig(Paths_to_Directories().path_to_plots_dir.joinpath("ebe_linearity_grid.png"), bbox_inches="tight")
+        plt.close()
 
     def get_individual(self, level):
         return self.group[level]
@@ -1214,6 +1208,8 @@ class Event_by_Event_Group:
         device
     ):
         
+        num_evaluation_sets_per_label = to_dict_over_num_events_per_set(num_evaluation_sets_per_label)
+        
         common_parameters = dict(
             num_evaluation_sets_per_label=num_evaluation_sets_per_label,
             num_evaluation_sets_per_label_sensitivity=num_evaluation_sets_per_label_sensitivity,
@@ -1231,9 +1227,10 @@ class Event_by_Event_Group:
             results_table=results_table,
             device=device
         )
+
         self.group = {
             level : Event_by_Event(
-                level=level, 
+                level=level,
                 **common_parameters
             )
             for level in (Names_of_Levels().generator, Names_of_Levels().detector)

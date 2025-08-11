@@ -16,12 +16,23 @@ def _bootstrap_labeled_sets(
     reduce_labels=True, 
 ):  
 
-    list_of_feature_sets = []
-    list_of_label_sets = []
     labels_to_sample = torch.unique(
         labels_tensor, 
         sorted=True
     )
+    tensor_of_feature_sets = torch.zeros(
+        len(labels_to_sample)*num_sets_per_label, 
+        num_events_per_set, 
+        len(features_tensor[0]), 
+        dtype=torch.double
+    )
+    tensor_of_label_sets = torch.zeros(
+        len(labels_to_sample)*num_sets_per_label,
+        num_events_per_set,
+        dtype=torch.int
+    )
+
+    index = 0
     for label in labels_to_sample:
         for _ in range(num_sets_per_label):
             source_features = features_tensor[labels_tensor==label]
@@ -34,11 +45,9 @@ def _bootstrap_labeled_sets(
             )
             bootstrapped_feature_set = source_features[selection_indices]
             bootstrapped_label_set = source_labels[selection_indices]
-            list_of_feature_sets.append(bootstrapped_feature_set.unsqueeze(0))
-            list_of_label_sets.append(bootstrapped_label_set.unsqueeze(0))
-
-    tensor_of_feature_sets = torch.concatenate(list_of_feature_sets)
-    tensor_of_label_sets = torch.concatenate(list_of_label_sets)
+            tensor_of_feature_sets[index] = bootstrapped_feature_set
+            tensor_of_label_sets[index] = bootstrapped_label_set
+            index += 1
 
     if reduce_labels:
         tensor_of_label_sets = (
