@@ -1,6 +1,7 @@
 
 from pathlib import Path
 
+from numpy import mean, std
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
@@ -67,3 +68,46 @@ def save_model_evaluation_plot(type, model_settings, dataset_settings, path_to_p
     path = Path(path_to_plots_dir).joinpath(file_name)
     plt.savefig(path, bbox_inches="tight")
 
+
+
+
+
+def stats_legend(
+    data_array,
+    extra_description=None,
+    show_mean=True,
+    show_count=True,
+    show_stdev=True,
+):
+    
+    """
+    Make a legend label similar to the roots stats box.
+
+    Return a string meant to be used as a label for a matplotlib plot.
+    Displayable stats are mean, count, and standard deviation.
+    """
+    
+    def calculate_stats(data):
+        mean_ = mean(data)
+        count = len(data)
+        stdev = std(data)
+        stats = {
+            "mean": mean_,
+            "count": count,
+            "stdev": stdev,
+        }
+        return stats
+    
+    stats = calculate_stats(data_array)
+
+    legend = ""
+    if extra_description is not None:
+        legend += r"\textbf{" + f"{extra_description}" + "}"
+    if show_count:
+        legend += f"\nCount: {stats['count']}"
+    if show_mean:
+        legend += f"\nMean: {stats['mean']:.2G}"
+    if show_stdev:
+        legend += f"\nStdev.: {stats['stdev']:.2G}"
+
+    return legend

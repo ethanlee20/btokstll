@@ -159,11 +159,11 @@ class Aggregated_Signal_Dataframe_Handler:
     def get_bin_map(self):
         return torch.load(self.path_to_bin_map_file, weights_only=True)
 
-    def make_and_save(self, path_to_raw_signal_dir, dtype="float64", verbose=True):
+    def make_and_save(self, path_to_raw_signal_dir, list_of_variable_names=Names_of_Variables().list_, dtype="float64", verbose=True):
         dataframe = aggregate_raw_signal_files(
             level=self.level,
             trial_range=self.trial_range,
-            list_of_variable_names=Names_of_Variables().list_,
+            list_of_variable_names=list_of_variable_names,
             path_to_raw_signal_dir=path_to_raw_signal_dir,
             dtype=dtype,
             verbose=verbose

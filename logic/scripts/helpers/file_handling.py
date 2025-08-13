@@ -34,7 +34,7 @@ def open_root_file_with_one_or_more_trees(path, verbose=True):
     file = uproot.open(path)
 
     tree_names = [
-        name.split(';')[0] for name in file.keys()
+        name.split(';')[0] for name in ("gen", "det")
     ]
     
     list_of_dataframes = [
