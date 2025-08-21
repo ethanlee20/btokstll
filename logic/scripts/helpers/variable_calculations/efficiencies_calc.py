@@ -29,6 +29,9 @@ def calculate_efficiency(generator_level_series, detector_level_series, num_bins
     generator_level_histogram, _ = histogram(generator_level_series, bins=bin_edges)
     detector_level_histogram, _ = histogram(detector_level_series, bins=bin_edges)
 
+    print("num events generator: ", generator_level_histogram.sum())
+    print("num events detector: ", detector_level_histogram.sum())
+
     efficiencies = detector_level_histogram / generator_level_histogram
     errors = sqrt(detector_level_histogram) / generator_level_histogram
 

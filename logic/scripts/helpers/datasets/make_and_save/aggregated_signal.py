@@ -72,8 +72,8 @@ def make_path_to_aggregated_raw_signal_file(path_to_main_datasets_dir, level, tr
 def aggregate_raw_signal_files(
     level, 
     trial_range, 
-    list_of_variable_names, 
     path_to_raw_signal_dir, 
+    subset_of_variable_names=None, 
     dtype="float64",
     verbose=True,
 ):
@@ -90,6 +90,10 @@ def aggregate_raw_signal_files(
         get_delta_C9_value_of_raw_signal_file(path, verbose=verbose) 
         for path in list_of_file_paths
     ]
+    list_of_variable_names = (
+        subset_of_variable_names if subset_of_variable_names is not None
+        else pandas.read_pickle(list_of_file_paths[0]).columns.to_list()
+    )
     list_of_dataframes = [
         pandas.read_pickle(path).loc[level][list_of_variable_names]
         for path in list_of_file_paths
@@ -159,11 +163,11 @@ class Aggregated_Signal_Dataframe_Handler:
     def get_bin_map(self):
         return torch.load(self.path_to_bin_map_file, weights_only=True)
 
-    def make_and_save(self, path_to_raw_signal_dir, list_of_variable_names=Names_of_Variables().list_, dtype="float64", verbose=True):
+    def make_and_save(self, path_to_raw_signal_dir, subset_of_variable_names=Names_of_Variables().list_, dtype="float64", verbose=True):
         dataframe = aggregate_raw_signal_files(
             level=self.level,
             trial_range=self.trial_range,
-            list_of_variable_names=list_of_variable_names,
+            subset_of_variable_names=subset_of_variable_names,
             path_to_raw_signal_dir=path_to_raw_signal_dir,
             dtype=dtype,
             verbose=verbose

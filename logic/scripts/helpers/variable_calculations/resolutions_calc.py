@@ -2,6 +2,7 @@
 from numpy import pi
 
 from ..datasets.constants import Names_of_Variables
+from ..datasets.make_and_save.preprocessing import apply_q_squared_veto
 
 
 def calculate_resolution(detector_level_dataframe, name_of_variable):
@@ -19,6 +20,8 @@ def calculate_resolution(detector_level_dataframe, name_of_variable):
         resolution = resolution.where(resolution < pi, resolution - 2 * pi)
         resolution = resolution.where(resolution > -pi, resolution + 2 * pi)
         return resolution
+    
+    detector_level_dataframe = apply_q_squared_veto(detector_level_dataframe, "loose")
     
     measured = detector_level_dataframe[name_of_variable]
     generated = detector_level_dataframe[name_of_variable+'_mc']

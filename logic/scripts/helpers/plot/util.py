@@ -70,6 +70,16 @@ def save_model_evaluation_plot(type, model_settings, dataset_settings, path_to_p
 
 
 
+def to_x10_notation(number):
+
+    if number == 0:
+        return 0
+    
+    string = f"{number : .1e}"
+    e_index = string.find('e')
+    string = r"$" + string[:e_index] + r"\times 10^{" + str(int(string[e_index+1:])) + r"}$"
+    return string
+
 
 
 def stats_legend(
@@ -104,10 +114,10 @@ def stats_legend(
     if extra_description is not None:
         legend += r"\textbf{" + f"{extra_description}" + "}"
     if show_count:
-        legend += f"\nCount: {stats['count']}"
+        legend += f"\nCount: {to_x10_notation(stats['count'])}"
     if show_mean:
-        legend += f"\nMean: {stats['mean']:.2G}"
+        legend += f"\nMean: {to_x10_notation(stats['mean'])}"
     if show_stdev:
-        legend += f"\nStdev.: {stats['stdev']:.2G}"
+        legend += f"\nStdev.: {to_x10_notation(stats['stdev'])}"
 
     return legend
