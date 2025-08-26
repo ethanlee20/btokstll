@@ -157,15 +157,15 @@ def apply_q_squared_veto(dataframe, q_squared_veto):
     
     def apply_j_psi_resonace_cut(dataframe):
         j_psi_resonance_cut = (
-            (dataframe[Names_of_Variables().q_squared] < 9.25)
-            | (dataframe[Names_of_Variables().q_squared] > 9.76)
+            (dataframe[Names_of_Variables().q_squared] < 9)
+            | (dataframe[Names_of_Variables().q_squared] > 10)
         )
         return dataframe[j_psi_resonance_cut]
     
     def apply_psi_2s_resonance_cut(dataframe):
         psi_2s_resonance_cut = (
-            (dataframe[Names_of_Variables().q_squared] < 13.5)
-            | (dataframe[Names_of_Variables().q_squared] > 13.7)
+            (dataframe[Names_of_Variables().q_squared] < 13)
+            | (dataframe[Names_of_Variables().q_squared] > 14)
         )
         return dataframe[psi_2s_resonance_cut]
     
